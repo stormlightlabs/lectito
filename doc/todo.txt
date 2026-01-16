@@ -57,7 +57,11 @@ Acceptance Criteria:
 MILESTONE VII: HTML to Markdown Conversion
 ================================================================================
 
-[ ] Implement core conversion rules:
+[X] Add htmd dependency to core
+[X] Create formatters module structure:
+    - formatters/mod.rs
+    - formatters/markdown.rs
+[X] Implement core conversion rules:
     - <h1>-<h6> → # - ######
     - <p> → Text with blank lines
     - <strong>, <b> → **text**
@@ -68,16 +72,17 @@ MILESTONE VII: HTML to Markdown Conversion
     - <blockquote> → > prefixed lines
     - <pre>, <code> → Fenced code blocks
     - <hr> → ---
-[ ] Implement GFM table conversion:
+[X] Implement GFM table conversion:
     - <table> → | header | row | format
-[ ] Generate TOML frontmatter:
+    - Column alignment via :--- :---: ---:
+[X] Generate TOML frontmatter:
     - title, author, date, site, url
     - excerpt, word_count, reading_time
-[ ] Implement reference table generation (--references flag):
+[X] Implement reference table generation (--references flag):
     - Collect all links
     - Output: | # | Text | URL | table
-[ ] Add -f/--format flag (markdown, html, text)
-[ ] Write conversion integration tests
+[X] Add -f/--format flag (markdown, html, text)
+[X] Write conversion integration tests
 
 Acceptance Criteria:
 - Clean, readable Markdown output

@@ -24,8 +24,8 @@ pub enum LectitoError {
     #[error("Invalid character encoding")]
     InvalidEncoding,
 
-    /// Content is not readableable (score below threshold)
-    #[error("Content is not readableable (score {score} below threshold {threshold})")]
+    /// Content is not readable (score below threshold)
+    #[error("Content is not readable (score {score} below threshold {threshold})")]
     NotReaderable { score: f64, threshold: f64 },
 
     /// No content could be extracted

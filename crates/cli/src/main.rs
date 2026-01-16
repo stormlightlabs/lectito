@@ -1,13 +1,38 @@
 use std::fs;
 use std::io::{self, Read};
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use anyhow::Context;
 use clap::Parser;
-use lectito_core::{Document, ExtractConfig, FetchConfig, PostProcessConfig, extract_content, fetch_url};
+use lectito_core::{
+    Document, ExtractConfig, FetchConfig, MarkdownConfig, PostProcessConfig, convert_to_markdown, extract_content,
+    fetch_url,
+};
 use owo_colors::OwoColorize;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Output format for extracted content
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OutputFormat {
+    Markdown,
+    Html,
+    Text,
+}
+
+impl FromStr for OutputFormat {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "markdown" | "md" => Ok(Self::Markdown),
+            "html" => Ok(Self::Html),
+            "text" | "txt" => Ok(Self::Text),
+            _ => Err(format!("Invalid format: {}. Valid options: markdown, html, text", s)),
+        }
+    }
+}
 
 /// Extract article content from web pages and convert to clean Markdown
 #[derive(Parser, Debug)]
@@ -23,6 +48,18 @@ struct Args {
     /// Output file (default: stdout)
     #[arg(short, long, value_name = "FILE")]
     output: Option<PathBuf>,
+
+    /// Output format (markdown, html, text)
+    #[arg(short, long, default_value = "markdown", value_name = "FORMAT")]
+    format: OutputFormat,
+
+    /// Include reference table with all links (Markdown only)
+    #[arg(long)]
+    references: bool,
+
+    /// Include TOML frontmatter (Markdown only)
+    #[arg(long)]
+    frontmatter: bool,
 
     /// HTTP timeout in seconds
     #[arg(long, default_value = "30", value_name = "SECS")]
@@ -196,19 +233,49 @@ async fn main() -> anyhow::Result<()> {
         eprintln!();
     }
 
-    let output_html = extracted.content;
+    let metadata = doc.extract_metadata();
+
+    let output = match args.format {
+        OutputFormat::Markdown => {
+            let config = MarkdownConfig {
+                include_frontmatter: args.frontmatter,
+                include_references: args.references,
+                strip_images: args.no_images,
+            };
+            convert_to_markdown(&extracted.content, &metadata, &config).context("Failed to convert to Markdown")?
+        }
+        OutputFormat::Html => extracted.content,
+        OutputFormat::Text => {
+            let doc = Document::parse(&extracted.content).context("Failed to parse extracted HTML")?;
+            doc.text_content()
+        }
+    };
 
     if args.verbose {
         print_step(4, 4, "Writing output");
+        if args.format == OutputFormat::Markdown {
+            if args.frontmatter {
+                eprintln!("  {} {}", "Frontmatter:".dimmed(), "Yes".bright_white());
+            }
+            if args.references {
+                eprintln!("  {} {}", "References:".dimmed(), "Yes".bright_white());
+            }
+        }
+        eprintln!(
+            "  {} {}",
+            "Format:".dimmed(),
+            format!("{:?}", args.format).bright_white()
+        );
+        eprintln!();
     }
 
     match args.output {
         Some(path) => {
-            fs::write(&path, output_html).with_context(|| format!("Failed to write to file: {}", path.display()))?;
+            fs::write(&path, output).with_context(|| format!("Failed to write to file: {}", path.display()))?;
             print_success(&format!("Output written to {}", path.display().bright_white()));
         }
         None => {
-            print!("{}", output_html);
+            print!("{}", output);
         }
     }
 

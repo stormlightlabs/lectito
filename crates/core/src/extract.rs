@@ -25,7 +25,7 @@ pub struct ExtractConfig {
 impl Default for ExtractConfig {
     fn default() -> Self {
         Self {
-            min_score_threshold: 20.0,
+            min_score_threshold: 10.0,
             max_top_candidates: 5,
             char_threshold: 500,
             max_elements: 1000,
@@ -297,7 +297,7 @@ mod tests {
     #[test]
     fn test_extract_config_default() {
         let config = ExtractConfig::default();
-        assert_eq!(config.min_score_threshold, 20.0);
+        assert_eq!(config.min_score_threshold, 10.0);
         assert_eq!(config.max_top_candidates, 5);
         assert_eq!(config.char_threshold, 500);
         assert_eq!(config.max_elements, 1000);
