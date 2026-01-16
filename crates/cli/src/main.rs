@@ -5,6 +5,7 @@ use std::str::FromStr;
 
 use anyhow::Context;
 use clap::Parser;
+use lectito_core::formatters::{JsonConfig, convert_to_json, metadata_to_json, metadata_to_toml};
 use lectito_core::{
     Document, ExtractConfig, FetchConfig, MarkdownConfig, PostProcessConfig, convert_to_markdown, extract_content,
     fetch_url,
@@ -19,6 +20,7 @@ enum OutputFormat {
     Markdown,
     Html,
     Text,
+    Json,
 }
 
 impl FromStr for OutputFormat {
@@ -29,7 +31,11 @@ impl FromStr for OutputFormat {
             "markdown" | "md" => Ok(Self::Markdown),
             "html" => Ok(Self::Html),
             "text" | "txt" => Ok(Self::Text),
-            _ => Err(format!("Invalid format: {}. Valid options: markdown, html, text", s)),
+            "json" => Ok(Self::Json),
+            _ => Err(format!(
+                "Invalid format: {}. Valid options: markdown, html, text, json",
+                s
+            )),
         }
     }
 }
@@ -49,17 +55,29 @@ struct Args {
     #[arg(short, long, value_name = "FILE")]
     output: Option<PathBuf>,
 
-    /// Output format (markdown, html, text)
+    /// Output format (markdown, html, text, json)
     #[arg(short, long, default_value = "markdown", value_name = "FORMAT")]
     format: OutputFormat,
 
-    /// Include reference table with all links (Markdown only)
+    /// Include reference table with all links (Markdown/JSON only)
     #[arg(long)]
     references: bool,
 
     /// Include TOML frontmatter (Markdown only)
     #[arg(long)]
     frontmatter: bool,
+
+    /// Output as JSON with metadata and content
+    #[arg(short = 'j', long)]
+    json: bool,
+
+    /// Output only metadata (TOML or JSON format)
+    #[arg(short = 'm', long)]
+    metadata_only: bool,
+
+    /// Metadata output format for --metadata-only (toml, json)
+    #[arg(long, default_value = "toml", value_name = "FORMAT")]
+    metadata_format: String,
 
     /// HTTP timeout in seconds
     #[arg(long, default_value = "30", value_name = "SECS")]
@@ -235,6 +253,36 @@ async fn main() -> anyhow::Result<()> {
 
     let metadata = doc.extract_metadata();
 
+    if args.metadata_only {
+        let output = if args.metadata_format.to_lowercase() == "json" {
+            metadata_to_json(&metadata, true).context("Failed to convert metadata to JSON")?
+        } else {
+            metadata_to_toml(&metadata).context("Failed to convert metadata to TOML")?
+        };
+
+        if args.verbose {
+            print_step(4, 4, "Writing output");
+            eprintln!(
+                "  {} {}",
+                "Format:".dimmed(),
+                args.metadata_format.to_uppercase().bright_white()
+            );
+            eprintln!("  {} {}", "Mode:".dimmed(), "Metadata Only".bright_white());
+            eprintln!();
+        }
+
+        match args.output {
+            Some(path) => {
+                fs::write(&path, output).with_context(|| format!("Failed to write to file: {}", path.display()))?;
+                print_success(&format!("Output written to {}", path.display().bright_white()));
+            }
+            None => {
+                print!("{}", output);
+            }
+        }
+        return Ok(());
+    }
+
     let output = match args.format {
         OutputFormat::Markdown => {
             let config = MarkdownConfig {
@@ -244,16 +292,45 @@ async fn main() -> anyhow::Result<()> {
             };
             convert_to_markdown(&extracted.content, &metadata, &config).context("Failed to convert to Markdown")?
         }
-        OutputFormat::Html => extracted.content,
+        OutputFormat::Html => extracted.content.clone(),
         OutputFormat::Text => {
             let doc = Document::parse(&extracted.content).context("Failed to parse extracted HTML")?;
             doc.text_content()
         }
+        OutputFormat::Json => {
+            let config = JsonConfig {
+                include_markdown: true,
+                include_text: true,
+                include_html: true,
+                include_references: args.references,
+                pretty: true,
+            };
+            convert_to_json(&extracted.content, &metadata, &config, None).context("Failed to convert to JSON")?
+        }
+    };
+
+    let output = if args.json {
+        let config = JsonConfig {
+            include_markdown: true,
+            include_text: true,
+            include_html: true,
+            include_references: args.references,
+            pretty: true,
+        };
+        convert_to_json(&extracted.content, &metadata, &config, None).context("Failed to convert to JSON")?
+    } else {
+        output
     };
 
     if args.verbose {
         print_step(4, 4, "Writing output");
-        if args.format == OutputFormat::Markdown {
+        let format_display = if args.json { "JSON".to_string() } else { format!("{:?}", args.format) };
+
+        if args.json || args.format == OutputFormat::Json {
+            if args.references {
+                eprintln!("  {} {}", "References:".dimmed(), "Yes".bright_white());
+            }
+        } else if args.format == OutputFormat::Markdown {
             if args.frontmatter {
                 eprintln!("  {} {}", "Frontmatter:".dimmed(), "Yes".bright_white());
             }
@@ -261,11 +338,7 @@ async fn main() -> anyhow::Result<()> {
                 eprintln!("  {} {}", "References:".dimmed(), "Yes".bright_white());
             }
         }
-        eprintln!(
-            "  {} {}",
-            "Format:".dimmed(),
-            format!("{:?}", args.format).bright_white()
-        );
+        eprintln!("  {} {}", "Format:".dimmed(), format_display.bright_white());
         eprintln!();
     }
 

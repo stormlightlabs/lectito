@@ -94,13 +94,13 @@ Acceptance Criteria:
 MILESTONE VIII: JSON/Structured Output
 ================================================================================
 
-[ ] Implement -j/--json output mode:
+[X] Implement -j/--json output mode:
     - metadata object (title, author, date, etc.)
     - content object (markdown, text, html)
     - references array
-[ ] Implement -m/--metadata-only flag (TOML/JSON)
-[ ] Add language detection to metadata
-[ ] Write output format tests
+[X] Implement -m/--metadata-only flag (TOML/JSON)
+[X] Add language detection to metadata
+[X] Write output format tests
 
 Acceptance Criteria:
 - JSON output includes all metadata and content

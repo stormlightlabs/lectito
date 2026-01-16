@@ -135,7 +135,7 @@ fn strip_images(html: &str) -> Result<String> {
 }
 
 /// Extract all links from HTML content
-fn extract_links(html: &str) -> Result<Vec<LinkReference>> {
+pub fn extract_links(html: &str) -> Result<Vec<LinkReference>> {
     let document = Html::parse_document(html);
     let selector = Selector::parse("a[href]").unwrap();
     let mut links = Vec::new();
@@ -258,6 +258,7 @@ mod tests {
             excerpt: Some("Test excerpt".to_string()),
             word_count: Some(500),
             reading_time_minutes: Some(2.5),
+            language: None,
         };
 
         let frontmatter = generate_frontmatter(&metadata).unwrap();

@@ -1,8 +1,9 @@
 use crate::Document;
 use regex::Regex;
+use serde::Serialize;
 
 /// Represents all extracted metadata from a document
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct Metadata {
     pub title: Option<String>,
     pub author: Option<String>,
@@ -11,6 +12,8 @@ pub struct Metadata {
     pub site_name: Option<String>,
     pub word_count: Option<usize>,
     pub reading_time_minutes: Option<f64>,
+    /// Detected language code (e.g., "en", "es", "fr")
+    pub language: Option<String>,
 }
 
 impl Document {
@@ -239,6 +242,96 @@ impl Document {
         word_count as f64 / 200.0
     }
 
+    /// Extract language with priority fallback:
+    /// 1. HTML `lang` attribute on `<html>` element
+    /// 2. Meta `http-equiv="Content-Language"` content
+    /// 3. Meta `og:locale` property
+    /// 4. JSON-LD `inLanguage` property
+    pub fn extract_language(&self) -> Option<String> {
+        let root_el = self.html().root_element();
+        if let Some(lang) = root_el.value().attr("lang") {
+            let lang_code = lang.split('-').next().unwrap_or(lang);
+            if !lang_code.is_empty() {
+                return Some(lang_code.to_lowercase());
+            }
+        }
+
+        if let Ok(elements) = self.select("meta[http-equiv=\"Content-Language\"]")
+            && let Some(el) = elements.first()
+            && let Some(lang) = el.attr("content")
+        {
+            let lang_code = lang.split('-').next().unwrap_or(lang);
+            if !lang_code.is_empty() {
+                return Some(lang_code.to_lowercase());
+            }
+        }
+
+        if let Some(locale) = self.get_meta_content("og:locale") {
+            let lang_code = locale.split('_').next().unwrap_or(&locale);
+            if !lang_code.is_empty() {
+                return Some(lang_code.to_lowercase());
+            }
+        }
+
+        if let Some(json_ld) = self.extract_json_ld()
+            && let Some(lang) = json_ld.get("inLanguage")
+            && let Some(lang_str) = lang.as_str()
+        {
+            let lang_code = lang_str.split('-').next().unwrap_or(lang_str);
+            if !lang_code.is_empty() {
+                return Some(lang_code.to_lowercase());
+            }
+        }
+
+        None
+    }
+
+    /// Detect language from text content using common word patterns
+    ///
+    /// This is a basic heuristic that looks for common words in major languages.
+    /// Returns a 2-letter ISO 639-1 code if detected.
+    fn detect_language_from_content(&self) -> Option<String> {
+        let text = self.text_content();
+        let text_lower = text.to_lowercase();
+
+        let common_words = [
+            ("en", &["the", "be", "to", "of", "and", "a", "in", "that", "have", "i"]),
+            ("es", &["el", "la", "de", "que", "y", "a", "en", "un", "ser", "se"]),
+            ("fr", &["le", "de", "un", "etre", "et", "a", "il", "avoir", "ne", "je"]),
+            (
+                "de",
+                &["der", "die", "und", "in", "den", "von", "das", "mit", "sich", "des"],
+            ),
+            ("it", &["il", "di", "che", "e", "la", "un", "a", "per", "non", "in"]),
+            ("pt", &["o", "de", "a", "e", "do", "da", "em", "um", "para", "e"]),
+            ("ru", &["и", "в", "не", "на", "я", "быть", "он", "с", "что", "а"]),
+            ("ja", &["の", "に", "は", "を", "た", "が", "で", "て", "だ", "する"]),
+            ("zh", &["的", "是", "在", "了", "和", "有", "大", "这", "主", "为"]),
+        ];
+
+        let mut scores: Vec<(i32, &str)> = Vec::new();
+
+        for (lang, words) in &common_words {
+            let mut score = 0;
+            for word in *words {
+                if text_lower.contains(word) {
+                    score += 1;
+                }
+            }
+            if score > 0 {
+                scores.push((score, lang));
+            }
+        }
+
+        scores.sort_by(|a, b| b.0.cmp(&a.0));
+
+        scores
+            .into_iter()
+            .filter(|(score, _)| *score >= 3)
+            .map(|(_, lang)| lang.to_string())
+            .next()
+    }
+
     /// Extract all metadata at once
     pub fn extract_metadata(&self) -> Metadata {
         Metadata {
@@ -249,6 +342,7 @@ impl Document {
             site_name: self.extract_site_name(),
             word_count: Some(self.calculate_word_count()),
             reading_time_minutes: Some(self.calculate_reading_time()),
+            language: self.extract_language().or_else(|| self.detect_language_from_content()),
         }
     }
 
@@ -548,5 +642,134 @@ mod tests {
         let doc = Document::parse(html).unwrap();
         let author = doc.extract_author();
         assert_eq!(author, Some("First Author".to_string()));
+    }
+
+    #[test]
+    fn test_extract_language_from_html_lang() {
+        let html = r#"
+            <!DOCTYPE html>
+            <html lang="en">
+            <head><title>Test</title></head>
+            <body><p>Content</p></body>
+            </html>
+        "#;
+        let doc = Document::parse(html).unwrap();
+        assert_eq!(doc.extract_language(), Some("en".to_string()));
+    }
+
+    #[test]
+    fn test_extract_language_from_content_language_meta() {
+        let html = r#"
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta http-equiv="Content-Language" content="es">
+            </head>
+            <body><p>Contenido</p></body>
+            </html>
+        "#;
+        let doc = Document::parse(html).unwrap();
+        assert_eq!(doc.extract_language(), Some("es".to_string()));
+    }
+
+    #[test]
+    fn test_extract_language_from_og_locale() {
+        let html = r#"
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta property="og:locale" content="fr_FR">
+            </head>
+            <body><p>Contenu</p></body>
+            </html>
+        "#;
+        let doc = Document::parse(html).unwrap();
+        assert_eq!(doc.extract_language(), Some("fr".to_string()));
+    }
+
+    #[test]
+    fn test_extract_language_from_json_ld() {
+        let html = r#"
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <script type="application/ld+json">
+                {
+                    "@context": "https://schema.org",
+                    "@type": "Article",
+                    "inLanguage": "de-DE"
+                }
+                </script>
+            </head>
+            <body><p>Inhalt</p></body>
+            </html>
+        "#;
+        let doc = Document::parse(html).unwrap();
+        assert_eq!(doc.extract_language(), Some("de".to_string()));
+    }
+
+    #[test]
+    fn test_detect_language_from_english_content() {
+        let html = r#"
+            <!DOCTYPE html>
+            <html>
+            <body>
+                <p>The quick brown fox jumps over the lazy dog. This is a test of the language detection system.</p>
+                <p>We have to be sure that this works properly and that it can detect the language.</p>
+            </body>
+            </html>
+        "#;
+        let doc = Document::parse(html).unwrap();
+        assert_eq!(doc.detect_language_from_content(), Some("en".to_string()));
+    }
+
+    #[test]
+    fn test_extract_metadata_includes_language() {
+        let html = r#"
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta name="author" content="Test Author">
+                <meta name="description" content="Test description">
+            </head>
+            <body>
+                <h1>Test Title</h1>
+                <p>The article content goes here and should be detected as English content.</p>
+            </body>
+            </html>
+        "#;
+        let doc = Document::parse(html).unwrap();
+        let metadata = doc.extract_metadata();
+        assert_eq!(metadata.language, Some("en".to_string()));
+    }
+
+    #[test]
+    fn test_language_normalization() {
+        let html = r#"
+            <!DOCTYPE html>
+            <html lang="en-US">
+            <body><p>Content</p></body>
+            </html>
+        "#;
+        let doc = Document::parse(html).unwrap();
+        assert_eq!(doc.extract_language(), Some("en".to_string()));
+    }
+
+    #[test]
+    fn test_extract_metadata_serialization() {
+        let metadata = Metadata {
+            title: Some("Test Title".to_string()),
+            author: Some("Test Author".to_string()),
+            date: Some("2024-01-15".to_string()),
+            excerpt: Some("Test excerpt".to_string()),
+            site_name: Some("Test Site".to_string()),
+            word_count: Some(500),
+            reading_time_minutes: Some(2.5),
+            language: Some("en".to_string()),
+        };
+
+        let json = serde_json::to_string(&metadata).unwrap();
+        assert!(json.contains(r#""title":"Test Title""#));
+        assert!(json.contains(r#""language":"en""#));
     }
 }
