@@ -1,4 +1,5 @@
 use crate::parse::{Document, Element};
+use crate::postprocess::{PostProcessConfig, postprocess_html};
 use crate::scoring::{ScoreConfig, ScoreResult, calculate_score};
 use crate::{LectitoError, Result};
 
@@ -17,6 +18,8 @@ pub struct ExtractConfig {
     pub max_elements: usize,
     /// Sibling score threshold (multiplier of top score)
     pub sibling_threshold: f64,
+    /// Post-processing configuration
+    pub postprocess: PostProcessConfig,
 }
 
 impl Default for ExtractConfig {
@@ -27,6 +30,7 @@ impl Default for ExtractConfig {
             char_threshold: 500,
             max_elements: 1000,
             sibling_threshold: 0.2,
+            postprocess: PostProcessConfig::default(),
         }
     }
 }
@@ -254,7 +258,8 @@ fn select_siblings<'a>(
 /// 2. Propagates scores to ancestors
 /// 3. Selects the top candidate
 /// 4. Includes relevant siblings
-/// 5. Returns the extracted content
+/// 5. Post-processes the extracted content
+/// 6. Returns the cleaned content
 pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<ExtractedContent> {
     let score_config = ScoreConfig::default();
 
@@ -277,6 +282,8 @@ pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<Extract
         content.push('\n');
         content.push_str(&sibling.outer_html());
     }
+
+    let content = postprocess_html(&content, &config.postprocess);
 
     let element_count = 1 + siblings.len();
 

@@ -39,14 +39,14 @@ See |CHANGELOG.md|
 MILESTONE VI: Post-Processing & Cleanup
 ================================================================================
 
-[ ] Remove empty nodes
-[ ] Remove remaining high link-density nodes
-[ ] Clean up nested DIVs with single children
-[ ] Remove conditional comments
-[ ] Fix any remaining relative URLs
-[ ] Remove elements matching strip patterns
-[ ] Add --no-images flag to strip images
-[ ] Write cleanup unit tests
+[X] Remove empty nodes
+[X] Remove remaining high link-density nodes
+[X] Clean up nested DIVs with single children
+[X] Remove conditional comments
+[X] Fix any remaining relative URLs
+[X] Remove elements matching strip patterns
+[X] Add --no-images flag to strip images
+[X] Write cleanup unit tests
 
 Acceptance Criteria:
 - Output HTML is clean and minimal
@@ -70,7 +70,7 @@ MILESTONE VII: HTML to Markdown Conversion
     - <hr> → ---
 [ ] Implement GFM table conversion:
     - <table> → | header | row | format
-[ ] Generate YAML frontmatter:
+[ ] Generate TOML frontmatter:
     - title, author, date, site, url
     - excerpt, word_count, reading_time
 [ ] Implement reference table generation (--references flag):
@@ -81,7 +81,7 @@ MILESTONE VII: HTML to Markdown Conversion
 
 Acceptance Criteria:
 - Clean, readable Markdown output
-- Proper YAML frontmatter
+- Proper TOML frontmatter
 - Optional reference table with all links
 - Supports HTML and plain text output modes
 
@@ -93,14 +93,14 @@ MILESTONE VIII: JSON/Structured Output
     - metadata object (title, author, date, etc.)
     - content object (markdown, text, html)
     - references array
-[ ] Implement -m/--metadata-only flag (YAML/JSON)
+[ ] Implement -m/--metadata-only flag (TOML/JSON)
 [ ] Add language detection to metadata
 [ ] Write output format tests
 
 Acceptance Criteria:
 - JSON output includes all metadata and content
 - Metadata-only mode works correctly
-- Output is valid, parseable JSON/YAML
+- Output is valid, parseable JSON/TOML
 
 ================================================================================
 MILESTONE IX: Site Configuration System
@@ -155,6 +155,107 @@ Acceptance Criteria:
 - Performance targets met
 - Documentation complete
 - Ready for public use
+
+================================================================================
+MILESTONE XI: Library API Refactor
+================================================================================
+
+[ ] Create unified Article struct:
+    - Combine ExtractedContent + Metadata
+    - Add text_content (plain text version)
+    - Add length, word_count, reading_time fields
+    - Add source_url field
+[ ] Implement Readability builder:
+    - new() with sensible defaults
+    - with_config(ReadabilityConfig) constructor
+    - parse(&str) -> Result<Article>
+    - parse_with_url(&str, &str) -> Result<Article>
+[ ] Implement ReadabilityConfig:
+    - min_score, char_threshold, nb_top_candidates
+    - max_elems_to_parse, keep_classes, preserve_images
+    - Builder pattern with ReadabilityConfigBuilder
+[ ] Add convenience functions:
+    - pub fn parse(html: &str) -> Result<Article>
+    - pub fn parse_with_url(html: &str, url: &str) -> Result<Article>
+    - pub fn is_probably_readable(html: &str) -> bool
+[ ] Add async fetch integration:
+    - pub async fn fetch_and_parse(url: &str) -> Result<Article>
+    - pub async fn fetch_and_parse_with_config(...) -> Result<Article>
+[ ] Preserve backwards compatibility:
+    - Keep existing extract_content, Document, preprocess_html exports
+    - Add #[doc(hidden)] to internal-only functions
+[ ] Write library API unit tests
+
+Acceptance Criteria:
+- Single entry point for common use cases
+- Builder pattern for advanced configuration
+- Async and sync APIs available
+- Existing CLI continues to work
+
+================================================================================
+MILESTONE XII: Output Formatters
+================================================================================
+
+[ ] Create formatters module structure:
+    - formatters/mod.rs
+    - formatters/markdown.rs
+    - formatters/json.rs
+    - formatters/text.rs
+[ ] Implement Markdown formatter:
+    - HTML to Markdown conversion rules
+    - TOML frontmatter generation (title, author, date, etc.)
+    - GFM table support
+    - Reference link table (--references flag)
+[ ] Implement JSON formatter:
+    - Structured output with metadata + content
+    - serde_json serialization
+[ ] Implement plain text formatter:
+    - Strip all HTML, preserve structure
+[ ] Add Article output methods:
+    - to_format(OutputFormat) -> String
+    - to_markdown() -> String
+    - to_json() -> serde_json::Value
+    - to_text() -> String
+[ ] Add feature flags:
+    - markdown = [] (HTML → Markdown)
+    - json = ["serde_json"]
+    - full = ["fetch", "markdown", "json"]
+[ ] Write formatter unit tests
+
+Acceptance Criteria:
+- Clean Markdown output with frontmatter
+- Valid JSON output with all metadata
+- Feature flags control binary size
+- All formatters tested
+
+================================================================================
+MILESTONE XIII: Crate Publishing & Docs
+================================================================================
+
+[ ] Finalize public API surface:
+    - Review all pub exports
+    - Add #[doc(hidden)] to internals
+    - Ensure stable API for v1.0
+[ ] Write comprehensive rustdoc:
+    - Module-level documentation
+    - Function examples in doc comments
+    - Error handling examples
+[ ] Add README.md for crates.io:
+    - Quick start examples
+    - Feature flag documentation
+    - Comparison with alternatives
+[ ] Prepare Cargo.toml for publishing:
+    - Verify metadata (license, repository, keywords)
+    - Set version to 1.0.0
+    - Add categories for crates.io
+[ ] Publish lectito to crates.io
+[ ] Create GitHub release with changelog
+
+Acceptance Criteria:
+- All public items have rustdoc
+- README has working examples
+- Published to crates.io
+- Documentation builds without warnings
 
 ================================================================================
 PARKING LOT

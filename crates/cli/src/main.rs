@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Parser;
-use lectito_core::{Document, ExtractConfig, FetchConfig, extract_content, fetch_url};
+use lectito_core::{Document, ExtractConfig, FetchConfig, PostProcessConfig, extract_content, fetch_url};
 use owo_colors::OwoColorize;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -39,6 +39,10 @@ struct Args {
     /// Maximum number of top candidates to track
     #[arg(long, default_value = "5", value_name = "NUM")]
     max_elements: usize,
+
+    /// Strip images from output
+    #[arg(long)]
+    no_images: bool,
 
     /// Enable debug logging
     #[arg(short, long)]
@@ -172,6 +176,7 @@ async fn main() -> anyhow::Result<()> {
     let extract_config = ExtractConfig {
         char_threshold: args.char_threshold,
         max_top_candidates: args.max_elements,
+        postprocess: PostProcessConfig { strip_images: args.no_images, ..Default::default() },
         ..Default::default()
     };
 
