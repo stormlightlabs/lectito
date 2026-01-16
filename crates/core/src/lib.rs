@@ -1,3 +1,4 @@
+pub mod dom_tree;
 pub mod error;
 pub mod extract;
 pub mod fetch;
@@ -6,6 +7,7 @@ pub mod parse;
 pub mod preprocess;
 pub mod scoring;
 
+pub use dom_tree::{DomNode, DomTree, build_dom_tree};
 pub use error::{LectitoError, Result};
 pub use extract::{ExtractConfig, ExtractedContent, extract_content};
 pub use fetch::{FetchConfig, fetch_file, fetch_stdin, fetch_url};

@@ -1,0 +1,167 @@
+LECTITO CLI ROADMAP                                                   *todo.txt*
+================================================================================
+
+A POSIX-compliant Rust CLI that extracts articles from web pages and converts
+them to properly formatted Markdown, implementing an algorithm inspired by
+Mozilla's Readability.js.
+
+================================================================================
+MILESTONE I: Project Foundation & Core Infrastructure
+================================================================================
+
+See |CHANGELOG.md|
+
+================================================================================
+MILESTONE II: DOM Preprocessing & Cleanup
+================================================================================
+
+See |CHANGELOG.md|
+
+================================================================================
+MILESTONE III: Metadata Extraction
+================================================================================
+
+See |CHANGELOG.md|
+
+================================================================================
+MILESTONE IV: Content Scoring Algorithm
+================================================================================
+
+See |CHANGELOG.md|
+
+================================================================================
+MILESTONE V: Candidate Selection & Sibling Inclusion
+================================================================================
+
+See |CHANGELOG.md|
+
+================================================================================
+MILESTONE VI: Post-Processing & Cleanup
+================================================================================
+
+[ ] Remove empty nodes
+[ ] Remove remaining high link-density nodes
+[ ] Clean up nested DIVs with single children
+[ ] Remove conditional comments
+[ ] Fix any remaining relative URLs
+[ ] Remove elements matching strip patterns
+[ ] Add --no-images flag to strip images
+[ ] Write cleanup unit tests
+
+Acceptance Criteria:
+- Output HTML is clean and minimal
+- No empty or redundant nodes
+- Images can be optionally stripped
+
+================================================================================
+MILESTONE VII: HTML to Markdown Conversion
+================================================================================
+
+[ ] Implement core conversion rules:
+    - <h1>-<h6> → # - ######
+    - <p> → Text with blank lines
+    - <strong>, <b> → **text**
+    - <em>, <i> → *text*
+    - <a href=""> → [text](url)
+    - <img src=""> → ![alt](src)
+    - <ul>, <ol> → - or 1. prefixed lines
+    - <blockquote> → > prefixed lines
+    - <pre>, <code> → Fenced code blocks
+    - <hr> → ---
+[ ] Implement GFM table conversion:
+    - <table> → | header | row | format
+[ ] Generate YAML frontmatter:
+    - title, author, date, site, url
+    - excerpt, word_count, reading_time
+[ ] Implement reference table generation (--references flag):
+    - Collect all links
+    - Output: | # | Text | URL | table
+[ ] Add -f/--format flag (markdown, html, text)
+[ ] Write conversion integration tests
+
+Acceptance Criteria:
+- Clean, readable Markdown output
+- Proper YAML frontmatter
+- Optional reference table with all links
+- Supports HTML and plain text output modes
+
+================================================================================
+MILESTONE VIII: JSON/Structured Output
+================================================================================
+
+[ ] Implement -j/--json output mode:
+    - metadata object (title, author, date, etc.)
+    - content object (markdown, text, html)
+    - references array
+[ ] Implement -m/--metadata-only flag (YAML/JSON)
+[ ] Add language detection to metadata
+[ ] Write output format tests
+
+Acceptance Criteria:
+- JSON output includes all metadata and content
+- Metadata-only mode works correctly
+- Output is valid, parseable JSON/YAML
+
+================================================================================
+MILESTONE IX: Site Configuration System
+================================================================================
+
+[ ] Add sxd-xpath dependency for XPath evaluation
+[ ] Implement config file loader:
+    - Search ~/.config/lectito/sites/
+    - Load domain-specific .toml files
+    - Load global.toml fallback
+[ ] Implement TOML config format:
+    - [site] - domain, test_url
+    - [extract] - XPath rules for title, body, author, date
+    - [strip] - XPath patterns, class/id patterns, image patterns
+    - [options] - tidy, autodetect_on_failure, prune
+    - [http] - user_agent, headers
+[ ] Implement XPath expression evaluation
+[ ] Implement [strip] processing before extraction
+[ ] Implement [[replace]] text substitution
+[ ] Add -c/--config CLI option
+[ ] Implement autodetect_on_failure fallback
+[ ] Write site config integration tests
+[ ] Create example configs for major sites:
+    - nytimes.com.toml
+    - medium.com.toml
+    - github.com.toml
+
+Acceptance Criteria:
+- Site-specific extraction rules work correctly
+- Falls back to heuristics when XPath fails
+- Strip patterns remove unwanted elements
+- Custom HTTP headers/user-agent supported
+
+================================================================================
+MILESTONE X: Testing, Polish & Release
+================================================================================
+
+[ ] Create test fixture suite:
+    - Sample pages from major sites (HTML + expected output)
+    - Edge cases (paywalls, empty content, weird markup)
+[ ] Write integration test suite
+[ ] Performance testing:
+    - Target: <100ms parse+extract (average page)
+    - Target: <50MB memory (10MB HTML input)
+[ ] Add --verbose debug logging
+[ ] Write user documentation (README, man page)
+[ ] Add shell completion generation (clap_complete)
+[ ] Release v1.0.0
+
+Acceptance Criteria:
+- All tests pass
+- Performance targets met
+- Documentation complete
+- Ready for public use
+
+================================================================================
+PARKING LOT
+================================================================================
+
+[ ] Multi-page article stitching (pagination support)
+[ ] Image downloading/embedding
+[ ] RSS/Atom feed parsing
+[ ] Caching layer for repeated extractions
+[ ] Parallel/batch URL processing

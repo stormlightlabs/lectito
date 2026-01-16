@@ -2,7 +2,7 @@ use crate::parse::{Document, Element};
 use crate::scoring::{ScoreConfig, ScoreResult, calculate_score};
 use crate::{LectitoError, Result};
 
-use std::collections::HashMap;
+use std::collections::HashSet;
 
 /// Configuration for content extraction
 #[derive(Debug, Clone)]
@@ -91,48 +91,91 @@ fn identify_candidates<'a>(
 
 /// Propagate scores from candidates to their ancestors
 ///
+/// This implements proper score propagation by traversing up the DOM tree:
+/// - Parent elements get candidate_score / 2
+/// - Grandparent elements get candidate_score / 3
+///
 /// This helps ensure that parent containers that contain high-scoring
 /// content are also considered as candidates.
 fn propagate_scores<'a>(candidates: &mut Vec<Candidate<'a>>, doc: &'a Document) {
-    let mut element_scores: HashMap<String, (f64, usize)> = HashMap::new();
-
-    for (idx, candidate) in candidates.iter().enumerate() {
-        let html = candidate.element.outer_html();
-        let key = if html.len() > 200 {
-            format!("{}-{}", candidate.element.tag_name(), &html[..200])
-        } else {
-            format!("{}-{}", candidate.element.tag_name(), html)
-        };
-
-        element_scores
-            .entry(key)
-            .and_modify(|(score, _)| *score = (*score).max(candidate.score()))
-            .or_insert((candidate.score(), idx));
-    }
-
-    // TODO: use lol_html to traverse the DOM tree
+    let score_config = ScoreConfig::default();
+    let mut processed_elements: HashSet<String> = HashSet::new();
     let mut additional_candidates = Vec::new();
 
-    for tag in &["article", "section", "main", "div"] {
-        if let Ok(elements) = doc.select(tag) {
-            for element in elements {
-                let inner_html = element.inner_html();
+    let html = doc.as_string();
+    let dom_tree = match crate::build_dom_tree(&html) {
+        Ok(tree) => tree,
+        Err(_) => return,
+    };
 
-                let contains_candidates = candidates.iter().any(|c| {
-                    inner_html.contains(&c.element.outer_html()) || c.element.outer_html().contains(&inner_html)
-                });
+    for candidate in candidates.iter() {
+        let cand_html = candidate.element.outer_html();
+        let key = if cand_html.len() > 200 {
+            format!("{}-{}", candidate.element.tag_name(), &cand_html[..200])
+        } else {
+            format!("{}-{}", candidate.element.tag_name(), cand_html)
+        };
+        processed_elements.insert(key);
+    }
 
-                if contains_candidates {
-                    let score_config = ScoreConfig::default();
-                    let score_result = calculate_score(&element, &score_config);
+    for candidate in candidates.iter() {
+        let candidate_score = candidate.score();
+        let candidate_html = candidate.element.outer_html();
+        let candidate_tag = candidate.element.tag_name();
 
-                    let max_child_score = candidates.iter().map(|c| c.score()).fold(0.0, f64::max);
+        if let Some(parent_node) = dom_tree.get_parent_by_html(&candidate_html, &candidate_tag) {
+            let parent_html = &parent_node.html;
+            let parent_tag = &parent_node.tag_name;
+            let parent_key = if parent_html.len() > 200 {
+                format!("{}-{}", parent_tag, &parent_html[..200])
+            } else {
+                format!("{}-{}", parent_tag, parent_html)
+            };
 
-                    if max_child_score > 0.0 {
-                        let mut boosted_result = score_result.clone();
-                        boosted_result.final_score = score_result.final_score + max_child_score / 2.0;
+            if !processed_elements.contains(&parent_key)
+                && let Ok(parent_elements) = doc.select(parent_tag)
+            {
+                for parent_elem in parent_elements {
+                    if parent_elem.outer_html() == *parent_html {
+                        let parent_score_result = calculate_score(&parent_elem, &score_config);
+                        let boosted_score = parent_score_result.final_score + candidate_score / 2.0;
 
-                        additional_candidates.push(Candidate::new(element, boosted_result));
+                        let mut boosted_result = parent_score_result.clone();
+                        boosted_result.final_score = boosted_score;
+
+                        additional_candidates.push(Candidate::new(parent_elem, boosted_result));
+                        processed_elements.insert(parent_key);
+                        break;
+                    }
+                }
+            }
+
+            if let Some(parent_id) = parent_node.parent_id
+                && let Some(grandparent_node) = dom_tree.get_parent(parent_id)
+            {
+                let grandparent_html = &grandparent_node.html;
+                let grandparent_tag = &grandparent_node.tag_name;
+                let grandparent_key = if grandparent_html.len() > 200 {
+                    format!("{}-{}", grandparent_tag, &grandparent_html[..200])
+                } else {
+                    format!("{}-{}", grandparent_tag, grandparent_html)
+                };
+
+                if !processed_elements.contains(&grandparent_key)
+                    && let Ok(grandparent_elements) = doc.select(grandparent_tag)
+                {
+                    for grandparent_elem in grandparent_elements {
+                        if grandparent_elem.outer_html() == *grandparent_html {
+                            let grandparent_score_result = calculate_score(&grandparent_elem, &score_config);
+                            let boosted_score = grandparent_score_result.final_score + candidate_score / 3.0;
+
+                            let mut boosted_result = grandparent_score_result.clone();
+                            boosted_result.final_score = boosted_score;
+
+                            additional_candidates.push(Candidate::new(grandparent_elem, boosted_result));
+                            processed_elements.insert(grandparent_key);
+                            break;
+                        }
                     }
                 }
             }
