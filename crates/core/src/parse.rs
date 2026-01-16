@@ -1,7 +1,7 @@
 use scraper::{Html, Selector};
 use url::Url;
 
-use crate::{LectitoError, Result, PreprocessConfig, preprocess};
+use crate::{LectitoError, PreprocessConfig, Result, preprocess};
 
 /// Represents a parsed HTML document
 pub struct Document {
@@ -18,10 +18,7 @@ impl Document {
 
     /// Parse HTML from a string with preprocessing
     pub fn parse_with_preprocessing(html: &str, base_url: Option<Url>) -> Result<Self> {
-        let config = PreprocessConfig {
-            base_url: base_url.clone(),
-            ..Default::default()
-        };
+        let config = PreprocessConfig { base_url: base_url.clone(), ..Default::default() };
 
         let cleaned = preprocess::preprocess_html(html, &config);
         let html = Html::parse_document(&cleaned);
