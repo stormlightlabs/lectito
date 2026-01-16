@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Parser;
-use lectito_core::{Document, FetchConfig, fetch_url};
+use lectito_core::{Document, ExtractConfig, FetchConfig, extract_content, fetch_url};
 use owo_colors::OwoColorize;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -31,6 +31,14 @@ struct Args {
     /// Custom User-Agent for HTTP requests
     #[arg(long, value_name = "UA")]
     user_agent: Option<String>,
+
+    /// Minimum character threshold for content candidates
+    #[arg(long, default_value = "500", value_name = "NUM")]
+    char_threshold: usize,
+
+    /// Maximum number of top candidates to track
+    #[arg(long, default_value = "5", value_name = "NUM")]
+    max_elements: usize,
 
     /// Enable debug logging
     #[arg(short, long)]
@@ -102,7 +110,7 @@ async fn main() -> anyhow::Result<()> {
 
     let (html, size) = if args.input == "-" {
         if args.verbose {
-            print_step(1, 3, "Reading from stdin");
+            print_step(1, 4, "Reading from stdin");
         }
         let mut buffer = String::new();
         io::stdin()
@@ -114,7 +122,7 @@ async fn main() -> anyhow::Result<()> {
         if args.verbose {
             print_step(
                 1,
-                3,
+                4,
                 &format!("Fetching from {}", args.input.bright_white().underline()),
             );
         }
@@ -131,7 +139,7 @@ async fn main() -> anyhow::Result<()> {
         (content, len)
     } else {
         if args.verbose {
-            print_step(1, 3, &format!("Reading from file {}", args.input.bright_white()));
+            print_step(1, 4, &format!("Reading from file {}", args.input.bright_white()));
         }
         let content =
             fs::read_to_string(&args.input).with_context(|| format!("Failed to read file: {}", args.input))?;
@@ -145,7 +153,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     if args.verbose {
-        print_step(2, 3, "Parsing HTML document");
+        print_step(2, 4, "Parsing HTML document");
     }
 
     let doc = Document::parse(&html).context("Failed to parse HTML")?;
@@ -157,10 +165,36 @@ async fn main() -> anyhow::Result<()> {
         eprintln!();
     }
 
-    let output_html = doc.as_string();
+    if args.verbose {
+        print_step(3, 4, "Extracting main content");
+    }
+
+    let extract_config = ExtractConfig {
+        char_threshold: args.char_threshold,
+        max_top_candidates: args.max_elements,
+        ..Default::default()
+    };
+
+    let extracted = extract_content(&doc, &extract_config).context("Failed to extract content")?;
 
     if args.verbose {
-        print_step(3, 3, "Writing output");
+        eprintln!(
+            "  {} {}",
+            "Score:".dimmed(),
+            format!("{:.1}", extracted.top_score).bright_white()
+        );
+        eprintln!(
+            "  {} {}",
+            "Elements:".dimmed(),
+            extracted.element_count.to_string().bright_white()
+        );
+        eprintln!();
+    }
+
+    let output_html = extracted.content;
+
+    if args.verbose {
+        print_step(4, 4, "Writing output");
     }
 
     match args.output {

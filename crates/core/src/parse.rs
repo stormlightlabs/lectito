@@ -65,6 +65,7 @@ impl Document {
 }
 
 /// A wrapper around scraper's ElementRef for easier DOM manipulation
+#[derive(Clone, Debug)]
 pub struct Element<'a> {
     element: scraper::ElementRef<'a>,
 }

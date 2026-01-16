@@ -92,7 +92,6 @@ pub fn class_id_weight(element: &Element<'_>, config: &ScoreConfig) -> f64 {
     let positive_regex = Regex::new(POSITIVE_PATTERNS).unwrap();
     let negative_regex = Regex::new(NEGATIVE_PATTERNS).unwrap();
 
-    // Check ID attribute
     if let Some(id) = element.attr("id") {
         if positive_regex.is_match(id) {
             return config.positive_weight;
@@ -102,9 +101,7 @@ pub fn class_id_weight(element: &Element<'_>, config: &ScoreConfig) -> f64 {
         }
     }
 
-    // Check class attribute
     if let Some(class) = element.attr("class") {
-        // Check each class separately
         for class_name in class.split_whitespace() {
             if positive_regex.is_match(class_name) {
                 return config.positive_weight;
@@ -125,11 +122,7 @@ pub fn class_id_weight(element: &Element<'_>, config: &ScoreConfig) -> f64 {
 /// - More commas (indicates prose, up to max_comma_density_score)
 pub fn content_density_score(element: &Element<'_>, config: &ScoreConfig) -> f64 {
     let text = element.text();
-
-    // Calculate character density (1 point per chars_per_point characters, max max_char_density_score)
     let char_score = ((text.chars().count() / config.chars_per_point) as f64).min(config.max_char_density_score);
-
-    // Calculate comma density (1 point per comma, max max_comma_density_score)
     let comma_count = text.matches(',').count();
     let comma_score = (comma_count as f64).min(config.max_comma_density_score);
 
@@ -148,7 +141,6 @@ pub fn link_density(element: &Element<'_>) -> f64 {
         return 0.0;
     }
 
-    // Sum the text length of all <a> tags within this element
     let link_text_length = element
         .select("a")
         .unwrap_or_default()
@@ -175,11 +167,7 @@ pub fn calculate_score(element: &Element<'_>, config: &ScoreConfig) -> ScoreResu
     let class_weight = class_id_weight(element, config);
     let content_density = content_density_score(element, config);
     let ld = link_density(element);
-
-    // Calculate raw score before link density penalty
     let raw_score = base_score + class_weight + content_density;
-
-    // Apply link density penalty
     let final_score = raw_score * (1.0 - ld);
 
     ScoreResult { tag_name, class, id, base_score, class_weight, content_density, link_density: ld, final_score }
@@ -286,7 +274,6 @@ mod tests {
         let doc = Document::parse(html).unwrap();
         let element = doc.select("div").unwrap().into_iter().next().unwrap();
         let config = ScoreConfig::default();
-        // "article" is a positive pattern, should return positive weight
         assert_eq!(class_id_weight(&element, &config), 25.0);
     }
 
@@ -314,7 +301,6 @@ mod tests {
         let doc = Document::parse(html).unwrap();
         let element = doc.select("div").unwrap().into_iter().next().unwrap();
         let config = ScoreConfig::default();
-        // 4 commas but max_comma_density_score is 3, so we get 3.0
         assert_eq!(content_density_score(&element, &config), 3.0);
     }
 
@@ -325,7 +311,6 @@ mod tests {
         let doc = Document::parse(&html).unwrap();
         let element = doc.select("div").unwrap().into_iter().next().unwrap();
         let config = ScoreConfig::default();
-        // 500 chars = 5 points, but max is 3
         assert_eq!(content_density_score(&element, &config), 3.0);
     }
 
@@ -350,7 +335,6 @@ mod tests {
         let html = r##"<div>Some text <a href="#">link</a> more text</div>"##;
         let doc = Document::parse(html).unwrap();
         let element = doc.select("div").unwrap().into_iter().next().unwrap();
-        // Has both regular text and links
         let density = link_density(&element);
         assert!(density > 0.0 && density < 1.0);
     }
@@ -367,7 +351,6 @@ mod tests {
         let doc = Document::parse(html).unwrap();
         let element = doc.select("div").unwrap().into_iter().next().unwrap();
         let density = link_density(&element);
-        // Should account for all link text and be non-trivial
         assert!(density > 0.0 && density < 1.0);
     }
 
@@ -382,18 +365,16 @@ mod tests {
         let doc = Document::parse(html).unwrap();
         let element = doc.select("article").unwrap().into_iter().next().unwrap();
         let config = ScoreConfig::default();
-
         let result = calculate_score(&element, &config);
 
-        // Verify the calculation
         assert_eq!(result.tag_name, "article");
         assert_eq!(result.class, Some("main-content".to_string()));
         assert_eq!(result.id, Some("post".to_string()));
-        assert_eq!(result.base_score, 10.0); // Article
-        assert_eq!(result.class_weight, 25.0); // "main-content" matches positive
-        assert!(result.content_density > 0.0); // Has text and commas
-        assert!(result.link_density > 0.0 && result.link_density < 0.3); // Has small link
-        assert!(result.final_score > 25.0); // Should score high overall
+        assert_eq!(result.base_score, 10.0);
+        assert_eq!(result.class_weight, 25.0);
+        assert!(result.content_density > 0.0);
+        assert!(result.link_density > 0.0 && result.link_density < 0.3);
+        assert!(result.final_score > 25.0);
     }
 
     #[test]
@@ -409,13 +390,11 @@ mod tests {
         let config = ScoreConfig::default();
 
         let result = calculate_score(&element, &config);
-
-        // Nav should be penalized
         assert_eq!(result.tag_name, "nav");
         assert_eq!(result.base_score, -5.0);
-        assert_eq!(result.class_weight, -25.0); // "menu" matches negative
-        assert!(result.link_density > 0.2); // Has significant link text
-        assert!(result.final_score < 0.0); // Should be negative
+        assert_eq!(result.class_weight, -25.0);
+        assert!(result.link_density > 0.2);
+        assert!(result.final_score < 0.0);
     }
 
     #[test]
@@ -426,16 +405,14 @@ mod tests {
         let config = ScoreConfig::default();
 
         let result = calculate_score(&element, &config);
-
-        assert_eq!(result.base_score, 5.0); // Div
-        assert_eq!(result.class_weight, -25.0); // "sidebar" matches negative
-        assert_eq!(result.content_density, 0.0); // No content
-        assert_eq!(result.final_score, -20.0); // No link density penalty on empty
+        assert_eq!(result.base_score, 5.0);
+        assert_eq!(result.class_weight, -25.0);
+        assert_eq!(result.content_density, 0.0);
+        assert_eq!(result.final_score, -20.0);
     }
 
     #[test]
     fn test_calculate_score_link_density_penalty() {
-        // Element with lots of links should be penalized by link density
         let html = r##"
             <div>
                 <a href="#">Link 1</a>
@@ -450,10 +427,8 @@ mod tests {
         let config = ScoreConfig::default();
 
         let result = calculate_score(&element, &config);
-
-        // Has non-zero link density
         assert!(result.link_density > 0.0);
-        // Final score should be reduced compared to raw score due to link density penalty
+
         let raw_score = result.base_score + result.class_weight + result.content_density;
         assert!(result.final_score < raw_score);
     }
