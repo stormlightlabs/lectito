@@ -1,17 +1,37 @@
 use scraper::{Html, Selector};
+use url::Url;
 
-use crate::{LectitoError, Result};
+use crate::{LectitoError, Result, PreprocessConfig, preprocess};
 
 /// Represents a parsed HTML document
 pub struct Document {
     html: Html,
+    base_url: Option<Url>,
 }
 
 impl Document {
-    /// Parse HTML from a string
+    /// Parse HTML from a string without preprocessing
     pub fn parse(html: &str) -> Result<Self> {
         let html = Html::parse_document(html);
-        Ok(Self { html })
+        Ok(Self { html, base_url: None })
+    }
+
+    /// Parse HTML from a string with preprocessing
+    pub fn parse_with_preprocessing(html: &str, base_url: Option<Url>) -> Result<Self> {
+        let config = PreprocessConfig {
+            base_url: base_url.clone(),
+            ..Default::default()
+        };
+
+        let cleaned = preprocess::preprocess_html(html, &config);
+        let html = Html::parse_document(&cleaned);
+
+        Ok(Self { html, base_url })
+    }
+
+    /// Get the base URL used for preprocessing
+    pub fn base_url(&self) -> Option<&Url> {
+        self.base_url.as_ref()
     }
 
     /// Get the raw HTML representation
