@@ -2,7 +2,21 @@
 
 ## Unreleased
 
+### [2026-01-17]
+
+- Site configuration system using the FTR format and XPath 1.0 for precise content
+extraction and advanced document filtering.
+- Automated CMS fingerprinting and domain-based rule loading with fallback to
+heuristic-based autodetection.
+
 ### [2026-01-16]
+
+- Clean-up pipeline to remove empty nodes, conditional comments, and redundant
+formatting while fixing relative URLs.
+- Markdown output support with automatic TOML frontmatter generation, GFM table
+conversion, and optional reference link tables.
+- JSON output format and metadata-only extraction mode with integrated language
+detection.
 
 - Content candidate id and scoring system that tracks top candidates and propagates
 scores to parent and grandparent elements

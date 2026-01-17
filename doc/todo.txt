@@ -39,173 +39,28 @@ See |CHANGELOG.md|
 MILESTONE VI: Post-Processing & Cleanup
 ================================================================================
 
-[X] Remove empty nodes
-[X] Remove remaining high link-density nodes
-[X] Clean up nested DIVs with single children
-[X] Remove conditional comments
-[X] Fix any remaining relative URLs
-[X] Remove elements matching strip patterns
-[X] Add --no-images flag to strip images
-[X] Write cleanup unit tests
-
-Acceptance Criteria:
-- Output HTML is clean and minimal
-- No empty or redundant nodes
-- Images can be optionally stripped
+See |CHANGELOG.md|
 
 ================================================================================
 MILESTONE VII: HTML to Markdown Conversion
 ================================================================================
 
-[X] Add htmd dependency to core
-[X] Create formatters module structure:
-    - formatters/mod.rs
-    - formatters/markdown.rs
-[X] Implement core conversion rules:
-    - <h1>-<h6> → # - ######
-    - <p> → Text with blank lines
-    - <strong>, <b> → **text**
-    - <em>, <i> → *text*
-    - <a href=""> → [text](url)
-    - <img src=""> → ![alt](src)
-    - <ul>, <ol> → - or 1. prefixed lines
-    - <blockquote> → > prefixed lines
-    - <pre>, <code> → Fenced code blocks
-    - <hr> → ---
-[X] Implement GFM table conversion:
-    - <table> → | header | row | format
-    - Column alignment via :--- :---: ---:
-[X] Generate TOML frontmatter:
-    - title, author, date, site, url
-    - excerpt, word_count, reading_time
-[X] Implement reference table generation (--references flag):
-    - Collect all links
-    - Output: | # | Text | URL | table
-[X] Add -f/--format flag (markdown, html, text)
-[X] Write conversion integration tests
-
-Acceptance Criteria:
-- Clean, readable Markdown output
-- Proper TOML frontmatter
-- Optional reference table with all links
-- Supports HTML and plain text output modes
+See |CHANGELOG.md|
 
 ================================================================================
 MILESTONE VIII: JSON/Structured Output
 ================================================================================
 
-[X] Implement -j/--json output mode:
-    - metadata object (title, author, date, etc.)
-    - content object (markdown, text, html)
-    - references array
-[X] Implement -m/--metadata-only flag (TOML/JSON)
-[X] Add language detection to metadata
-[X] Write output format tests
-
-Acceptance Criteria:
-- JSON output includes all metadata and content
-- Metadata-only mode works correctly
-- Output is valid, parseable JSON/TOML
+See |CHANGELOG.md|
 
 ================================================================================
 MILESTONE IX: Site Configuration System (FTR Format)
 ============================================================================
 
-[X] Add sxd-xpath dependency for XPath 1.0 evaluation
-[X] Create siteconfig module structure:
-    - siteconfig/mod.rs
-    - siteconfig/parser.rs      # FTR format parser
-    - siteconfig/loader.rs      # File discovery & merging
-    - siteconfig/directives.rs  # Directive types & evaluation
-[X] Implement FTR config file loader:
-    - Search ~/.config/lectito/sites/ (custom, takes priority)
-    - Search bundled configs (standard, fallback)
-    - File naming: domain.com.txt, .domain.com.txt (wildcard subdomain)
-    - Load global.txt for universal rules
-    - Merge matching configs (custom > standard > global)
-[X] Implement FTR directive parser (key: value format):
-    Extraction directives (XPath, multiple allowed, evaluated in order):
-    - title: [XPath]           # Article title
-    - body: [XPath]            # Main content block
-    - date: [XPath]            # Publication date
-    - author: [XPath]          # Author name(s)
-    Strip directives (remove elements):
-    - strip: [XPath]           # Remove matching elements
-    - strip_id_or_class: [str] # Remove by ID/class substring
-    - strip_image_src: [str]   # Remove <img> by src substring
-    - strip_attr: [XPath]      # Remove attributes (e.g. //img/@srcset)
-    Behavior options:
-    - tidy: [yes|no]           # Preprocess with HTML tidy
-    - prune: [yes|no]          # Strip non-content elements (default: yes)
-    - autodetect_on_failure: [yes|no]  # Fallback to heuristics (default: yes)
-    Pagination (for multi-page articles):
-    - single_page_link: [XPath]  # Link to full article view
-    - next_page_link: [XPath]    # Link to next page (content concatenation)
-    Text replacement:
-    - find_string: [str]       # String to find (paired with replace_string)
-    - replace_string: [str]    # Replacement string
-    - replace_string([find]): [replace]  # Inline form
-    HTTP configuration:
-    - http_header([name]): [value]  # Custom headers (e.g. User-Agent, Cookie)
-    Testing/validation:
-    - test_url: [URL]          # Sample URL for testing config
-    Comments:
-    - Lines starting with # are ignored
-[X] Implement XPath expression evaluation with sxd-xpath
-[X] Implement strip directive processing before extraction
-[X] Implement text replacement (find_string/replace_string)
-[X] Add -c/--config CLI option for custom config path
-[X] Implement autodetect_on_failure fallback behavior
-[X] Implement fingerprint matching (HTML fragment -> config mapping)
-    - Match config by CMS/platform (e.g. WordPress, Blogger)
-    - Use meta generator tags or DOM patterns
-[X] Write site config unit tests (parser, loader, directives)
-[X] Write site config integration tests
-[X] Create example configs (FTR format) for major sites:
-    - .mozilla.org.txt
-    - .en.wikipedia.org.txt
-    - .stanford.edu.txt
-    - .readthedocs.io.txt
-    - global.txt (default strip patterns)
-    - fingerprint.wordpress.com.txt (WordPress CMS)
-    - fingerprint.blogger.com.txt (Blogger CMS)
-    - fingerprint.medium.com.txt (Medium CMS)
-    - fingerprint.ghost.org.txt (Ghost CMS)
-
-Acceptance Criteria:
-- FTR format files parse correctly
-- Site-specific extraction rules override heuristics
-- Falls back to autodetect when XPath fails (if enabled)
-- Strip patterns remove unwanted elements before extraction
-- Custom HTTP headers/user-agent applied to requests
-- Multi-page article pagination works (single_page_link, next_page_link)
-- Fingerprint matching identifies CMS platforms
-- Compatible with existing ftr-site-config repository files
+See |CHANGELOG.md|
 
 ================================================================================
-MILESTONE X: Testing, Polish & Release
-================================================================================
-
-[ ] Create test fixture suite:
-    - Sample pages from major sites (HTML + expected output)
-    - Edge cases (paywalls, empty content, weird markup)
-[ ] Write integration test suite
-[ ] Performance testing:
-    - Target: <100ms parse+extract (average page)
-    - Target: <50MB memory (10MB HTML input)
-[ ] Add --verbose debug logging
-[ ] Write user documentation (README, man page)
-[ ] Add shell completion generation (clap_complete)
-[ ] Release v1.0.0
-
-Acceptance Criteria:
-- All tests pass
-- Performance targets met
-- Documentation complete
-- Ready for public use
-
-================================================================================
-MILESTONE XI: Library API Refactor
+MILESTONE X: Library API Refactor
 ================================================================================
 
 [ ] Create unified Article struct:
@@ -241,7 +96,7 @@ Acceptance Criteria:
 - Existing CLI continues to work
 
 ================================================================================
-MILESTONE XII: Output Formatters
+MILESTONE XI: Output Formatters
 ================================================================================
 
 [ ] Create formatters module structure:
@@ -277,7 +132,7 @@ Acceptance Criteria:
 - All formatters tested
 
 ================================================================================
-MILESTONE XIII: Crate Publishing & Docs
+MILESTONE XII: Crate Publishing & Docs
 ================================================================================
 
 [ ] Finalize public API surface:
@@ -304,6 +159,28 @@ Acceptance Criteria:
 - README has working examples
 - Published to crates.io
 - Documentation builds without warnings
+
+================================================================================
+MILESTONE XIII: Testing, Polish & Release
+================================================================================
+
+[ ] Create test fixture suite:
+    - Sample pages from major sites (HTML + expected output)
+    - Edge cases (paywalls, empty content, weird markup)
+[ ] Write integration test suite
+[ ] Performance testing:
+    - Target: <100ms parse+extract (average page)
+    - Target: <50MB memory (10MB HTML input)
+[ ] Add --verbose debug logging
+[ ] Write user documentation (README, man page)
+[ ] Add shell completion generation (clap_complete)
+[ ] Release v1.0.0
+
+Acceptance Criteria:
+- All tests pass
+- Performance targets met
+- Documentation complete
+- Ready for public use
 
 ================================================================================
 PARKING LOT
