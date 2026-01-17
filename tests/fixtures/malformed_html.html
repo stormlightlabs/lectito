@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Malformed HTML</title>
+</head>
+<body>
+    <div>
+        <p>Unclosed paragraph
+        <p>Nested paragraph without closing
+            <span>Unclosed span
+        </p>
+        <div>
+            <p>Deep nesting without closing tags
+    </div>
+    <h1>Missing closing tag
+    <p>Some content here</p>
+    <br>
+    <img src="test.jpg" alt="Unclosed image">
+</body>
+</html>

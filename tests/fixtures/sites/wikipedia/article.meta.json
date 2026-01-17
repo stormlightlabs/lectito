@@ -1,0 +1,8 @@
+{
+    "title": "Rust (programming language)",
+    "author": "Wikipedia contributors",
+    "word_count_min": 150,
+    "word_count_max": 200,
+    "has_images": false,
+    "expected_score_min": 50.0
+}

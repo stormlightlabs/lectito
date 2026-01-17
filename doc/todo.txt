@@ -137,7 +137,29 @@ Acceptance Criteria:
 - All formatters tested
 
 ================================================================================
-MILESTONE XII: Crate Publishing & Docs
+MILESTONE XII: Testing & Polish
+================================================================================
+
+[x] Create test fixture suite:
+    - Sample pages from major sites (HTML + expected output)
+    - Edge cases (paywalls, empty content, weird markup)
+[x] Write integration test suite:
+    - End-to-end CLI tests
+    - Library API integration tests
+[ ] Performance testing:
+    - Target: <100ms parse+extract (average page)
+    - Target: <50MB memory (10MB HTML input)
+[ ] CLI enhancements:
+    - Add shell completion generation (clap_complete)
+    - Improve --verbose debug logging output
+
+Acceptance Criteria:
+- All tests pass
+- Performance targets met
+- Test fixtures cover major site patterns
+
+================================================================================
+MILESTONE XIII: Documentation & Release
 ================================================================================
 
 [ ] Finalize public API surface:
@@ -148,44 +170,21 @@ MILESTONE XII: Crate Publishing & Docs
     - Module-level documentation
     - Function examples in doc comments
     - Error handling examples
-[ ] Add README.md for crates.io:
-    - Quick start examples
-    - Feature flag documentation
-    - Comparison with alternatives
+[ ] Write user documentation:
+    - README.md with quick start and feature flags
+    - Man page for CLI usage
 [ ] Prepare Cargo.toml for publishing:
     - Verify metadata (license, repository, keywords)
     - Set version to 1.0.0
     - Add categories for crates.io
-[ ] Publish lectito to crates.io
+[ ] Publish lectito-core to crates.io
 [ ] Create GitHub release with changelog
 
 Acceptance Criteria:
 - All public items have rustdoc
 - README has working examples
-- Published to crates.io
 - Documentation builds without warnings
-
-================================================================================
-MILESTONE XIII: Testing, Polish & Release
-================================================================================
-
-[ ] Create test fixture suite:
-    - Sample pages from major sites (HTML + expected output)
-    - Edge cases (paywalls, empty content, weird markup)
-[ ] Write integration test suite
-[ ] Performance testing:
-    - Target: <100ms parse+extract (average page)
-    - Target: <50MB memory (10MB HTML input)
-[ ] Add --verbose debug logging
-[ ] Write user documentation (README, man page)
-[ ] Add shell completion generation (clap_complete)
-[ ] Release v1.0.0
-
-Acceptance Criteria:
-- All tests pass
-- Performance targets met
-- Documentation complete
-- Ready for public use
+- Published to crates.io
 
 ================================================================================
 PARKING LOT

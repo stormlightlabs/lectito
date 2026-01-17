@@ -1,0 +1,7 @@
+{
+    "title": "Linux kernel source tree",
+    "word_count_min": 80,
+    "word_count_max": 120,
+    "has_images": false,
+    "expected_score_min": 40.0
+}
