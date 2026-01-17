@@ -1,5 +1,6 @@
 use crate::article::Article;
 use crate::extract::{ExtractConfig, extract_content_with_config};
+use crate::fetch::{FetchConfig, fetch_url};
 use crate::parse::Document;
 use crate::scoring::{ScoreConfig, calculate_score};
 use crate::siteconfig::ConfigLoader;
@@ -168,6 +169,24 @@ impl Readability {
         self.extract_from_document(&doc, Some(url))
     }
 
+    /// Fetch HTML from URL and extract readable content using default fetch config
+    ///
+    /// This async method fetches HTML from the given URL and extracts
+    /// readable content using default Fetch configuration.
+    pub async fn fetch_and_parse(&self, url: &str) -> Result<Article> {
+        let fetch_config = FetchConfig::default();
+        self.fetch_and_parse_with_config(url, &fetch_config).await
+    }
+
+    /// Fetch HTML from URL and extract readable content with custom fetch config
+    ///
+    /// This async method fetches HTML from the given URL and extracts
+    /// readable content using the provided Fetch configuration.
+    pub async fn fetch_and_parse_with_config(&self, url: &str, fetch_config: &FetchConfig) -> Result<Article> {
+        let html = fetch_url(url, fetch_config).await?;
+        self.parse_with_url(&html, url)
+    }
+
     /// Extract article from a parsed document
     fn extract_from_document(&self, doc: &Document, url: Option<&str>) -> Result<Article> {
         let site_config = if let Some(mut loader) = self.config_loader.clone() {
@@ -254,6 +273,65 @@ pub fn parse_with_url(html: &str, url: &str) -> Result<Article> {
 /// Convenience function: Quick readability check
 pub fn is_probably_readable(html: &str) -> bool {
     Readability::new().is_probably_readable(html)
+}
+
+/// Convenience function: Fetch and parse from URL with defaults
+///
+/// This async function fetches HTML from the given URL and extracts
+/// readable content using default Readability and Fetch configurations.
+///
+/// # Example
+///
+/// ```no_run
+/// use lectito_core::fetch_and_parse;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let article = fetch_and_parse("https://example.com/article").await?;
+///     println!("Title: {:?}", article.metadata.title);
+///     Ok(())
+/// }
+/// ```
+pub async fn fetch_and_parse(url: &str) -> Result<Article> {
+    let reader = Readability::new();
+    reader.fetch_and_parse(url).await
+}
+
+/// Convenience function: Fetch and parse with custom configurations
+///
+/// This async function fetches HTML from the given URL and extracts
+/// readable content using the provided Readability and Fetch configurations.
+///
+/// # Example
+///
+/// ```no_run
+/// use lectito_core::{fetch_and_parse_with_config, ReadabilityConfig, FetchConfig};
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     let readability_config = ReadabilityConfig::builder()
+///         .min_score(30.0)
+///         .build();
+///     let fetch_config = FetchConfig {
+///         timeout: 60,
+///         ..Default::default()
+///     };
+///
+///     let article = fetch_and_parse_with_config(
+///         "https://example.com/article",
+///         &readability_config,
+///         &fetch_config
+///     ).await?;
+///
+///     println!("Title: {:?}", article.metadata.title);
+///     Ok(())
+/// }
+/// ```
+pub async fn fetch_and_parse_with_config(
+    url: &str, readability_config: &ReadabilityConfig, fetch_config: &FetchConfig,
+) -> Result<Article> {
+    let reader = Readability::with_config(readability_config.clone());
+    reader.fetch_and_parse_with_config(url, fetch_config).await
 }
 
 #[cfg(test)]
@@ -410,5 +488,67 @@ mod tests {
     #[test]
     fn test_convenience_is_probably_readable() {
         assert!(is_probably_readable(ARTICLE_HTML));
+    }
+
+    #[test]
+    fn test_readability_fetch_and_parse_invalid_url() {
+        let reader = Readability::new();
+        let result = std::thread::spawn(move || {
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(async { reader.fetch_and_parse("not-a-url").await })
+        })
+        .join()
+        .unwrap();
+
+        assert!(matches!(result, Err(LectitoError::InvalidUrl(_))));
+    }
+
+    #[test]
+    fn test_convenience_fetch_and_parse_invalid_url() {
+        let result = std::thread::spawn(move || {
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(async { fetch_and_parse("not-a-url").await })
+        })
+        .join()
+        .unwrap();
+
+        assert!(matches!(result, Err(LectitoError::InvalidUrl(_))));
+    }
+
+    #[test]
+    fn test_readability_fetch_and_parse_with_config_custom_timeout() {
+        let reader = Readability::new();
+        let fetch_config = FetchConfig { timeout: 1, ..Default::default() };
+
+        // TODO: integration test with mock server
+        let result = std::thread::spawn(move || {
+            tokio::runtime::Runtime::new().unwrap().block_on(async {
+                reader
+                    .fetch_and_parse_with_config("https://httpbin.org/delay/5", &fetch_config)
+                    .await
+            })
+        })
+        .join()
+        .unwrap();
+
+        assert!(matches!(result, Err(LectitoError::Timeout { .. })));
+    }
+
+    #[test]
+    fn test_convenience_fetch_and_parse_with_config() {
+        let readability_config = ReadabilityConfig::builder().min_score(50.0).build();
+        let fetch_config = FetchConfig { timeout: 1, ..Default::default() };
+
+        let result = std::thread::spawn(move || {
+            tokio::runtime::Runtime::new().unwrap().block_on(async {
+                fetch_and_parse_with_config("https://httpbin.org/delay/5", &readability_config, &fetch_config).await
+            })
+        })
+        .join()
+        .unwrap();
+
+        assert!(matches!(result, Err(LectitoError::Timeout { .. })));
     }
 }

@@ -23,7 +23,8 @@ pub use parse::Document;
 pub use postprocess::{PostProcessConfig, postprocess_html};
 pub use preprocess::{PreprocessConfig, preprocess_html};
 pub use readability::{
-    LectitoConfig, LectitoConfigBuilder, Readability, ReadabilityConfig, is_probably_readable, parse, parse_with_url,
+    LectitoConfig, LectitoConfigBuilder, Readability, ReadabilityConfig, fetch_and_parse, fetch_and_parse_with_config,
+    is_probably_readable, parse, parse_with_url,
 };
 pub use scoring::{
     ScoreConfig, ScoreResult, base_tag_score, calculate_score, class_id_weight, content_density_score, link_density,
