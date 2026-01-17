@@ -146,10 +146,10 @@ MILESTONE XII: Testing & Polish
 [x] Write integration test suite:
     - End-to-end CLI tests
     - Library API integration tests
-[ ] Performance testing:
+[x] Performance testing:
     - Target: <100ms parse+extract (average page)
     - Target: <50MB memory (10MB HTML input)
-[ ] CLI enhancements:
+[x] CLI enhancements:
     - Add shell completion generation (clap_complete)
     - Improve --verbose debug logging output
 

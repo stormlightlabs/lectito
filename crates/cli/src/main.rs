@@ -2,9 +2,11 @@ use std::fs;
 use std::io::{self, Read};
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::time::Instant;
 
 use anyhow::Context;
-use clap::Parser;
+use clap::{CommandFactory, Parser, ValueEnum};
+use clap_complete::{generate, shells::Bash, shells::Fish, shells::PowerShell, shells::Zsh};
 use lectito_core::formatters::{JsonConfig, convert_to_json, metadata_to_json, metadata_to_toml};
 use lectito_core::siteconfig::SiteConfigProcessing;
 use lectito_core::{
@@ -22,6 +24,15 @@ enum OutputFormat {
     Html,
     Text,
     Json,
+}
+
+/// Shell type for completion generation
+#[derive(Clone, Debug, ValueEnum)]
+enum Shell {
+    Bash,
+    Zsh,
+    Fish,
+    Powershell,
 }
 
 impl FromStr for OutputFormat {
@@ -50,7 +61,7 @@ impl FromStr for OutputFormat {
 struct Args {
     /// URL to fetch, local HTML file, or "-" for stdin
     #[arg(value_name = "INPUT")]
-    input: String,
+    input: Option<String>,
 
     /// Output file (default: stdout)
     #[arg(short, long, value_name = "FILE")]
@@ -107,6 +118,10 @@ struct Args {
     /// Enable debug logging
     #[arg(short, long)]
     verbose: bool,
+
+    /// Generate shell completion script
+    #[arg(long, value_name = "SHELL", exclusive = true)]
+    completions: Option<Shell>,
 }
 
 /// Print a styled banner for verbose mode
@@ -162,9 +177,97 @@ fn format_size(bytes: usize) -> String {
     }
 }
 
+/// Print timing information with color coding
+fn print_timing(label: &str, duration: std::time::Duration) {
+    let ms = duration.as_secs_f64() * 1000.0;
+    let (color, indicator) = if ms < 50.0 {
+        ("green", "fast")
+    } else if ms < 100.0 {
+        ("yellow", "moderate")
+    } else {
+        ("red", "slow")
+    };
+
+    match color {
+        "green" => eprintln!(
+            "  {} {:>8.2}ms ({})",
+            format!("{}:", label).dimmed(),
+            ms,
+            indicator.dimmed()
+        ),
+        "yellow" => eprintln!(
+            "  {} {:>8.2}ms ({})",
+            format!("{}:", label).dimmed(),
+            ms,
+            indicator.bright_yellow()
+        ),
+        _ => eprintln!(
+            "  {} {:>8.2}ms ({})",
+            format!("{}:", label).dimmed(),
+            ms,
+            indicator.bright_red()
+        ),
+    }
+}
+
+/// Print extraction details summary
+fn print_extraction_details(extracted: &lectito_core::ExtractedContent) {
+    eprintln!();
+    eprintln!("{}", "═".repeat(60).dimmed());
+    eprintln!("{}", "Extraction Details".bold().cyan());
+    eprintln!("{}", "═".repeat(60).dimmed());
+    eprintln!(
+        "  {} {}",
+        "Top Score:".dimmed(),
+        format!("{:.1}", extracted.top_score).bright_white()
+    );
+    eprintln!(
+        "  {} {}",
+        "Elements:".dimmed(),
+        extracted.element_count.to_string().bright_white()
+    );
+    eprintln!();
+}
+
+/// Print timing summary
+fn print_timing_summary(total: std::time::Duration, timings: &[(String, std::time::Duration)]) {
+    eprintln!("{}", "═".repeat(60).dimmed());
+    eprintln!("{}", "Timing Summary".bold().cyan());
+    eprintln!("{}", "═".repeat(60).dimmed());
+
+    for (label, duration) in timings {
+        print_timing(label, *duration);
+    }
+
+    eprintln!(
+        "  {} {:>8.2}ms",
+        format!("{}:", "Total").bold().dimmed(),
+        total.as_secs_f64() * 1000.0
+    );
+    eprintln!();
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+
+    if let Some(shell) = args.completions {
+        let mut cmd = Args::command();
+        let name = cmd.get_name().to_string();
+
+        match shell {
+            Shell::Bash => generate(Bash, &mut cmd, name, &mut std::io::stdout()),
+            Shell::Zsh => generate(Zsh, &mut cmd, name, &mut std::io::stdout()),
+            Shell::Fish => generate(Fish, &mut cmd, name, &mut std::io::stdout()),
+            Shell::Powershell => generate(PowerShell, &mut cmd, name, &mut std::io::stdout()),
+        }
+        return Ok(());
+    }
+
+    let input = args.input.ok_or_else(|| anyhow::anyhow!("Input argument required"))?;
+
+    let total_start = Instant::now();
+    let mut timings = Vec::new();
 
     if args.verbose {
         print_banner();
@@ -172,7 +275,8 @@ async fn main() -> anyhow::Result<()> {
         eprintln!();
     }
 
-    let (html, size) = if args.input == "-" {
+    let fetch_start = Instant::now();
+    let (html, size) = if input == "-" {
         if args.verbose {
             print_step(1, 4, "Reading from stdin");
         }
@@ -182,13 +286,9 @@ async fn main() -> anyhow::Result<()> {
             .context("Failed to read from stdin")?;
         let len = buffer.len();
         (buffer, len)
-    } else if args.input.starts_with("http://") || args.input.starts_with("https://") {
+    } else if input.starts_with("http://") || input.starts_with("https://") {
         if args.verbose {
-            print_step(
-                1,
-                4,
-                &format!("Fetching from {}", args.input.bright_white().underline()),
-            );
+            print_step(1, 4, &format!("Fetching from {}", input.bright_white().underline()));
         }
 
         let mut config_loader = lectito_core::ConfigLoader::default();
@@ -200,7 +300,7 @@ async fn main() -> anyhow::Result<()> {
             .user_agent
             .unwrap_or_else(|| "Mozilla/5.0 (compatible; Lectito/1.0)".to_string());
 
-        if let Ok(site_config) = config_loader.load_for_url(&args.input) {
+        if let Ok(site_config) = config_loader.load_for_url(&input) {
             for (name, value) in &site_config.http_headers {
                 if name.to_lowercase() == "user-agent" {
                     user_agent = value.clone();
@@ -210,18 +310,19 @@ async fn main() -> anyhow::Result<()> {
 
         let config = FetchConfig { timeout: args.timeout, user_agent };
 
-        let content = fetch_url(&args.input, &config).await.context("Failed to fetch URL")?;
+        let content = fetch_url(&input, &config).await.context("Failed to fetch URL")?;
         let len = content.len();
         (content, len)
     } else {
         if args.verbose {
-            print_step(1, 4, &format!("Reading from file {}", args.input.bright_white()));
+            print_step(1, 4, &format!("Reading from file {}", input.bright_white()));
         }
-        let content =
-            fs::read_to_string(&args.input).with_context(|| format!("Failed to read file: {}", args.input))?;
+        let content = fs::read_to_string(&input).with_context(|| format!("Failed to read file: {}", input))?;
         let len = content.len();
         (content, len)
     };
+
+    timings.push(("Fetch/Input".to_string(), fetch_start.elapsed()));
 
     if args.verbose {
         eprintln!("  {} {}", "Size:".dimmed(), format_size(size).bright_white());
@@ -232,14 +333,16 @@ async fn main() -> anyhow::Result<()> {
         print_step(2, 4, "Parsing HTML document");
     }
 
+    let parse_start = Instant::now();
+
     let mut processed_html = html.clone();
-    if args.input.starts_with("http://") || args.input.starts_with("https://") {
+    if input.starts_with("http://") || input.starts_with("https://") {
         let mut config_loader = lectito_core::ConfigLoader::default();
         if let Some(config_dir) = &args.config_dir {
             config_loader = lectito_core::ConfigLoaderBuilder::new().custom_dir(config_dir).build();
         }
 
-        if let Ok(site_config) = config_loader.load_for_url(&args.input) {
+        if let Ok(site_config) = config_loader.load_for_url(&input) {
             if args.verbose {
                 print_info("Applying site configuration");
             }
@@ -252,6 +355,8 @@ async fn main() -> anyhow::Result<()> {
 
     let doc = Document::parse(&processed_html).context("Failed to parse HTML")?;
 
+    timings.push(("Parse".to_string(), parse_start.elapsed()));
+
     if args.verbose {
         if let Some(title) = doc.title() {
             eprintln!("  {} {}", "Title:".dimmed(), title.bright_white());
@@ -263,6 +368,8 @@ async fn main() -> anyhow::Result<()> {
         print_step(3, 4, "Extracting main content");
     }
 
+    let extract_start = Instant::now();
+
     let extract_config = ExtractConfig {
         char_threshold: args.char_threshold,
         max_top_candidates: args.max_elements,
@@ -270,13 +377,13 @@ async fn main() -> anyhow::Result<()> {
         ..Default::default()
     };
 
-    let extracted = if args.input.starts_with("http://") || args.input.starts_with("https://") {
+    let extracted = if input.starts_with("http://") || input.starts_with("https://") {
         let mut config_loader = lectito_core::ConfigLoader::default();
         if let Some(config_dir) = &args.config_dir {
             config_loader = lectito_core::ConfigLoaderBuilder::new().custom_dir(config_dir).build();
         }
 
-        if let Ok(site_config) = config_loader.load_for_url(&args.input) {
+        if let Ok(site_config) = config_loader.load_for_url(&input) {
             if args.verbose {
                 print_info("Using site configuration for extraction");
             }
@@ -304,6 +411,8 @@ async fn main() -> anyhow::Result<()> {
         extract_content(&doc, &extract_config).context("Failed to extract content")?
     };
 
+    timings.push(("Extract".to_string(), extract_start.elapsed()));
+
     if args.verbose {
         eprintln!(
             "  {} {}",
@@ -319,6 +428,10 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let metadata = doc.extract_metadata();
+
+    if args.verbose {
+        print_extraction_details(&extracted);
+    }
 
     if args.metadata_only {
         let output = if args.metadata_format.to_lowercase() == "json" {
@@ -349,6 +462,8 @@ async fn main() -> anyhow::Result<()> {
         }
         return Ok(());
     }
+
+    let format_start = Instant::now();
 
     let output = match args.format {
         OutputFormat::Markdown => {
@@ -389,6 +504,8 @@ async fn main() -> anyhow::Result<()> {
         output
     };
 
+    timings.push(("Format".to_string(), format_start.elapsed()));
+
     if args.verbose {
         print_step(4, 4, "Writing output");
         let format_display = if args.json { "JSON".to_string() } else { format!("{:?}", args.format) };
@@ -417,6 +534,10 @@ async fn main() -> anyhow::Result<()> {
         None => {
             print!("{}", output);
         }
+    }
+
+    if args.verbose {
+        print_timing_summary(total_start.elapsed(), &timings);
     }
 
     Ok(())

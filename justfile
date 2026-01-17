@@ -21,3 +21,30 @@ alias cmt := find-comments
 
 test:
     cargo test --quiet
+
+# Run all tests including integration tests
+test-all:
+    cargo test --all-features --quiet
+
+# Run integration tests only
+test-integration:
+    cargo test --all-features --quiet -- --test-threads=1 integration
+
+# Run benchmarks
+bench:
+    cargo bench
+
+# Run benchmarks with baseline comparison
+bench-compare baseline="main":
+    cargo bench -- --baseline {{baseline}}
+
+# Generate shell completion scripts
+completions:
+    #!/usr/bin/env bash
+    set -e
+    mkdir -p completions
+    cargo run --release -- --completions bash > completions/lectito.bash
+    cargo run --release -- --completions zsh > completions/_lectito
+    cargo run --release -- --completions fish > completions/lectito.fish
+    cargo run --release -- --completions powershell > completions/lectito.ps1
+    echo "Completions generated in completions/"

@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.100"
 clap = { version = "4.5.54", features = ["derive"] }
+clap_complete = "4.5"
 owo-colors = "4.2.3"
 tokio = { version = "1.42", features = ["rt-multi-thread", "macros"] }
 
