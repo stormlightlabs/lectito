@@ -6,9 +6,10 @@ use std::str::FromStr;
 use anyhow::Context;
 use clap::Parser;
 use lectito_core::formatters::{JsonConfig, convert_to_json, metadata_to_json, metadata_to_toml};
+use lectito_core::siteconfig::SiteConfigProcessing;
 use lectito_core::{
     Document, ExtractConfig, FetchConfig, MarkdownConfig, PostProcessConfig, convert_to_markdown, extract_content,
-    fetch_url,
+    extract_content_with_config, fetch_url,
 };
 use owo_colors::OwoColorize;
 
@@ -86,6 +87,10 @@ struct Args {
     /// Custom User-Agent for HTTP requests
     #[arg(long, value_name = "UA")]
     user_agent: Option<String>,
+
+    /// Custom site config directory
+    #[arg(short = 'c', long, value_name = "DIR")]
+    config_dir: Option<PathBuf>,
 
     /// Minimum character threshold for content candidates
     #[arg(long, default_value = "500", value_name = "NUM")]
@@ -186,12 +191,24 @@ async fn main() -> anyhow::Result<()> {
             );
         }
 
-        let config = FetchConfig {
-            timeout: args.timeout,
-            user_agent: args
-                .user_agent
-                .unwrap_or_else(|| "Mozilla/5.0 (compatible; Lectito/1.0)".to_string()),
-        };
+        let mut config_loader = lectito_core::ConfigLoader::default();
+        if let Some(config_dir) = &args.config_dir {
+            config_loader = lectito_core::ConfigLoaderBuilder::new().custom_dir(config_dir).build();
+        }
+
+        let mut user_agent = args
+            .user_agent
+            .unwrap_or_else(|| "Mozilla/5.0 (compatible; Lectito/1.0)".to_string());
+
+        if let Ok(site_config) = config_loader.load_for_url(&args.input) {
+            for (name, value) in &site_config.http_headers {
+                if name.to_lowercase() == "user-agent" {
+                    user_agent = value.clone();
+                }
+            }
+        }
+
+        let config = FetchConfig { timeout: args.timeout, user_agent };
 
         let content = fetch_url(&args.input, &config).await.context("Failed to fetch URL")?;
         let len = content.len();
@@ -215,7 +232,25 @@ async fn main() -> anyhow::Result<()> {
         print_step(2, 4, "Parsing HTML document");
     }
 
-    let doc = Document::parse(&html).context("Failed to parse HTML")?;
+    let mut processed_html = html.clone();
+    if args.input.starts_with("http://") || args.input.starts_with("https://") {
+        let mut config_loader = lectito_core::ConfigLoader::default();
+        if let Some(config_dir) = &args.config_dir {
+            config_loader = lectito_core::ConfigLoaderBuilder::new().custom_dir(config_dir).build();
+        }
+
+        if let Ok(site_config) = config_loader.load_for_url(&args.input) {
+            if args.verbose {
+                print_info("Applying site configuration");
+            }
+
+            if let Ok(processed) = site_config.apply_all_processing(&processed_html) {
+                processed_html = processed;
+            }
+        }
+    }
+
+    let doc = Document::parse(&processed_html).context("Failed to parse HTML")?;
 
     if args.verbose {
         if let Some(title) = doc.title() {
@@ -235,7 +270,39 @@ async fn main() -> anyhow::Result<()> {
         ..Default::default()
     };
 
-    let extracted = extract_content(&doc, &extract_config).context("Failed to extract content")?;
+    let extracted = if args.input.starts_with("http://") || args.input.starts_with("https://") {
+        let mut config_loader = lectito_core::ConfigLoader::default();
+        if let Some(config_dir) = &args.config_dir {
+            config_loader = lectito_core::ConfigLoaderBuilder::new().custom_dir(config_dir).build();
+        }
+
+        if let Ok(site_config) = config_loader.load_for_url(&args.input) {
+            if args.verbose {
+                print_info("Using site configuration for extraction");
+            }
+            match extract_content_with_config(&doc, &extract_config, Some(&site_config)) {
+                Ok(extracted) => {
+                    if args.verbose {
+                        print_success("Successfully extracted content using site configuration");
+                    }
+                    extracted
+                }
+                Err(_) => {
+                    if args.verbose {
+                        print_warning("Site config extraction failed, falling back to heuristics");
+                    }
+                    extract_content(&doc, &extract_config).context("Failed to extract content")?
+                }
+            }
+        } else {
+            if args.verbose {
+                print_info("No site configuration found, using heuristics");
+            }
+            extract_content(&doc, &extract_config).context("Failed to extract content")?
+        }
+    } else {
+        extract_content(&doc, &extract_config).context("Failed to extract content")?
+    };
 
     if args.verbose {
         eprintln!(

@@ -1,0 +1,42 @@
+# Global site configuration for Lectito
+# Applied to all sites as universal strip patterns
+
+# Common element patterns to strip
+strip_id_or_class: sidebar
+strip_id_or_class: navigation
+strip_id_or_class: nav
+strip_id_or_class: menu
+strip_id_or_class: header
+strip_id_or_class: footer
+strip_id_or_class: comments
+strip_id_or_class: comment
+strip_id_or_class: related
+strip_id_or_class: social
+strip_id_or_class: share
+strip_id_or_class: advertisement
+strip_id_or_class: ads
+strip_id_or_class: banner
+strip_id_or_class: popup
+strip_id_or_class: modal
+strip_id_or_class: overlay
+
+# Common image patterns to strip
+strip_image_src: /ads/
+strip_image_src: /advertisement/
+strip_image_src: tracking
+strip_image_src: pixel
+strip_image_src: analytics
+
+# Common problematic elements
+strip: //div[contains(@class, 'cookie')]
+strip: //div[contains(@class, 'gdpr')]
+strip: //div[contains(@class, 'consent')]
+strip: //div[contains(@class, 'newsletter')]
+strip: //div[contains(@class, 'subscribe')]
+
+# Strip unnecessary attributes
+strip_attr: //img/@srcset
+strip_attr: //img/@sizes
+strip_attr: //img/@loading
+strip_attr: //a/@onclick
+strip_attr: //div/@onclick

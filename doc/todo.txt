@@ -108,36 +108,75 @@ Acceptance Criteria:
 - Output is valid, parseable JSON/TOML
 
 ================================================================================
-MILESTONE IX: Site Configuration System
-================================================================================
+MILESTONE IX: Site Configuration System (FTR Format)
+============================================================================
 
-[ ] Add sxd-xpath dependency for XPath evaluation
-[ ] Implement config file loader:
-    - Search ~/.config/lectito/sites/
-    - Load domain-specific .toml files
-    - Load global.toml fallback
-[ ] Implement TOML config format:
-    - [site] - domain, test_url
-    - [extract] - XPath rules for title, body, author, date
-    - [strip] - XPath patterns, class/id patterns, image patterns
-    - [options] - tidy, autodetect_on_failure, prune
-    - [http] - user_agent, headers
-[ ] Implement XPath expression evaluation
-[ ] Implement [strip] processing before extraction
-[ ] Implement [[replace]] text substitution
-[ ] Add -c/--config CLI option
-[ ] Implement autodetect_on_failure fallback
-[ ] Write site config integration tests
-[ ] Create example configs for major sites:
-    - nytimes.com.toml
-    - medium.com.toml
-    - github.com.toml
+[X] Add sxd-xpath dependency for XPath 1.0 evaluation
+[X] Create siteconfig module structure:
+    - siteconfig/mod.rs
+    - siteconfig/parser.rs      # FTR format parser
+    - siteconfig/loader.rs      # File discovery & merging
+    - siteconfig/directives.rs  # Directive types & evaluation
+[X] Implement FTR config file loader:
+    - Search ~/.config/lectito/sites/ (custom, takes priority)
+    - Search bundled configs (standard, fallback)
+    - File naming: domain.com.txt, .domain.com.txt (wildcard subdomain)
+    - Load global.txt for universal rules
+    - Merge matching configs (custom > standard > global)
+[X] Implement FTR directive parser (key: value format):
+    Extraction directives (XPath, multiple allowed, evaluated in order):
+    - title: [XPath]           # Article title
+    - body: [XPath]            # Main content block
+    - date: [XPath]            # Publication date
+    - author: [XPath]          # Author name(s)
+    Strip directives (remove elements):
+    - strip: [XPath]           # Remove matching elements
+    - strip_id_or_class: [str] # Remove by ID/class substring
+    - strip_image_src: [str]   # Remove <img> by src substring
+    - strip_attr: [XPath]      # Remove attributes (e.g. //img/@srcset)
+    Behavior options:
+    - tidy: [yes|no]           # Preprocess with HTML tidy
+    - prune: [yes|no]          # Strip non-content elements (default: yes)
+    - autodetect_on_failure: [yes|no]  # Fallback to heuristics (default: yes)
+    Pagination (for multi-page articles):
+    - single_page_link: [XPath]  # Link to full article view
+    - next_page_link: [XPath]    # Link to next page (content concatenation)
+    Text replacement:
+    - find_string: [str]       # String to find (paired with replace_string)
+    - replace_string: [str]    # Replacement string
+    - replace_string([find]): [replace]  # Inline form
+    HTTP configuration:
+    - http_header([name]): [value]  # Custom headers (e.g. User-Agent, Cookie)
+    Testing/validation:
+    - test_url: [URL]          # Sample URL for testing config
+    Comments:
+    - Lines starting with # are ignored
+[X] Implement XPath expression evaluation with sxd-xpath
+[X] Implement strip directive processing before extraction
+[X] Implement text replacement (find_string/replace_string)
+[X] Add -c/--config CLI option for custom config path
+[X] Implement autodetect_on_failure fallback behavior
+[ ] Implement fingerprint matching (HTML fragment -> config mapping)
+    - Match config by CMS/platform (e.g. WordPress, Blogger)
+    - Use meta generator tags or DOM patterns
+[X] Write site config unit tests (parser, loader, directives)
+[X] Write site config integration tests
+[X] Create example configs (FTR format) for major sites:
+    - .mozilla.org.txt
+    - .en.wikipedia.org.txt
+    - .stanford.edu.txt
+    - .readthedocs.io.txt
+    - global.txt (default strip patterns)
 
 Acceptance Criteria:
-- Site-specific extraction rules work correctly
-- Falls back to heuristics when XPath fails
-- Strip patterns remove unwanted elements
-- Custom HTTP headers/user-agent supported
+- FTR format files parse correctly
+- Site-specific extraction rules override heuristics
+- Falls back to autodetect when XPath fails (if enabled)
+- Strip patterns remove unwanted elements before extraction
+- Custom HTTP headers/user-agent applied to requests
+- Multi-page article pagination works (single_page_link, next_page_link)
+- Fingerprint matching identifies CMS platforms
+- Compatible with existing ftr-site-config repository files
 
 ================================================================================
 MILESTONE X: Testing, Polish & Release

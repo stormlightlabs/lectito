@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use sxd_xpath::ExecutionError;
 use thiserror::Error;
 
 /// Main error type for readability extraction operations
@@ -44,9 +45,19 @@ pub enum LectitoError {
     #[error("Configuration error: {0}")]
     ConfigError(String),
 
+    /// Site configuration errors (FTR format)
+    #[error("Site configuration error: {0}")]
+    SiteConfigError(String),
+
     /// XPath evaluation errors
     #[error("XPath error: {0}")]
     XPathError(String),
+}
+
+impl From<ExecutionError> for LectitoError {
+    fn from(err: ExecutionError) -> Self {
+        LectitoError::XPathError(err.to_string())
+    }
 }
 
 /// Result type alias for LectitoError

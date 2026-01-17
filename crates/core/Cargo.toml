@@ -14,3 +14,9 @@ url = "2.5"
 tokio = { version = "1.42", features = ["rt-multi-thread", "net", "time"] }
 lol_html = "2.7"
 htmd = "0.5.0"
+sxd-xpath = "0.4"
+sxd-document = "0.3"
+dirs = "6.0"
+
+[dev-dependencies]
+tempfile = "3.24"

@@ -1,0 +1,42 @@
+# Wikipedia configuration for Lectito
+# Optimized for Wikipedia and MediaWiki-based sites
+
+# Content extraction
+title: //h1[@id='firstHeading']
+body: //div[@id='bodyContent']
+author: //div[@class='printfooter']//a[@rel='author']
+date: //span[@id='mw-indicator-mw-dateformat']
+
+# Elements to remove (Wikipedia has lots of navigation)
+strip_id_or_class: editsection
+strip_id_or_class: jump-to-nav
+strip_id_or_class: vector-page-tabs
+strip_id_or_class: vector-menu
+strip_id_or_class: sidebar
+strip_id_or_class: navbox
+strip_id_or_class: catlinks
+strip_id_or_class: printfooter
+strip_id_or_class: navbox
+strip_id_or_class: infobox
+strip_id_or_class: metadata
+strip_id_or_class: ambox
+strip_id_or_class: ombox
+strip_id_or_class: tmbox
+
+# XPath-based strip
+strip: //*[@id='toc']
+strip: //div[@class='reflist']
+strip: //div[@class='navbox']
+strip: //table[contains(@class, 'infobox')]
+strip: //div[contains(@class, 'navigation')]
+
+# Behavior
+tidy: no
+prune: no
+autodetect_on_failure: yes
+
+# HTTP configuration
+http_header(User-Agent): Mozilla/5.0 (compatible; Lectito/1.0; +https://en.wikipedia.org)
+
+# Test URL
+test_url: https://en.wikipedia.org/wiki/Rust_(programming_language)

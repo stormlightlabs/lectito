@@ -1,0 +1,41 @@
+# Read the Docs configuration for Lectito
+# Optimized for Sphinx-based documentation sites
+
+# Content extraction
+title: //h1
+body: //div[@role='main']
+date: //time[@class='article-date']
+author: //span[@class='author']
+
+# Common Read the Docs elements to strip
+strip_id_or_class: rst-versions
+strip_id_or_class: rst-current-version
+strip_id_or_class: in-steps-container
+strip_id_or_class: wy-nav-side
+strip_id_or_class: wy-side-scroll
+strip_id_or_class: wy-nav-top
+strip_id_or_class: wy-nav-content-wrap
+strip_id_or_class: wy-nav-content
+strip_id_or_class: wy-nav-shift
+strip_id_or_class: rst-footer
+strip_id_or_class: rst-other-versions
+strip_id_or_class: in-content
+
+# Sphinx-specific elements
+strip: //div[@class='admonition']
+strip: //div[@class='sidebar']
+strip: //div[@class='toc']
+strip: //div[@class='footer']
+strip: //div[@class='navigation']
+strip: //nav[contains(@class, 'bd-sidenav')]
+
+# Behavior
+tidy: yes
+prune: yes
+autodetect_on_failure: yes
+
+# HTTP configuration
+http_header(User-Agent): Mozilla/5.0 (compatible; Lectito/1.0; +https://docs.readthedocs.io)
+
+# Test URL
+test_url: https://docs.python.org/3/tutorial/introduction.html

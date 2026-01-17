@@ -1,0 +1,45 @@
+# Stanford University configuration for Lectito
+# Optimized for Stanford's custom CMS
+
+# Content extraction
+title: //h1
+body: //main
+date: //time[@class='date']
+author: //span[@class='author']
+
+# Stanford CMS elements to strip
+strip_id_or_class: sidebar
+strip_id_or_class: navigation
+strip_id_or_class: nav
+strip_id_or_class: menu
+strip_id_or_class: footer
+strip_id_or_class: header
+strip_id_or_class: breadcrumb
+strip_id_or_class: breadcrumbs
+strip_id_or_class: related
+strip_id_or_class: social
+strip_id_or_class: utility
+strip_id_or_class: tools
+
+# Stanford-specific elements
+strip: //div[@class='su-brand-bar']
+strip: //div[@class='su-global-header']
+strip: //div[@class='su-global-footer']
+strip: //nav[contains(@class, 'su-navigation')]
+strip: //aside[contains(@class, 'su-sidebar')]
+
+# Administrative elements
+strip: //div[contains(@class, 'admin')]
+strip: //div[contains(@class, 'edit')]
+strip: //div[contains(@class, 'toolbar')]
+
+# Behavior
+tidy: yes
+prune: yes
+autodetect_on_failure: yes
+
+# HTTP configuration
+http_header(User-Agent): Mozilla/5.0 (compatible; Lectito/1.0; +https://stanford.edu)
+
+# Test URL
+test_url: https://cs.stanford.edu/people/eroberts/

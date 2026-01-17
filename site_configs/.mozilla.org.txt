@@ -1,0 +1,43 @@
+# Mozilla Hacks configuration for Lectito
+# Optimized for WordPress-based sites with custom themes
+
+# Content extraction
+title: //h1[@class='entry-title']
+body: //div[@class='entry-content']
+date: //p[@class='entry-posted']//abbr[@class='published']/@title
+author: //a[@rel='author']
+
+# Strip common WordPress elements
+strip_id_or_class: comments
+strip_id_or_class: navigation
+strip_id_or_class: nav
+strip_id_or_class: menu
+strip_id_or_class: sidebar
+strip_id_or_class: widget
+strip_id_or_class: footer
+strip_id_or_class: header
+
+# Custom Mozilla Hacks elements
+strip: //div[@class='mh-container']
+strip: //div[@class='mh-header']
+strip: //div[@class='mh-widget']
+strip: //div[@class='mh-footer']
+strip: //nav[contains(@class, 'navigation')]
+strip: //aside[contains(@class, 'widget')]
+
+# Social sharing and interaction elements
+strip: //div[contains(@class, 'share')]
+strip: //div[contains(@class, 'social')]
+strip: //div[contains(@class, 'related')]
+strip: //div[contains(@class, 'tags')]
+
+# Behavior
+tidy: yes
+prune: yes
+autodetect_on_failure: yes
+
+# HTTP configuration
+http_header(User-Agent): Mozilla/5.0 (compatible; Lectito/1.0; +https://hacks.mozilla.org)
+
+# Test URL
+test_url: https://hacks.mozilla.org/2023/01/example-post/

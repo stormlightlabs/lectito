@@ -1,6 +1,7 @@
 use crate::parse::{Document, Element};
 use crate::postprocess::{PostProcessConfig, postprocess_html};
 use crate::scoring::{ScoreConfig, ScoreResult, calculate_score};
+use crate::siteconfig::{SiteConfig, SiteConfigXPath};
 use crate::{LectitoError, Result};
 
 use std::collections::HashSet;
@@ -288,6 +289,43 @@ pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<Extract
     let element_count = 1 + siblings.len();
 
     Ok(ExtractedContent { content, top_score: top_candidate.score(), element_count })
+}
+
+/// Extract content using site configuration with fallback to heuristics
+pub fn extract_content_with_config(
+    doc: &Document, config: &ExtractConfig, site_config: Option<&SiteConfig>,
+) -> Result<ExtractedContent> {
+    if let Some(site_cfg) = site_config {
+        if !site_cfg.title.is_empty() || !site_cfg.body.is_empty() {
+            return extract_with_site_config(doc, site_cfg, config);
+        }
+
+        if !site_cfg.should_autodetect() {
+            return Err(LectitoError::NoContent);
+        }
+    }
+
+    extract_content(doc, config)
+}
+
+/// Extract content using explicit site configuration XPath expressions
+fn extract_with_site_config(
+    doc: &Document, site_config: &SiteConfig, _config: &ExtractConfig,
+) -> Result<ExtractedContent> {
+    let html = doc.html().html();
+
+    let body_content = if let Some(body) = site_config.extract_body(&html)? {
+        body
+    } else {
+        return Err(LectitoError::NoContent);
+    };
+
+    let _title = site_config.extract_title(&html)?.or_else(|| doc.title());
+
+    let element_count = 1;
+    let top_score = 100.0;
+
+    Ok(ExtractedContent { content: body_content, element_count, top_score })
 }
 
 #[cfg(test)]
