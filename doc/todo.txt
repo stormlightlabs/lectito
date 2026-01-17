@@ -63,31 +63,7 @@ See |CHANGELOG.md|
 MILESTONE X: Library API Refactor
 ================================================================================
 
-[x] Create unified Article struct:
-    - Combine ExtractedContent + Metadata
-    - Add text_content (plain text version)
-    - Add length, word_count, reading_time fields
-    - Add source_url field
-[x] Implement Lectito builder:
-    - new() with sensible defaults
-    - with_config(LectitoConfig) constructor
-    - parse(&str) -> Result<Article>
-    - parse_with_url(&str, &str) -> Result<Article>
-[x] Implement LectitoConfig:
-    - min_score, char_threshold, nb_top_candidates
-    - max_elems_to_parse, keep_classes, preserve_images
-    - Builder pattern with LectitoConfigBuilder
-[x] Add convenience functions:
-    - pub fn parse(html: &str) -> Result<Article>
-    - pub fn parse_with_url(html: &str, url: &str) -> Result<Article>
-    - pub fn is_probably_readable(html: &str) -> bool
-[x] Add async fetch integration:
-    - pub async fn fetch_and_parse(url: &str) -> Result<Article>
-    - pub async fn fetch_and_parse_with_config(...) -> Result<Article>
-[x] Preserve backwards compatibility:
-    - Keep existing extract_content, Document, preprocess_html exports
-    - Add #[doc(hidden)] to internal-only functions
-[x] Write library API unit tests
+See |CHANGELOG.md|
 
 Acceptance Criteria:
 - Single entry point for common use cases
@@ -99,64 +75,13 @@ Acceptance Criteria:
 MILESTONE XI: Output Formatters
 ================================================================================
 
-[x] Create formatters module structure:
-    - formatters/mod.rs
-    - formatters/markdown.rs
-    - formatters/json.rs
-    - formatters/text.rs
-[x] Implement Markdown formatter:
-    - HTML to Markdown conversion rules
-    - TOML frontmatter generation (title, author, date, etc.)
-    - GFM table support
-    - Reference link table (--references flag)
-[x] Implement JSON formatter:
-    - Structured output with metadata + content
-    - serde_json serialization
-[x] Implement plain text formatter:
-    - Strip all HTML, preserve structure
-    - TextConfig with preserve_paragraphs, line_width, include_header options
-    - TextFormatter with convert() method
-    - convert_to_text() convenience function
-[x] Add Article output methods:
-    - to_format(OutputFormat) -> String
-    - to_markdown() -> String
-    - to_markdown_with_config(&MarkdownConfig) -> String
-    - to_json() -> serde_json::Value
-    - to_text() -> String
-[x] Add feature flags:
-    - markdown = ["htmd"] (HTML → Markdown)
-    - json = [] (serde_json always included for Article serialization)
-    - siteconfig = ["sxd-xpath", "sxd-document"] (XPath evaluation)
-    - full = ["fetch", "markdown", "json", "siteconfig"]
-[x] Write formatter unit tests
-
-Acceptance Criteria:
-- Clean Markdown output with frontmatter
-- Valid JSON output with all metadata
-- Feature flags control binary size
-- All formatters tested
+See |CHANGELOG.md|
 
 ================================================================================
 MILESTONE XII: Testing & Polish
 ================================================================================
 
-[x] Create test fixture suite:
-    - Sample pages from major sites (HTML + expected output)
-    - Edge cases (paywalls, empty content, weird markup)
-[x] Write integration test suite:
-    - End-to-end CLI tests
-    - Library API integration tests
-[x] Performance testing:
-    - Target: <100ms parse+extract (average page)
-    - Target: <50MB memory (10MB HTML input)
-[x] CLI enhancements:
-    - Add shell completion generation (clap_complete)
-    - Improve --verbose debug logging output
-
-Acceptance Criteria:
-- All tests pass
-- Performance targets met
-- Test fixtures cover major site patterns
+See |CHANGELOG.md|
 
 ================================================================================
 MILESTONE XIII: Documentation & Release

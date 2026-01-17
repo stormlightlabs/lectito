@@ -4,10 +4,15 @@
 
 ### [2026-01-17]
 
-- Site configuration system using the FTR format and XPath 1.0 for precise content
+- Refactored the library API with a unified `Article` struct and a builder-based
+configuration system for flexible content extraction.
+- Expanded output with plain text formatter and integrated article methods
+- Site configuration system using the FTR format and XPath 1.0 for more precise content
 extraction and advanced document filtering.
 - Automated CMS fingerprinting and domain-based rule loading with fallback to
 heuristic-based autodetection.
+- QA suite including performance benchmarks, integration tests, and a set of site
+fixtures.
 
 ### [2026-01-16]
 
