@@ -25,6 +25,12 @@ pub struct ReadabilityConfig {
 
     /// Whether to remove unlikely candidates (default: true)
     pub remove_unlikely: bool,
+
+    /// Whether to preserve class attributes in output HTML (default: false)
+    pub keep_classes: bool,
+
+    /// Whether to preserve images in output HTML (default: true)
+    pub preserve_images: bool,
 }
 
 impl Default for ReadabilityConfig {
@@ -35,6 +41,8 @@ impl Default for ReadabilityConfig {
             nb_top_candidates: 5,
             max_elems_to_parse: 0,
             remove_unlikely: true,
+            keep_classes: false,
+            preserve_images: true,
         }
     }
 }
@@ -89,6 +97,18 @@ impl ReadabilityConfigBuilder {
         self
     }
 
+    /// Set whether to preserve class attributes in output HTML
+    pub fn keep_classes(mut self, value: bool) -> Self {
+        self.config.keep_classes = value;
+        self
+    }
+
+    /// Set whether to preserve images in output HTML
+    pub fn preserve_images(mut self, value: bool) -> Self {
+        self.config.preserve_images = value;
+        self
+    }
+
     /// Build the config
     pub fn build(self) -> ReadabilityConfig {
         self.config
@@ -100,6 +120,16 @@ impl Default for ReadabilityConfigBuilder {
         Self::new()
     }
 }
+
+/// Type alias for ReadabilityConfig
+///
+/// Provides an alternative name for the configuration struct.
+pub type LectitoConfig = ReadabilityConfig;
+
+/// Type alias for ReadabilityConfigBuilder
+///
+/// Provides an alternative name for the configuration builder.
+pub type LectitoConfigBuilder = ReadabilityConfigBuilder;
 
 /// Main entry point for content extraction
 ///
@@ -153,7 +183,11 @@ impl Readability {
             char_threshold: self.config.char_threshold,
             max_elements: if self.config.max_elems_to_parse == 0 { 1000 } else { self.config.max_elems_to_parse },
             sibling_threshold: 0.2,
-            postprocess: crate::postprocess::PostProcessConfig::default(),
+            postprocess: crate::postprocess::PostProcessConfig {
+                strip_images: !self.config.preserve_images,
+                keep_classes: self.config.keep_classes,
+                ..Default::default()
+            },
         };
 
         let extracted = extract_content_with_config(doc, &extract_config, site_config.as_ref())?;
@@ -252,6 +286,8 @@ mod tests {
         assert_eq!(config.nb_top_candidates, 5);
         assert_eq!(config.max_elems_to_parse, 0);
         assert!(config.remove_unlikely);
+        assert!(!config.keep_classes);
+        assert!(config.preserve_images);
     }
 
     #[test]
@@ -262,6 +298,8 @@ mod tests {
             .nb_top_candidates(10)
             .max_elems_to_parse(500)
             .remove_unlikely(false)
+            .keep_classes(true)
+            .preserve_images(false)
             .build();
 
         assert_eq!(config.min_score, 30.0);
@@ -269,6 +307,29 @@ mod tests {
         assert_eq!(config.nb_top_candidates, 10);
         assert_eq!(config.max_elems_to_parse, 500);
         assert!(!config.remove_unlikely);
+        assert!(config.keep_classes);
+        assert!(!config.preserve_images);
+    }
+
+    #[test]
+    fn test_lectito_config_type_alias() {
+        let config: LectitoConfig = LectitoConfig::default();
+        assert_eq!(config.min_score, 20.0);
+        assert!(!config.keep_classes);
+        assert!(config.preserve_images);
+    }
+
+    #[test]
+    fn test_lectito_config_builder() {
+        let config = LectitoConfig::builder()
+            .keep_classes(true)
+            .preserve_images(true)
+            .min_score(15.0)
+            .build();
+
+        assert!(config.keep_classes);
+        assert!(config.preserve_images);
+        assert_eq!(config.min_score, 15.0);
     }
 
     #[test]

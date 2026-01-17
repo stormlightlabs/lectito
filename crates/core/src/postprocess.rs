@@ -16,6 +16,8 @@ pub struct PostProcessConfig {
     pub remove_conditional_comments: bool,
     /// Whether to strip all images
     pub strip_images: bool,
+    /// Whether to keep class attributes (default: false)
+    pub keep_classes: bool,
     /// Custom strip patterns (class/ID regex)
     pub strip_patterns: Option<String>,
     /// Base URL for converting relative URLs
@@ -31,6 +33,7 @@ impl Default for PostProcessConfig {
             clean_nested_divs: true,
             remove_conditional_comments: true,
             strip_images: false,
+            keep_classes: false,
             strip_patterns: None,
             base_url: None,
         }
@@ -47,6 +50,10 @@ pub fn postprocess_html(html: &str, config: &PostProcessConfig) -> String {
 
     if config.strip_images {
         processed = strip_images(&processed);
+    }
+
+    if !config.keep_classes {
+        processed = strip_classes(&processed);
     }
 
     if config.remove_empty_nodes {
@@ -85,6 +92,12 @@ fn remove_conditional_comments(html: &str) -> String {
 /// Strip all image tags from HTML
 fn strip_images(html: &str) -> String {
     let re = Regex::new(r#"<img[^>]*>"#).unwrap();
+    re.replace_all(html, "").to_string()
+}
+
+/// Strip all class attributes from HTML
+fn strip_classes(html: &str) -> String {
+    let re = Regex::new(r#"\s+class=["'][^"']*["']"#).unwrap();
     re.replace_all(html, "").to_string()
 }
 
@@ -472,7 +485,33 @@ mod tests {
         assert!(config.clean_nested_divs);
         assert!(config.remove_conditional_comments);
         assert!(!config.strip_images);
+        assert!(!config.keep_classes);
         assert!(config.strip_patterns.is_none());
+    }
+
+    #[test]
+    fn test_strip_classes() {
+        let html = r#"<div class="container main">Content</div><p class="text">Text</p>"#;
+        let result = strip_classes(html);
+        assert!(!result.contains("class="));
+        assert!(result.contains("<div>Content</div>"));
+        assert!(result.contains("<p>Text</p>"));
+    }
+
+    #[test]
+    fn test_keep_classes_true() {
+        let html = r#"<div class="container">Content</div>"#;
+        let config = PostProcessConfig { keep_classes: true, ..Default::default() };
+        let result = postprocess_html(html, &config);
+        assert!(result.contains("class="));
+    }
+
+    #[test]
+    fn test_keep_classes_false() {
+        let html = r#"<div class="container">Content</div>"#;
+        let config = PostProcessConfig { keep_classes: false, ..Default::default() };
+        let result = postprocess_html(html, &config);
+        assert!(!result.contains("class="));
     }
 
     #[test]

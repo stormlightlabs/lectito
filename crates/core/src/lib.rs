@@ -22,7 +22,9 @@ pub use metadata::Metadata;
 pub use parse::Document;
 pub use postprocess::{PostProcessConfig, postprocess_html};
 pub use preprocess::{PreprocessConfig, preprocess_html};
-pub use readability::{Readability, ReadabilityConfig, is_probably_readable, parse, parse_with_url};
+pub use readability::{
+    LectitoConfig, LectitoConfigBuilder, Readability, ReadabilityConfig, is_probably_readable, parse, parse_with_url,
+};
 pub use scoring::{
     ScoreConfig, ScoreResult, base_tag_score, calculate_score, class_id_weight, content_density_score, link_density,
 };
