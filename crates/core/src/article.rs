@@ -1,6 +1,21 @@
-use crate::metadata::Metadata;
-use crate::parse::Document;
+use crate::formatters::markdown::MarkdownConfig;
+use crate::formatters::markdown::convert_to_markdown;
+use crate::{Document, Metadata};
+use crate::{LectitoError, Result};
 use serde::Serialize;
+
+/// Output format options for Article content
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutputFormat {
+    /// HTML format (original extracted content)
+    Html,
+    /// Markdown format with TOML frontmatter
+    Markdown,
+    /// Plain text format (stripped HTML tags)
+    PlainText,
+    /// JSON format (structured data)
+    Json,
+}
 
 /// The complete result of reading an HTML document
 ///
@@ -45,6 +60,37 @@ impl Article {
     pub fn from_document(doc: &Document, content_html: String, source_url: Option<String>) -> Self {
         let metadata = doc.extract_metadata();
         Self::new(content_html, metadata, source_url)
+    }
+
+    /// Convert content to specified format
+    pub fn to_format(&self, format: OutputFormat) -> Result<String> {
+        match format {
+            OutputFormat::Html => Ok(self.content.clone()),
+            OutputFormat::Markdown => self.to_markdown(),
+            OutputFormat::PlainText => Ok(self.text_content.clone()),
+            OutputFormat::Json => self.to_json().map(|v| v.to_string()),
+        }
+    }
+
+    /// Get content as Markdown with TOML frontmatter
+    pub fn to_markdown(&self) -> Result<String> {
+        let config = MarkdownConfig::default();
+        convert_to_markdown(&self.content, &self.metadata, &config)
+    }
+
+    /// Get content as Markdown with custom configuration
+    pub fn to_markdown_with_config(&self, config: &MarkdownConfig) -> Result<String> {
+        convert_to_markdown(&self.content, &self.metadata, config)
+    }
+
+    /// Get content as structured JSON
+    pub fn to_json(&self) -> Result<serde_json::Value> {
+        serde_json::to_value(self).map_err(|e| LectitoError::HtmlParseError(e.to_string()))
+    }
+
+    /// Get content as plain text (alias for text_content)
+    pub fn to_text(&self) -> String {
+        self.text_content.clone()
     }
 }
 
@@ -164,5 +210,106 @@ mod tests {
         assert!(json.contains(r#""title":"Test""#));
         assert!(json.contains(r#""author":"Author""#));
         assert!(json.contains(r#""source_url":"https://example.com""#));
+    }
+
+    #[test]
+    fn test_to_format_html() {
+        let content = "<p>Test content</p>".to_string();
+        let metadata = Metadata::default();
+        let article = Article::new(content, metadata, None);
+
+        let result = article.to_format(OutputFormat::Html);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "<p>Test content</p>");
+    }
+
+    #[test]
+    fn test_to_format_markdown() {
+        let content = "<h1>Test</h1><p>Content</p>".to_string();
+        let metadata = Metadata { title: Some("Test".to_string()), ..Default::default() };
+        let article = Article::new(content, metadata, None);
+
+        let result = article.to_format(OutputFormat::Markdown);
+        assert!(result.is_ok());
+        let markdown = result.unwrap();
+        assert!(markdown.contains("# Test") || markdown.contains("Test"));
+    }
+
+    #[test]
+    fn test_to_format_plain_text() {
+        let content = "<p>Test content</p>".to_string();
+        let metadata = Metadata::default();
+        let article = Article::new(content.clone(), metadata, None);
+
+        let result = article.to_format(OutputFormat::PlainText);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Test content");
+    }
+
+    #[test]
+    fn test_to_format_json() {
+        let content = "<p>Test</p>".to_string();
+        let metadata = Metadata { title: Some("Test".to_string()), ..Default::default() };
+        let article = Article::new(content, metadata, None);
+
+        let result = article.to_format(OutputFormat::Json);
+        assert!(result.is_ok());
+        let json = result.unwrap();
+        assert!(json.contains(r#"{"#));
+        assert!(json.contains("content"));
+    }
+
+    #[test]
+    fn test_to_markdown_default() {
+        let content = "<h1>Title</h1><p>Content</p>".to_string();
+        let metadata = Metadata { title: Some("Title".to_string()), ..Default::default() };
+        let article = Article::new(content, metadata, None);
+
+        let result = article.to_markdown();
+        assert!(result.is_ok());
+        let markdown = result.unwrap();
+        assert!(markdown.contains("Title"));
+    }
+
+    #[test]
+    fn test_to_markdown_with_config() {
+        let content = "<h1>Title</h1><p>Content</p>".to_string();
+        let metadata =
+            Metadata { title: Some("Title".to_string()), author: Some("Author".to_string()), ..Default::default() };
+        let article = Article::new(content, metadata, None);
+
+        let config = MarkdownConfig { include_frontmatter: true, ..Default::default() };
+        let result = article.to_markdown_with_config(&config);
+        assert!(result.is_ok());
+        let markdown = result.unwrap();
+        assert!(markdown.contains("+++"));
+    }
+
+    #[test]
+    fn test_to_json() {
+        let content = "<p>Test</p>".to_string();
+        let metadata = Metadata {
+            title: Some("Test Title".to_string()),
+            author: Some("Test Author".to_string()),
+            ..Default::default()
+        };
+        let article = Article::new(content, metadata, Some("https://example.com".to_string()));
+
+        let result = article.to_json();
+        assert!(result.is_ok());
+        let json = result.unwrap();
+        assert!(json.is_object());
+        assert!(json.get("content").is_some());
+        assert!(json.get("metadata").is_some());
+    }
+
+    #[test]
+    fn test_to_text() {
+        let content = "<p>Test content</p>".to_string();
+        let metadata = Metadata::default();
+        let article = Article::new(content, metadata, None);
+
+        let text = article.to_text();
+        assert_eq!(text, "Test content");
     }
 }

@@ -1,6 +1,8 @@
 use std::path::PathBuf;
-use sxd_xpath::ExecutionError;
 use thiserror::Error;
+
+#[cfg(feature = "siteconfig")]
+use sxd_xpath::ExecutionError;
 
 /// Main error type for readability extraction operations
 #[derive(Error, Debug)]
@@ -54,6 +56,7 @@ pub enum LectitoError {
     XPathError(String),
 }
 
+#[cfg(feature = "siteconfig")]
 impl From<ExecutionError> for LectitoError {
     fn from(err: ExecutionError) -> Self {
         LectitoError::XPathError(err.to_string())

@@ -99,8 +99,16 @@ fn toml_escape_string(s: &str) -> String {
 }
 
 /// Convert HTML to Markdown using htmd crate
+#[cfg(feature = "markdown")]
 fn html_to_markdown(html: &str) -> String {
     htmd::convert(html).unwrap_or_default()
+}
+
+/// Fallback HTML to text conversion when markdown feature is disabled
+#[cfg(not(feature = "markdown"))]
+fn html_to_markdown(html: &str) -> String {
+    let doc = scraper::Html::parse_document(html);
+    doc.root_element().text().collect::<String>()
 }
 
 /// Strip all img tags from HTML

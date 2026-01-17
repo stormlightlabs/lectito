@@ -3,19 +3,41 @@ name = "lectito-core"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["fetch", "markdown", "siteconfig"]
+
+# Async URL fetching (reqwest + tokio)
+fetch = ["reqwest", "tokio"]
+
+# HTML to Markdown conversion (htmd)
+markdown = ["htmd"]
+
+# JSON output support (serde_json always included for Article serialization)
+json = []
+
+# Site configuration (XPath evaluation)
+siteconfig = ["sxd-xpath", "sxd-document"]
+
+# All features
+full = ["fetch", "markdown", "json", "siteconfig"]
+
 [dependencies]
 thiserror = "2.0.17"
-reqwest = { version = "0.12", features = ["rustls-tls"] }
+reqwest = { version = "0.12", features = ["rustls-tls"], optional = true }
 scraper = "0.25"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 regex = "1.11"
 url = "2.5"
-tokio = { version = "1.42", features = ["rt-multi-thread", "net", "time"] }
+tokio = { version = "1.42", features = [
+    "rt-multi-thread",
+    "net",
+    "time",
+], optional = true }
 lol_html = "2.7"
-htmd = "0.5.0"
-sxd-xpath = "0.4"
-sxd-document = "0.3"
+htmd = { version = "0.5.0", optional = true }
+sxd-xpath = { version = "0.4", optional = true }
+sxd-document = { version = "0.3", optional = true }
 dirs = "6.0"
 
 [dev-dependencies]

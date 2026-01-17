@@ -99,31 +99,36 @@ Acceptance Criteria:
 MILESTONE XI: Output Formatters
 ================================================================================
 
-[ ] Create formatters module structure:
+[x] Create formatters module structure:
     - formatters/mod.rs
     - formatters/markdown.rs
     - formatters/json.rs
     - formatters/text.rs
-[ ] Implement Markdown formatter:
+[x] Implement Markdown formatter:
     - HTML to Markdown conversion rules
     - TOML frontmatter generation (title, author, date, etc.)
     - GFM table support
     - Reference link table (--references flag)
-[ ] Implement JSON formatter:
+[x] Implement JSON formatter:
     - Structured output with metadata + content
     - serde_json serialization
-[ ] Implement plain text formatter:
+[x] Implement plain text formatter:
     - Strip all HTML, preserve structure
-[ ] Add Article output methods:
+    - TextConfig with preserve_paragraphs, line_width, include_header options
+    - TextFormatter with convert() method
+    - convert_to_text() convenience function
+[x] Add Article output methods:
     - to_format(OutputFormat) -> String
     - to_markdown() -> String
+    - to_markdown_with_config(&MarkdownConfig) -> String
     - to_json() -> serde_json::Value
     - to_text() -> String
-[ ] Add feature flags:
-    - markdown = [] (HTML → Markdown)
-    - json = ["serde_json"]
-    - full = ["fetch", "markdown", "json"]
-[ ] Write formatter unit tests
+[x] Add feature flags:
+    - markdown = ["htmd"] (HTML → Markdown)
+    - json = [] (serde_json always included for Article serialization)
+    - siteconfig = ["sxd-xpath", "sxd-document"] (XPath evaluation)
+    - full = ["fetch", "markdown", "json", "siteconfig"]
+[x] Write formatter unit tests
 
 Acceptance Criteria:
 - Clean Markdown output with frontmatter

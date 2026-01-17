@@ -10,9 +10,10 @@ pub mod postprocess;
 pub mod preprocess;
 pub mod readability;
 pub mod scoring;
+#[cfg(feature = "siteconfig")]
 pub mod siteconfig;
 
-pub use article::Article;
+pub use article::{Article, OutputFormat};
 #[doc(hidden)]
 pub use dom_tree::{DomNode, DomTree, build_dom_tree};
 pub use error::{LectitoError, Result};
@@ -21,7 +22,8 @@ pub use extract::{ExtractConfig, ExtractedContent};
 pub use extract::{extract_content, extract_content_with_config};
 pub use fetch::FetchConfig;
 pub use fetch::{fetch_file, fetch_stdin, fetch_url};
-pub use formatters::{MarkdownConfig, MarkdownFormatter, convert_to_markdown};
+pub use formatters::{JsonConfig, JsonFormatter, MarkdownConfig, MarkdownFormatter, TextConfig, TextFormatter};
+pub use formatters::{convert_to_json, convert_to_markdown, convert_to_text, metadata_to_json};
 pub use metadata::Metadata;
 pub use parse::Document;
 #[doc(hidden)]
@@ -38,4 +40,5 @@ pub use readability::{
 pub use scoring::{
     ScoreConfig, ScoreResult, base_tag_score, calculate_score, class_id_weight, content_density_score, link_density,
 };
+#[cfg(feature = "siteconfig")]
 pub use siteconfig::{ConfigLoader, ConfigLoaderBuilder, ConfigParser, Directive, FingerprintMatcher, SiteConfig};
