@@ -1,0 +1,46 @@
+# Ghost fingerprint configuration for Lectito
+# Ghost CMS-powered blogs
+
+# Fingerprint matching (meta generator tag)
+fingerprint: <meta name="generator" content="Ghost | fingerprint.ghost.org
+
+# Content extraction (Ghost patterns)
+title: //h1[@class='article-title'] | //h1
+body: //div[@class='post-full-content'] | //article[@class='post'] | //div[@class='gh-content']
+date: //time[@class='post-card-date'] | //time
+author: //span[@class='author-name'] | //a[@class='author-name']
+
+# Strip common Ghost elements
+strip_id_or_class: comments
+strip_id_or_class: subscribe-form
+strip_id_or_class: footer
+strip_id_or_class: header
+strip_id_or_class: navigation
+strip_id_or_class: author-card
+strip_id_or_class: related-posts
+strip_id_or_class: read-more
+strip_id_or_class: sidebar
+strip_id_or_class: tags
+strip_id_or_class: share
+
+# Ghost-specific elements
+strip: //div[contains(@class, 'subscribe')]
+strip: //form[contains(@class, 'subscribe')]
+strip: //div[contains(@class, 'author-card')]
+strip: //div[contains(@class, 'author-profile')]
+strip: //footer[contains(@class, 'site-footer')]
+strip: //header[contains(@class, 'site-header')]
+strip: //nav[contains(@class, 'navigation')]
+strip: //div[@class='read-more']
+strip: //div[contains(@class, 'related-posts')]
+strip: //div[contains(@class, 'comments-section')]
+strip: //div[@id='comments']
+strip: //div[contains(@class, 'share')]
+
+# Behavior
+tidy: yes
+prune: yes
+autodetect_on_failure: yes
+
+# Test URL
+test_url: https://ghost.org/changelog/

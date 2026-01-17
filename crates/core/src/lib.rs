@@ -22,4 +22,4 @@ pub use preprocess::{PreprocessConfig, preprocess_html};
 pub use scoring::{
     ScoreConfig, ScoreResult, base_tag_score, calculate_score, class_id_weight, content_density_score, link_density,
 };
-pub use siteconfig::{ConfigLoader, ConfigLoaderBuilder, ConfigParser, Directive, SiteConfig};
+pub use siteconfig::{ConfigLoader, ConfigLoaderBuilder, ConfigParser, Directive, FingerprintMatcher, SiteConfig};

@@ -1,0 +1,49 @@
+# Blogger fingerprint configuration for Lectito
+# Blogger/Blogspot sites (custom domains and blogspot.com)
+
+# Fingerprint matching (meta generator tag in head)
+fingerprint: <meta content='blogger' name='generator' | fingerprint.blogger.com
+fingerprint: <meta name="generator" content="Blogger | fingerprint.blogger.com
+
+# Content extraction (Blogger patterns)
+title: //h1[@class='post-title entry-title'] | //h3[@class='post-title entry-title']
+body: //div[@class='post-body entry-content'] | //div[@class='entry-content']
+date: //h2[@class='date-header'] | //abbr[@class='published'] | //span[@class='post-timestamp']
+author: //span[@class='post-author vcard'] | //span[@class='author']
+
+# Strip common Blogger elements
+strip_id_or_class: sidebar
+strip_id_or_class: blog-pager
+strip_id_or_class: comments
+strip_id_or_class: footer
+strip_id_or_class: header
+strip_id_or_class: navbar
+strip_id_or_class: post-footer
+strip_id_or_class: post-meta
+strip_id_or_class: labels
+strip_id_or_class: reaction-buttons
+strip_id_or_class: share-buttons
+strip_id_or_class: backlinks
+
+# Blogger-specific classes and IDs
+strip: //div[@class='blog-feeds']
+strip: //div[@class='status-message-wrap']
+strip: //div[@class='comments']
+strip: //div[@id='comments']
+strip: //div[@class='blog-pager']
+strip: //div[@class='post-footer-line post-footer-line-1']
+strip: //div[@class='post-footer-line post-footer-line-2']
+strip: //div[@class='post-footer-line post-footer-line-3']
+strip: //div[@id='sidebar-wrapper']
+strip: //div[@id='header-wrapper']
+strip: //div[@id='footer-wrapper']
+strip: //div[@class='reaction-buttons']
+strip: //div[@class='share-buttons']
+
+# Behavior
+tidy: yes
+prune: yes
+autodetect_on_failure: yes
+
+# Test URL
+test_url: https://blog.google/technology/ai/

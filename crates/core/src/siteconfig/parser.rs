@@ -192,4 +192,22 @@ title: //h1
         assert_eq!(config.title.len(), 1);
         assert_eq!(config.title[0], "//h1");
     }
+
+    #[test]
+    fn test_parse_fingerprint_directive() {
+        let content = r#"
+fingerprint: <meta name="generator" content="WordPress" | fingerprint.wordpress.com
+body: //div[@class='entry-content']
+"#;
+
+        let config = ConfigParser::parse_string(content).unwrap();
+
+        assert_eq!(config.fingerprints.len(), 1);
+        assert_eq!(
+            config.fingerprints[0].0,
+            "<meta name=\"generator\" content=\"WordPress\""
+        );
+        assert_eq!(config.fingerprints[0].1, "fingerprint.wordpress.com");
+        assert_eq!(config.body.len(), 1);
+    }
 }

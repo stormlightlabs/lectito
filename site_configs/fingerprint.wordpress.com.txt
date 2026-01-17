@@ -1,0 +1,48 @@
+# WordPress fingerprint configuration for Lectito
+# Self-hosted WordPress sites (any domain)
+
+# Fingerprint matching (meta generator tag in head)
+fingerprint: <meta name="generator" content="WordPress | fingerprint.wordpress.com
+
+# Content extraction (common WordPress patterns)
+title: //h1[@class='entry-title'] | //h1 | //h2[@class='entry-title']
+body: //div[@class='entry-content'] | //div[@class='post-content'] | //article | //main//div[contains(@class, 'content')]
+date: //time[@class='entry-date']/@datetime | //span[@class='entry-date'] | //p[@class='post-meta']
+author: //span[@class='author'] | //a[@rel='author'] | //p[@class='post-author']
+
+# Strip common WordPress elements
+strip_id_or_class: comments
+strip_id_or_class: comment-form
+strip_id_or_class: navigation
+strip_id_or_class: nav
+strip_id_or_class: menu
+strip_id_or_class: sidebar
+strip_id_or_class: widget
+strip_id_or_class: footer
+strip_id_or_class: header
+strip_id_or_class: related-posts
+strip_id_or_class: tags
+strip_id_or_class: categories
+strip_id_or_class: meta
+strip_id_or_class: post-meta
+
+# WordPress-specific classes
+strip: //div[contains(@class, 'wp-block')]
+strip: //div[contains(@class, 'sharedaddy')]
+strip: //div[contains(@class, 'jetpack')]
+strip: //div[contains(@class, 'share')]
+strip: //div[contains(@class, 'social')]
+strip: //nav[contains(@class, 'navigation')]
+strip: //aside[contains(@class, 'widget')]
+strip: //div[@class='site-header']
+strip: //div[@class='site-footer']
+strip: //div[@class='comments-area']
+strip: //div[@class='comment-respond']
+
+# Behavior
+tidy: yes
+prune: yes
+autodetect_on_failure: yes
+
+# Test URL
+test_url: https://wordpress.org/news/2023/12/wordpress-6-4-2/

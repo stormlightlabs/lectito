@@ -34,6 +34,9 @@ pub enum Directive {
 
     /// Testing
     TestUrl(String),
+
+    /// Fingerprint matching (HTML fragment -> config mapping)
+    Fingerprint(String, String),
 }
 
 /// Site configuration containing all directives for a domain
@@ -68,6 +71,9 @@ pub struct SiteConfig {
 
     /// Test URLs
     pub test_urls: Vec<String>,
+
+    /// Fingerprints for CMS/platform detection (HTML fragment -> hostname mapping)
+    pub fingerprints: Vec<(String, String)>,
 }
 
 impl SiteConfig {
@@ -111,6 +117,10 @@ impl SiteConfig {
             }
 
             Directive::TestUrl(url) => self.test_urls.push(url),
+
+            Directive::Fingerprint(fragment, hostname) => {
+                self.fingerprints.push((fragment, hostname));
+            }
         }
     }
 
@@ -147,6 +157,8 @@ impl SiteConfig {
         }
 
         self.test_urls.extend(other.test_urls.clone());
+
+        self.fingerprints.extend(other.fingerprints.clone());
     }
 
     /// Check if this config should stop auto-detection
@@ -207,6 +219,16 @@ pub fn parse_directive(line: &str) -> Result<Directive> {
             "replace_string" => Ok(Directive::ReplaceString(value.to_string())),
 
             "test_url" => Ok(Directive::TestUrl(value.to_string())),
+
+            "fingerprint" => {
+                let (fragment, hostname) = value
+                    .split_once('|')
+                    .ok_or_else(|| LectitoError::SiteConfigError(format!("Invalid fingerprint format: {}", value)))?;
+                Ok(Directive::Fingerprint(
+                    fragment.trim().to_string(),
+                    hostname.trim().to_string(),
+                ))
+            }
 
             _ => {
                 if let Some(header_name) = key.strip_prefix("http_header(") {
@@ -329,5 +351,39 @@ mod tests {
             config.text_replacements[0],
             ("<p />".to_string(), "<br /><br />".to_string())
         );
+    }
+
+    #[test]
+    fn test_parse_fingerprint_directive() {
+        let directive =
+            parse_directive("fingerprint: <meta name=\"generator\" content=\"WordPress\" | fingerprint.wordpress.com")
+                .unwrap();
+        assert_eq!(
+            directive,
+            Directive::Fingerprint(
+                "<meta name=\"generator\" content=\"WordPress\"".to_string(),
+                "fingerprint.wordpress.com".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn test_config_fingerprints() {
+        let mut config = SiteConfig::new();
+        config.add_directive(Directive::Fingerprint(
+            "<meta name=\"generator\" content=\"WordPress\"".to_string(),
+            "fingerprint.wordpress.com".to_string(),
+        ));
+        config.add_directive(Directive::Fingerprint(
+            "<meta content='blogger' name='generator'".to_string(),
+            "fingerprint.blogger.com".to_string(),
+        ));
+
+        assert_eq!(config.fingerprints.len(), 2);
+        assert_eq!(
+            config.fingerprints[0].0,
+            "<meta name=\"generator\" content=\"WordPress\""
+        );
+        assert_eq!(config.fingerprints[0].1, "fingerprint.wordpress.com");
     }
 }

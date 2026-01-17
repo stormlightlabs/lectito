@@ -1,5 +1,6 @@
 use crate::error::{LectitoError, Result};
 use crate::siteconfig::directives::SiteConfig;
+use crate::siteconfig::fingerprint::FingerprintMatcher;
 use crate::siteconfig::parser::ConfigParser;
 use std::collections::HashMap;
 use std::fs;
@@ -26,6 +27,49 @@ impl ConfigLoader {
     pub fn load_for_url(&mut self, url: &str) -> Result<SiteConfig> {
         let domain = self.extract_domain(url)?;
         self.load_for_domain(&domain)
+    }
+
+    /// Load configuration for HTML content with fingerprint matching
+    pub fn load_for_html(&mut self, html: &str) -> Result<SiteConfig> {
+        let matcher = FingerprintMatcher::with_dirs(self.custom_dir.clone(), self.standard_dir.clone());
+
+        if let Some(hostname) = matcher.match_html(html) {
+            return self.load_for_fingerprint(&hostname);
+        }
+
+        Ok(SiteConfig::new())
+    }
+
+    /// Load configuration for a fingerprint hostname
+    pub fn load_for_fingerprint(&mut self, hostname: &str) -> Result<SiteConfig> {
+        if let Some(config) = self.cache.get(hostname) {
+            return Ok(config.clone());
+        }
+
+        let mut merged_config = SiteConfig::new();
+        let mut found_configs = false;
+
+        let config_files = self.find_fingerprint_config_files(hostname)?;
+
+        for file_path in config_files.iter().rev() {
+            match ConfigParser::parse_file(file_path) {
+                Ok(config) => {
+                    merged_config.merge(&config);
+                    found_configs = true;
+
+                    if let Some(false) = merged_config.autodetect_on_failure {
+                        break;
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Warning: Failed to parse config file {}: {}", file_path.display(), e);
+                }
+            }
+        }
+
+        self.cache.insert(hostname.to_string(), merged_config.clone());
+
+        if found_configs { Ok(merged_config) } else { Ok(SiteConfig::new()) }
     }
 
     /// Load configuration for a domain
@@ -104,6 +148,28 @@ impl ConfigLoader {
                 if file_path.exists() && !config_files.contains(&file_path) {
                     config_files.push(file_path);
                 }
+            }
+        }
+
+        Ok(config_files)
+    }
+
+    /// Find all config files for a fingerprint hostname in priority order
+    fn find_fingerprint_config_files(&self, hostname: &str) -> Result<Vec<PathBuf>> {
+        let mut config_files = Vec::new();
+        let config_name = format!("{}.txt", hostname);
+
+        if let Some(custom_dir) = &self.custom_dir {
+            let file_path = custom_dir.join(&config_name);
+            if file_path.exists() {
+                config_files.push(file_path);
+            }
+        }
+
+        if let Some(standard_dir) = &self.standard_dir {
+            let file_path = standard_dir.join(&config_name);
+            if file_path.exists() && !config_files.contains(&file_path) {
+                config_files.push(file_path);
             }
         }
 

@@ -156,7 +156,7 @@ MILESTONE IX: Site Configuration System (FTR Format)
 [X] Implement text replacement (find_string/replace_string)
 [X] Add -c/--config CLI option for custom config path
 [X] Implement autodetect_on_failure fallback behavior
-[ ] Implement fingerprint matching (HTML fragment -> config mapping)
+[X] Implement fingerprint matching (HTML fragment -> config mapping)
     - Match config by CMS/platform (e.g. WordPress, Blogger)
     - Use meta generator tags or DOM patterns
 [X] Write site config unit tests (parser, loader, directives)
@@ -167,6 +167,10 @@ MILESTONE IX: Site Configuration System (FTR Format)
     - .stanford.edu.txt
     - .readthedocs.io.txt
     - global.txt (default strip patterns)
+    - fingerprint.wordpress.com.txt (WordPress CMS)
+    - fingerprint.blogger.com.txt (Blogger CMS)
+    - fingerprint.medium.com.txt (Medium CMS)
+    - fingerprint.ghost.org.txt (Ghost CMS)
 
 Acceptance Criteria:
 - FTR format files parse correctly
