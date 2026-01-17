@@ -68,15 +68,15 @@ MILESTONE X: Library API Refactor
     - Add text_content (plain text version)
     - Add length, word_count, reading_time fields
     - Add source_url field
-[ ] Implement Readability builder:
+[ ] Implement Lectito builder:
     - new() with sensible defaults
-    - with_config(ReadabilityConfig) constructor
+    - with_config(LectitoConfig) constructor
     - parse(&str) -> Result<Article>
     - parse_with_url(&str, &str) -> Result<Article>
-[ ] Implement ReadabilityConfig:
+[ ] Implement LectitoConfig:
     - min_score, char_threshold, nb_top_candidates
     - max_elems_to_parse, keep_classes, preserve_images
-    - Builder pattern with ReadabilityConfigBuilder
+    - Builder pattern with LectitoConfigBuilder
 [ ] Add convenience functions:
     - pub fn parse(html: &str) -> Result<Article>
     - pub fn parse_with_url(html: &str, url: &str) -> Result<Article>

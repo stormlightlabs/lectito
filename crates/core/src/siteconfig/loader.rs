@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Configuration loader for FTR site configs
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ConfigLoader {
     /// Custom config directory path
     custom_dir: Option<PathBuf>,
