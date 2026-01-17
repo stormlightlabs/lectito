@@ -84,10 +84,10 @@ MILESTONE X: Library API Refactor
 [x] Add async fetch integration:
     - pub async fn fetch_and_parse(url: &str) -> Result<Article>
     - pub async fn fetch_and_parse_with_config(...) -> Result<Article>
-[ ] Preserve backwards compatibility:
+[x] Preserve backwards compatibility:
     - Keep existing extract_content, Document, preprocess_html exports
     - Add #[doc(hidden)] to internal-only functions
-[ ] Write library API unit tests
+[x] Write library API unit tests
 
 Acceptance Criteria:
 - Single entry point for common use cases
