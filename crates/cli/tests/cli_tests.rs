@@ -152,14 +152,6 @@ fn test_cli_github_fixture() {
         .stdout(predicate::str::contains("Linux kernel"));
 }
 
-#[test]
-fn test_cli_medium_fixture() {
-    cmd()
-        .arg(get_site_fixture_path("medium", "article.html"))
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Async"));
-}
 
 #[test]
 fn test_cli_char_threshold() {

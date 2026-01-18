@@ -3,6 +3,19 @@ use crate::parse::Document;
 
 use std::collections::HashMap;
 
+/// Safely truncate a string to at most `max_len` bytes at a character boundary
+///
+/// This function ensures we never slice in the middle of a multi-byte UTF-8 character.
+/// If the max_len falls inside a character, we find the previous character boundary.
+fn truncate_at_char_boundary(s: &str, max_len: usize) -> &str {
+    if s.len() <= max_len {
+        return s;
+    }
+
+    let safe_len = s.floor_char_boundary(max_len);
+    &s[..safe_len]
+}
+
 /// A node in the DOM tree representing an element
 #[derive(Debug, Clone)]
 pub struct DomNode {
@@ -43,7 +56,8 @@ impl DomTree {
     /// Create a unique signature for a node
     fn create_signature(&self, node: &DomNode) -> String {
         if node.html.len() > 200 {
-            format!("{}-{}", node.tag_name, &node.html[..200])
+            let safe_truncated = truncate_at_char_boundary(&node.html, 200);
+            format!("{}-{}", node.tag_name, safe_truncated)
         } else {
             format!("{}-{}", node.tag_name, node.html)
         }
@@ -57,7 +71,8 @@ impl DomTree {
     /// Get a node by its HTML signature
     pub fn find_by_html(&self, html: &str, tag_name: &str) -> Option<&DomNode> {
         let signature = if html.len() > 200 {
-            format!("{}-{}", tag_name, &html[..200])
+            let safe_truncated = truncate_at_char_boundary(html, 200);
+            format!("{}-{}", tag_name, safe_truncated)
         } else {
             format!("{}-{}", tag_name, html)
         };

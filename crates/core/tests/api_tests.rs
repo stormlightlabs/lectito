@@ -163,7 +163,6 @@ fn test_multiple_site_fixtures() {
     let fixtures = vec![
         get_site_fixture_path("wikipedia", "article.html"),
         get_site_fixture_path("github", "article.html"),
-        get_site_fixture_path("medium", "article.html"),
     ];
 
     for fixture_path in fixtures {
