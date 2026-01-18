@@ -13,7 +13,8 @@ The final score for each element is calculated as:
 ```text
 element_score = (base_tag_score
                + class_id_weight
-               + content_density_score)
+               + content_density_score
+               + container_bonus)
                × (1 - link_density)
 ```
 
@@ -28,16 +29,19 @@ Different HTML tags have different inherent scores, reflecting their likelihood 
 | `<article>`    | +10   | Semantic article container                |
 | `<section>`    | +8    | Logical content section                   |
 | `<div>`        | +5    | Generic container, often used for content |
-| `<blockquote>` | +5    | Quoted content                            |
-| `<pre>`        | +5    | Preformatted text                         |
+| `<blockquote>` | +3    | Quoted content                            |
+| `<pre>`        | 0     | Preformatted text, neutral                |
 | `<td>`         | +3    | Table cell                                |
-| `<p>`          | +3    | Paragraph                                 |
-| `<th>`         | +3    | Table header                              |
-| `<ul>`/`<ol>`  | +3    | Lists                                     |
 | `<address>`    | -3    | Contact info, unlikely to be main content |
-| `<h1>`-`<h6>`  | -0.5  | Headings, not content themselves          |
+| `<ol>`/`<ul>`  | -3    | Lists and metadata                        |
+| `<li>`         | -3    | List item                                 |
+| `<header>`     | -5    | Header, not main content                  |
+| `<footer>`     | -5    | Footer, not main content                  |
+| `<nav>`        | -5    | Navigation                                |
+| `<th>`         | -5    | Table header                              |
+| `<h1>`-`<h6>`  | -5    | Headings, not content themselves          |
 | `<form>`       | -3    | Forms, not content                        |
-| `<li>`         | -1    | List items, lower than container          |
+| `<main>`       | 0     | Container scored via bonus                |
 
 ## Class/ID Weight
 
@@ -102,6 +106,14 @@ content_density = char_score + punct_score
 ```
 
 **Rationale**: Real article content has more text and punctuation than navigation or metadata.
+
+## Container Bonus
+
+Elements that are typical article containers receive a small boost:
+
+- `<article>`, `<section>`, `<main>`: +2
+
+This bias helps select semantic containers when scores are close.
 
 ## Link Density Penalty
 

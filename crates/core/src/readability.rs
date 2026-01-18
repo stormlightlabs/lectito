@@ -207,7 +207,7 @@ impl Readability {
             min_score_threshold: self.config.min_score,
             max_top_candidates: self.config.nb_top_candidates,
             char_threshold: self.config.char_threshold,
-            max_elements: if self.config.max_elems_to_parse == 0 { 1000 } else { self.config.max_elems_to_parse },
+            max_elements: self.config.max_elems_to_parse,
             sibling_threshold: 0.2,
             postprocess: crate::postprocess::PostProcessConfig {
                 strip_images: !self.config.preserve_images,

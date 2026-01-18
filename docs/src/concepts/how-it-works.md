@@ -18,9 +18,8 @@ HTML Input → Preprocessing → Scoring → Selection → Post-processing → A
 
 Clean the HTML to improve scoring accuracy:
 
-- Remove unlikely content: scripts, styles, forms, iframes
-- Remove visible clutter: headers, footers, navigation
-- Clean classes and IDs: remove positive/negative patterns from attributes
+- Remove unlikely content: scripts, styles, iframes, and hidden nodes
+- Strip elements with unlikely class/ID patterns
 - Preserve structure: maintain HTML hierarchy for accurate scoring
 
 **Why**: Preprocessing removes elements that could confuse the scoring algorithm or contain non-article content.
@@ -40,7 +39,7 @@ Score each element based on content characteristics:
 
 Select the highest-scoring element as the article candidate:
 
-- Find element with highest score
+- Find element with highest score (bias toward semantic containers when scores are close)
 - Check if score meets minimum threshold (default: 20.0)
 - Check if content length meets minimum threshold (default: 500 chars)
 - Return error if content doesn't meet thresholds
@@ -51,7 +50,7 @@ Select the highest-scoring element as the article candidate:
 
 Clean up the selected content:
 
-- Include sibling elements: adjacent headings, images, metadata
+- Include sibling elements: adjacent content blocks and shared-parent headers
 - Remove remaining clutter: ads, comments, social widgets
 - Clean up whitespace: normalize spacing and formatting
 - Preserve structure: maintain headings, paragraphs, lists

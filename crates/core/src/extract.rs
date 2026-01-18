@@ -1,3 +1,4 @@
+use crate::dom_tree::DomTree;
 use crate::parse::{Document, Element};
 use crate::postprocess::{PostProcessConfig, postprocess_html};
 use crate::scoring::{ScoreConfig, ScoreResult, calculate_score};
@@ -76,12 +77,21 @@ fn identify_candidates<'a>(
     doc: &'a Document, config: &ExtractConfig, score_config: &ScoreConfig,
 ) -> Vec<Candidate<'a>> {
     let mut candidates = Vec::new();
+    let max_elements = if config.max_elements == 0 { usize::MAX } else { config.max_elements };
+    let mut scanned = 0usize;
 
     for tag in CANDIDATE_TAGS {
         if let Ok(elements) = doc.select(tag) {
             for element in elements {
+                if scanned >= max_elements {
+                    return candidates;
+                }
+                scanned += 1;
+                let tag_name = element.tag_name();
                 let text = element.text();
-                if text.chars().count() < config.char_threshold / 10 {
+                if !matches!(tag_name.as_str(), "article" | "section" | "main")
+                    && text.chars().count() < config.char_threshold / 10
+                {
                     continue;
                 }
 
@@ -102,16 +112,10 @@ fn identify_candidates<'a>(
 ///
 /// This helps ensure that parent containers that contain high-scoring
 /// content are also considered as candidates.
-fn propagate_scores<'a>(candidates: &mut Vec<Candidate<'a>>, doc: &'a Document) {
+fn propagate_scores<'a>(candidates: &mut Vec<Candidate<'a>>, doc: &'a Document, dom_tree: &DomTree) {
     let score_config = ScoreConfig::default();
     let mut processed_elements: HashSet<String> = HashSet::new();
     let mut additional_candidates = Vec::new();
-
-    let html = doc.as_string();
-    let dom_tree = match crate::build_dom_tree(&html) {
-        Ok(tree) => tree,
-        Err(_) => return,
-    };
 
     for candidate in candidates.iter() {
         let cand_html = candidate.element.outer_html();
@@ -201,7 +205,7 @@ fn select_top_candidate<'a>(candidates: &'a [Candidate<'a>], config: &ExtractCon
 
     let top_candidate = candidates
         .iter()
-        .max_by(|a, b| a.score().partial_cmp(&b.score()).unwrap_or(std::cmp::Ordering::Equal))
+        .max_by(|a, b| compare_candidates(a, b).unwrap_or(std::cmp::Ordering::Equal))
         .unwrap();
 
     if top_candidate.score() < config.min_score_threshold {
@@ -218,10 +222,19 @@ fn select_top_candidate<'a>(candidates: &'a [Candidate<'a>], config: &ExtractCon
 /// - Their score is >= top_score * sibling_threshold
 /// - For P tags: link_density < 0.25 and text_length > 80 chars
 fn select_siblings<'a>(
-    top_candidate: &Candidate<'a>, candidates: &[Candidate<'a>], config: &ExtractConfig,
+    doc: &'a Document, top_candidate: &Candidate<'a>, candidates: &[Candidate<'a>], config: &ExtractConfig,
+    dom_tree: Option<&DomTree>,
 ) -> Vec<Element<'a>> {
     let mut siblings = Vec::new();
     let top_score = top_candidate.score();
+    let dom_tree = match dom_tree {
+        Some(tree) => tree,
+        None => return siblings,
+    };
+    let top_parent_id = parent_id_for(&top_candidate.element, dom_tree);
+    if top_parent_id.is_none() {
+        return siblings;
+    }
 
     for candidate in candidates {
         if candidate.score() >= top_score * config.sibling_threshold {
@@ -229,6 +242,9 @@ fn select_siblings<'a>(
             let candidate_html = candidate.element.outer_html();
 
             if top_html != candidate_html {
+                if parent_id_for(&candidate.element, dom_tree) != top_parent_id {
+                    continue;
+                }
                 if candidate.element.tag_name() == "p" {
                     let text = candidate.element.text();
                     let text_len = text.chars().count();
@@ -242,6 +258,24 @@ fn select_siblings<'a>(
                 } else {
                     siblings.push(candidate.element.clone());
                 }
+            }
+        }
+    }
+
+    if let Ok(headers) = doc.select("header") {
+        for header in headers {
+            if parent_id_for(&header, dom_tree) != top_parent_id {
+                continue;
+            }
+            if header.outer_html() == top_candidate.element.outer_html() {
+                continue;
+            }
+            let text_len = header.text().trim().chars().count();
+            if text_len < 10 {
+                continue;
+            }
+            if !siblings.iter().any(|s| s.outer_html() == header.outer_html()) {
+                siblings.push(header);
             }
         }
     }
@@ -263,15 +297,16 @@ pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<Extract
 
     let mut candidates = identify_candidates(doc, config, &score_config);
 
+    let dom_tree = crate::build_dom_tree(&doc.as_string()).ok();
+    if let Some(tree) = dom_tree.as_ref() {
+        propagate_scores(&mut candidates, doc, tree);
+    }
+
     candidates.sort_by(|a, b| b.score().partial_cmp(&a.score()).unwrap_or(std::cmp::Ordering::Equal));
     candidates.truncate(config.max_top_candidates);
 
-    propagate_scores(&mut candidates, doc);
-
-    candidates.sort_by(|a, b| b.score().partial_cmp(&a.score()).unwrap_or(std::cmp::Ordering::Equal));
-
     let top_candidate = select_top_candidate(&candidates, config)?;
-    let siblings = select_siblings(top_candidate, &candidates, config);
+    let siblings = select_siblings(doc, top_candidate, &candidates, config, dom_tree.as_ref());
 
     let mut content = String::new();
     content.push_str(&top_candidate.element.outer_html());
@@ -286,6 +321,38 @@ pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<Extract
     let element_count = 1 + siblings.len();
 
     Ok(ExtractedContent { content, top_score: top_candidate.score(), element_count })
+}
+
+fn parent_id_for(element: &Element<'_>, dom_tree: &DomTree) -> Option<usize> {
+    let html = element.outer_html();
+    let tag = element.tag_name();
+    dom_tree.find_by_html(&html, &tag).and_then(|node| node.parent_id)
+}
+
+fn compare_candidates<'a>(a: &Candidate<'a>, b: &Candidate<'a>) -> Option<std::cmp::Ordering> {
+    let score_order = a.score().partial_cmp(&b.score())?;
+    if score_order != std::cmp::Ordering::Equal {
+        return Some(score_order);
+    }
+
+    let a_tag = a.element.tag_name();
+    let b_tag = b.element.tag_name();
+    let tag_order = candidate_priority(&a_tag).cmp(&candidate_priority(&b_tag));
+    if tag_order != std::cmp::Ordering::Equal {
+        return Some(tag_order);
+    }
+
+    let a_len = a.element.text().chars().count();
+    let b_len = b.element.text().chars().count();
+    Some(a_len.cmp(&b_len))
+}
+
+fn candidate_priority(tag_name: &str) -> u8 {
+    match tag_name {
+        "article" | "main" | "section" => 3,
+        "div" => 2,
+        _ => 1,
+    }
 }
 
 /// Extract content using site configuration with fallback to heuristics
@@ -545,7 +612,8 @@ mod tests {
         let mut candidates = identify_candidates(&doc, &config, &score_config);
         let initial_count = candidates.len();
 
-        propagate_scores(&mut candidates, &doc);
+        let dom_tree = crate::build_dom_tree(&doc.as_string()).unwrap();
+        propagate_scores(&mut candidates, &doc, &dom_tree);
 
         assert!(candidates.len() >= initial_count);
     }

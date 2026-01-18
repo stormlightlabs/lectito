@@ -174,7 +174,11 @@ pub fn calculate_score(element: &Element<'_>, config: &ScoreConfig) -> ScoreResu
     let class_weight = class_id_weight(element, config);
     let content_density = content_density_score(element, config);
     let ld = link_density(element);
-    let raw_score = base_score + class_weight + content_density;
+    let container_bonus = match tag_name.as_str() {
+        "article" | "main" | "section" => 2.0,
+        _ => 0.0,
+    };
+    let raw_score = base_score + class_weight + content_density + container_bonus;
 
     let text = element.text();
     let is_code = if tag_name == "pre" && text.len() > 50 {

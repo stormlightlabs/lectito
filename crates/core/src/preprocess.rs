@@ -76,7 +76,7 @@ pub fn preprocess_html(html: &str, config: &PreprocessConfig) -> String {
         processed = convert_relative_urls(&processed, base_url);
     }
 
-    normalize_whitespace(processed)
+    processed
 }
 
 /// Remove script, style, noscript, iframe, svg, and canvas tags from HTML
@@ -306,6 +306,7 @@ fn remove_hidden_elements(html: &str) -> String {
 }
 
 /// Normalize whitespace in HTML
+#[cfg(test)]
 fn normalize_whitespace(html: String) -> String {
     let re = Regex::new(r"\s+").unwrap();
     re.replace_all(&html, " ").to_string()

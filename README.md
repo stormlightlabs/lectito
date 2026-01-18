@@ -198,8 +198,8 @@ Lectito implements a content extraction algorithm inspired by Mozilla's [Readabi
 
 1. **Preprocessing**: Removes scripts, styles, comments, and unlikely content candidates
 2. **Scoring**: Analyzes elements based on tag names, class/ID patterns, content density, and link density
-3. **Selection**: Identifies the highest-scoring content candidate
-4. **Sibling Inclusion**: Adds related content based on score thresholds and link density
+3. **Selection**: Identifies the highest-scoring content candidate, preferring semantic containers when scores are close
+4. **Sibling Inclusion**: Adds related content based on score thresholds, link density, and shared parent headers
 5. **Cleanup**: Removes empty nodes, fixes relative URLs, and applies formatting rules
 
 ~~For a deeper dive into the algorithm, see the [How It Works](https://stormlightlabs.github.io/lectito/concepts/how-it-works.html) documentation.~~
