@@ -265,10 +265,14 @@ fn select_siblings<'a>(
         }
     }
 
+    let mut added_header = false;
     if let Ok(headers) = doc.select("header") {
         for header in headers {
             if parent_id_for(&header, dom_tree) != top_parent_id {
-                continue;
+                let header_parent_id = parent_id_for(&header, dom_tree);
+                if !shares_container(header_parent_id, top_parent_id, dom_tree) {
+                    continue;
+                }
             }
             if header.outer_html() == top_candidate.element.outer_html() {
                 continue;
@@ -286,6 +290,26 @@ fn select_siblings<'a>(
             }
             if !siblings.iter().any(|s| s.outer_html() == header.outer_html()) {
                 siblings.insert(0, header);
+                added_header = true;
+            }
+        }
+    }
+
+    if !added_header
+        && top_candidate.element.select("h1").ok().is_none_or(|els| els.is_empty())
+        && let Ok(headings) = doc.select("h1")
+        && let Some(heading) = headings.first()
+    {
+        let heading_text = heading.text().trim().to_string();
+        if heading_text.len() > 5 {
+            let link_density = crate::scoring::link_density(heading);
+            let top_text = top_candidate.element.text();
+            if link_density <= 0.3
+                && !top_text.contains(&heading_text)
+                && !siblings.iter().any(|s| s.outer_html() == heading.outer_html())
+                && top_candidate.element.outer_html() != heading.outer_html()
+            {
+                siblings.insert(0, heading.clone());
             }
         }
     }
@@ -317,18 +341,46 @@ pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<Extract
 
     let top_candidate = select_top_candidate(&candidates, config)?;
     let siblings = select_siblings(doc, top_candidate, &candidates, config, dom_tree.as_ref());
+    let mut leading = Vec::new();
+    let mut trailing = Vec::new();
+
+    for sibling in siblings {
+        match sibling.tag_name().as_str() {
+            "header" | "h1" => leading.push(sibling),
+            _ => trailing.push(sibling),
+        }
+    }
 
     let mut content = String::new();
+    for sibling in &leading {
+        if !content.is_empty() {
+            content.push('\n');
+        }
+        content.push_str(&sibling.outer_html());
+    }
+
+    if !content.is_empty() {
+        content.push('\n');
+    }
     content.push_str(&top_candidate.element.outer_html());
 
-    for sibling in &siblings {
+    for sibling in &trailing {
         content.push('\n');
         content.push_str(&sibling.outer_html());
     }
 
+    if let Some(title) = doc.title() {
+        let has_h1 = content.contains("<h1");
+        let content_text = Document::parse(&content).map(|d| d.text_content()).unwrap_or_default();
+        if !has_h1 && !content_text.contains(&title) {
+            let safe_title = escape_html(&title);
+            content = format!("<h1>{}</h1>\n{}", safe_title, content);
+        }
+    }
+
     let content = postprocess_html(&content, &config.postprocess);
 
-    let element_count = 1 + siblings.len();
+    let element_count = 1 + leading.len() + trailing.len();
 
     Ok(ExtractedContent { content, top_score: top_candidate.score(), element_count })
 }
@@ -339,6 +391,27 @@ fn parent_id_for(element: &Element<'_>, dom_tree: &DomTree) -> Option<usize> {
     dom_tree.find_by_html(&html, &tag).and_then(|node| node.parent_id)
 }
 
+fn shares_container(header_parent_id: Option<usize>, top_parent_id: Option<usize>, dom_tree: &DomTree) -> bool {
+    if header_parent_id == top_parent_id {
+        return true;
+    }
+
+    let top_grandparent_id = top_parent_id
+        .and_then(|id| dom_tree.get_parent(id))
+        .and_then(|node| node.parent_id);
+    if header_parent_id == top_grandparent_id {
+        return true;
+    }
+
+    if let Some(header_parent_id) = header_parent_id
+        && let Some(parent_node) = dom_tree.get_parent(header_parent_id)
+    {
+        return parent_node.parent_id == top_parent_id;
+    }
+
+    false
+}
+
 fn truncate_at_char_boundary(s: &str, max_len: usize) -> &str {
     if s.len() <= max_len {
         return s;
@@ -346,6 +419,15 @@ fn truncate_at_char_boundary(s: &str, max_len: usize) -> &str {
 
     let safe_len = s.floor_char_boundary(max_len);
     &s[..safe_len]
+}
+
+fn escape_html(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
 }
 
 fn compare_candidates<'a>(a: &Candidate<'a>, b: &Candidate<'a>) -> Option<std::cmp::Ordering> {

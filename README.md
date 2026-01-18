@@ -3,12 +3,26 @@
 A fetch tool to download, parse and extract content from web pages using a
 Readability-inspired algorithm and set of heuristics.
 
+<!-- markdownlint-disable MD033 -->
+<details>
+<summary>How it works</summary>
+
+Lectito implements a content extraction algorithm inspired by Mozilla's [Readability.js](https://github.com/mozilla/readability):
+
+1. **Preprocessing**: Removes scripts, styles, comments, and unlikely content candidates
+2. **Scoring**: Analyzes elements based on tag names, class/ID patterns, content density, and link density
+3. **Selection**: Identifies the highest-scoring content candidate, preferring semantic containers when scores are close
+4. **Sibling Inclusion**: Adds related content based on score thresholds, link density, and shared parent headers
+5. **Cleanup**: Removes empty nodes, fixes relative URLs, and applies formatting rules
+
+~~For a deeper dive into the algorithm, see the [How It Works](https://stormlightlabs.github.io/lectito/concepts/how-it-works.html) documentation.~~
+
+</details>
+
 ## Features
 
-- **Content Extraction**: Identifies and extracts the main article content from navigation, sidebars, and advertisements
-- **Metadata Extraction**: Pulls title, author, date, excerpt, and language from structured data and HTML
+- **Content Extraction**: Extracts the main article content from navigation, sidebars, and advertisements
 - **Multiple Output Formats**: HTML, Markdown, plain text, and JSON
-- **URL Fetching**: Built-in async HTTP client with timeout and custom User-Agent support
 - **Site Configuration**: Optional XPath-based extraction rules for difficult sites
 - **CLI and Library**: Use as a command-line tool or as a Rust library
 
@@ -191,18 +205,6 @@ For sites that need custom extraction rules, use site configurations:
 ```bash
 lectito https://example.com/article --config-dir /path/to/configs
 ```
-
-## How It Works
-
-Lectito implements a content extraction algorithm inspired by Mozilla's [Readability.js](https://github.com/mozilla/readability):
-
-1. **Preprocessing**: Removes scripts, styles, comments, and unlikely content candidates
-2. **Scoring**: Analyzes elements based on tag names, class/ID patterns, content density, and link density
-3. **Selection**: Identifies the highest-scoring content candidate, preferring semantic containers when scores are close
-4. **Sibling Inclusion**: Adds related content based on score thresholds, link density, and shared parent headers
-5. **Cleanup**: Removes empty nodes, fixes relative URLs, and applies formatting rules
-
-~~For a deeper dive into the algorithm, see the [How It Works](https://stormlightlabs.github.io/lectito/concepts/how-it-works.html) documentation.~~
 
 ## License
 

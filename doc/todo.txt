@@ -106,7 +106,6 @@ MILESTONE XIII: Documentation & Release
     - Add iceberg theme with Lora/Overpass fonts
 [ ] Finish mdbook documentation site:
     - Configure Rust Playground integration
-    - Set up GitHub Actions for Pages deployment
 [ ] Prepare Cargo.toml for publishing:
     - Verify metadata (license, repository, keywords)
     - Set version to 1.0.0
@@ -116,7 +115,9 @@ MILESTONE XIII: Documentation & Release
     - Create crates/cli/README.md with installation instructions
     - Name binary as "lectito" via [[bin]] section
     - Generate shell completions (build.rs + clap_complete)
-    - Set up pre-built binary workflow (GitHub Actions)
+[ ] Github Actions
+    - Set up pre-built binary workflow
+    - Set up Pages deployment
 [ ] Publish lectito-core to crates.io
 [ ] Publish lectito-cli to crates.io (depends on published core)
 [ ] Create GitHub release with changelog

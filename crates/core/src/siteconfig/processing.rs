@@ -89,8 +89,9 @@ impl StripProcessor {
     fn strip_by_xpath(&self, html: &str, xpath: &str) -> Result<String> {
         if let Some(css_selector) = self.xpath_to_css_selector(xpath) {
             self.strip_by_css_selector(html, &css_selector)
+        } else if let Some(tag) = extract_tag_from_xpath(xpath) {
+            self.strip_element_by_tag(html, &tag)
         } else {
-            // TODO: implement more sophisticated approach
             Ok(html.to_string())
         }
     }
@@ -256,6 +257,13 @@ impl StripProcessor {
             None
         }
     }
+}
+
+fn extract_tag_from_xpath(xpath: &str) -> Option<String> {
+    let trimmed = xpath.trim();
+    let path = trimmed.strip_prefix("//")?;
+    let tag = path.split(['[', '/']).next()?.trim();
+    if tag.is_empty() || tag == "*" { None } else { Some(tag.to_string()) }
 }
 
 /// Extension trait for SiteConfig to add text replacement and stripping methods

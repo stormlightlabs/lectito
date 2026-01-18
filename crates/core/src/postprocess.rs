@@ -197,7 +197,7 @@ fn remove_doc_chrome_nodes(html: &str) -> String {
 
 /// Remove doc-site utility blocks by text content.
 fn remove_doc_chrome_text_blocks(html: &str) -> String {
-    let text_pattern = Regex::new(r"(?i)(edit on github|ask about this page|copy for llm)").unwrap();
+    let text_pattern = Regex::new(r"(?i)(edit on github|ask about this page|copy for llm|view as markdown)").unwrap();
     let tags = ["div", "p", "span", "a", "li"];
     let mut result = html.to_string();
 
@@ -207,7 +207,9 @@ fn remove_doc_chrome_text_blocks(html: &str) -> String {
             .replace_all(&result, |caps: &regex::Captures| {
                 let inner_html = caps.get(1).map(|m| m.as_str()).unwrap_or("");
                 let text = strip_tags(inner_html);
-                if text_pattern.is_match(text.trim()) {
+                let trimmed = text.trim();
+                let word_count = trimmed.split_whitespace().count();
+                if trimmed.len() <= 200 && word_count <= 10 && text_pattern.is_match(trimmed) {
                     String::new()
                 } else {
                     caps.get(0).map(|m| m.as_str()).unwrap_or("").to_string()
@@ -216,7 +218,8 @@ fn remove_doc_chrome_text_blocks(html: &str) -> String {
             .to_string();
     }
 
-    result
+    let literal_re = Regex::new(r"(?i)view as markdown").unwrap();
+    literal_re.replace_all(&result, "").to_string()
 }
 
 /// Remove nodes with high link density
