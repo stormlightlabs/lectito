@@ -1,7 +1,15 @@
 [package]
 name = "lectito-core"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
+license = "MPL-2.0"
+description = "Library for extracting readable content from web pages using a Readability-inspired algorithm"
+readme = "README.md"
+repository = "https://github.com/stormlightlabs/lectito"
+homepage = "https://github.com/stormlightlabs/lectito"
+keywords = ["readability", "article", "extraction", "html", "parser"]
+categories = ["parser-implementations", "text-processing", "web-programming"]
+authors = ["Owais J. <info@stormlightlabs.org>"]
 
 [features]
 default = ["fetch", "markdown", "siteconfig"]

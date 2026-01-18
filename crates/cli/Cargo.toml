@@ -1,6 +1,6 @@
 [package]
 name = "lectito-cli"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 license = "MPL-2.0"
 description = "CLI tool for extracting readable content from web pages"
@@ -11,6 +11,10 @@ keywords = ["readability", "article", "extraction", "cli", "html"]
 categories = ["command-line-utilities", "text-processing", "web-programming"]
 authors = ["Owais J. <info@stormlightlabs.org>"]
 
+[[bin]]
+name = "lectito"
+path = "src/main.rs"
+
 [dependencies]
 anyhow = "1.0.100"
 clap = { version = "4.5.54", features = ["derive"] }
@@ -19,7 +23,11 @@ owo-colors = "4.2.3"
 tokio = { version = "1.42", features = ["rt-multi-thread", "macros"] }
 url = "2.5"
 
-lectito-core = { path = "../core" }
+lectito-core = { path = "../core", version = "1.0.0" }
+
+[build-dependencies]
+clap = { version = "4.5.54", features = ["derive"] }
+clap_complete = "4.5"
 
 [dev-dependencies]
 assert_cmd = "2.0"

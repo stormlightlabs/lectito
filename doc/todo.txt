@@ -65,12 +65,6 @@ MILESTONE X: Library API Refactor
 
 See |CHANGELOG.md|
 
-Acceptance Criteria:
-- Single entry point for common use cases
-- Builder pattern for advanced configuration
-- Async and sync APIs available
-- Existing CLI continues to work
-
 ================================================================================
 MILESTONE XI: Output Formatters
 ================================================================================
@@ -104,13 +98,11 @@ MILESTONE XIII: Documentation & Release
     - Library Guide: basic-usage, configuration, async-vs-sync
     - Concepts: how-it-works, scoring-algorithm
     - Add iceberg theme with Lora/Overpass fonts
-[ ] Finish mdbook documentation site:
-    - Configure Rust Playground integration
-[ ] Prepare Cargo.toml for publishing:
+[x] Prepare Cargo.toml for publishing:
     - Verify metadata (license, repository, keywords)
     - Set version to 1.0.0
     - Add categories for crates.io
-[ ] Prepare CLI crate for publishing:
+[x] Prepare CLI crate for publishing:
     - Add metadata to crates/cli/Cargo.toml
     - Create crates/cli/README.md with installation instructions
     - Name binary as "lectito" via [[bin]] section

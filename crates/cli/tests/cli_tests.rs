@@ -3,7 +3,7 @@ use predicates::prelude::*;
 use tempfile::TempDir;
 
 fn cmd() -> assert_cmd::Command {
-    assert_cmd::cargo::cargo_bin_cmd!("lectito-cli")
+    assert_cmd::cargo::cargo_bin_cmd!("lectito")
 }
 
 fn get_fixture_path(name: &str) -> String {

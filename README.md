@@ -34,76 +34,36 @@ Lectito implements a content extraction algorithm inspired by Mozilla's [Readabi
 
 ## Installation
 
-### CLI
+### CLI Tool
 
-Install the binary via cargo:
-
-```bash
-cargo install lectito-cli
-```
-
-~~Or download pre-built binaries from the [GitHub Releases](https://github.com/stormlightlabs/lectito/releases) page.~~
+For installation and usage of the `lectito` CLI tool, see the cli's [README](crates/cli/README.md).
 
 ### Library
 
-Add `lectito` to your `Cargo.toml`:
+Add `lectito-core` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lectito = "0.1"
+lectito-core = "1.0"
 ```
 
 With specific features:
 
 ```toml
 [dependencies]
-lectito = { version = "0.1", default-features = false, features = ["fetch", "markdown"] }
+lectito-core = { version = "1.0", default-features = false, features = ["fetch", "markdown"] }
 ```
 
 ## Quick Start
 
-### CLI Usage
-
-Extract an article from a URL:
-
-```bash
-lectito https://example.com/article
-```
-
-From a local file:
-
-```bash
-lectito article.html
-```
-
-From stdin:
-
-```bash
-curl https://example.com | lectito -
-```
-
-Output options:
-
-```bash
-# Save to file
-lectito https://example.com/article -o article.md
-
-# JSON output with metadata
-lectito https://example.com/article --json
-
-# Plain text only
-lectito https://example.com/article --format text
-
-# Include frontmatter and reference links
-lectito https://example.com/article --frontmatter --references
-```
+See [cli/README.md](crates/cli/README.md) for CLI usage examples.
 
 ### Library Usage
 
 Parse HTML from a string:
 
 ```rs
-use lectito::parse;
+use lectito_core::{Document, extract_content};
 
 let html = r#"
     <!DOCTYPE html>
@@ -118,19 +78,22 @@ let html = r#"
     </html>
 "#;
 
-let article = parse(html)?;
-println!("Title: {:?}", article.metadata.title);
+let doc = Document::parse(html)?;
+let extracted = extract_content(&doc, &Default::default())?;
+let metadata = doc.extract_metadata();
+println!("Title: {:?}", metadata.title);
 ```
 
 Fetch and parse from a URL:
 
 ```rs
-use lectito::fetch_and_parse;
+use lectito_core::{Document, fetch_url, extract_content};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let article = fetch_and_parse("https://example.com/article").await?;
-    println!("Extracted {} words", article.word_count);
+    let html = fetch_url("https://example.com/article", &Default::default()).await?;
+    let doc = Document::parse(&html)?;
+    let extracted = extract_content(&doc, &Default::default())?;
     Ok(())
 }
 ```
@@ -138,72 +101,50 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 Convert to different output formats:
 
 ```rs
-use lectito::{parse, formatters::convert_to_markdown};
+use lectito_core::{Document, convert_to_markdown};
 
 let html = "<h1>Title</h1><p>Content here</p>";
-let article = parse(html)?;
+let doc = Document::parse(html)?;
+let extracted = extract_content(&doc, &Default::default())?;
+let metadata = doc.extract_metadata();
 
 // Get as Markdown with frontmatter
-let markdown = convert_to_markdown(&article.content, &article.metadata, &Default::default())?;
-
-// Get as plain text
-let text = article.to_text();
-
-// Get as structured JSON
-let json = article.to_json()?;
+let markdown = convert_to_markdown(&extracted.content, &metadata, &Default::default())?;
 ```
 
 ## Feature Flags
 
-| Feature | Default | Description |
-| ------- | ------- | ----------- |
-| `fetch` | Yes | Enable async URL fetching with reqwest |
-| `markdown` | Yes | Enable Markdown output conversion |
-| `siteconfig` | Yes | Enable site configuration support (XPath rules) |
-| `json` | Always | JSON output support (always enabled for Article serialization) |
-| `full` | No | Enable all features |
+| Feature      | Default | Description                                                    |
+| ------------ | ------- | -------------------------------------------------------------- |
+| `fetch`      | Yes     | Enable async URL fetching with reqwest                         |
+| `markdown`   | Yes     | Enable Markdown output conversion                              |
+| `siteconfig` | Yes     | Enable site configuration support (XPath rules)                |
+| `json`       | Always  | JSON output support (always enabled for Article serialization) |
+| `full`       | No      | Enable all features                                            |
 
 Disable default features and select only what you need:
 
 ```toml
 [dependencies]
-lectito = { version = "0.1", default-features = false, features = ["fetch"] }
+lectito-core = { version = "1.0", default-features = false, features = ["fetch"] }
 ```
 
 ## Configuration
 
-Use the builder pattern for advanced extraction configuration:
+See [crates/cli/README.md](crates/cli/README.md) for CLI configuration options.
+
+For library usage, use the `ExtractConfig` for advanced extraction configuration:
 
 ```rs
-use lectito::{Readability, ReadabilityConfig};
+use lectito_core::{Document, ExtractConfig, extract_content};
 
-let config = ReadabilityConfig::builder()
-    .min_score(25.0)
-    .char_threshold(500)
-    .max_top_candidates(10)
-    .build();
+let config = ExtractConfig {
+    char_threshold: 500,
+    max_top_candidates: 10,
+    ..Default::default()
+};
 
-let reader = Readability::with_config(config);
-let article = reader.parse(html)?;
-```
-
-### CLI Configuration
-
-The CLI supports various configuration options:
-
-```bash
-lectito https://example.com/article \
-  --timeout 60 \
-  --user-agent "MyBot/1.0" \
-  --char-threshold 1000 \
-  --max-elements 10 \
-  --no-images
-```
-
-For sites that need custom extraction rules, use site configurations:
-
-```bash
-lectito https://example.com/article --config-dir /path/to/configs
+let extracted = extract_content(&doc, &config)?;
 ```
 
 ## License
