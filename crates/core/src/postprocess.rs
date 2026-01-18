@@ -6,6 +6,8 @@ use url::Url;
 pub struct PostProcessConfig {
     /// Whether to remove empty nodes
     pub remove_empty_nodes: bool,
+    /// Maximum passes for removing empty nodes
+    pub max_empty_node_passes: usize,
     /// Whether to remove nodes with high link density
     pub remove_high_link_density: bool,
     /// Maximum link density threshold (0.0 to 1.0)
@@ -28,6 +30,7 @@ impl Default for PostProcessConfig {
     fn default() -> Self {
         Self {
             remove_empty_nodes: true,
+            max_empty_node_passes: 10,
             remove_high_link_density: true,
             max_link_density: 0.5,
             clean_nested_divs: true,
@@ -56,8 +59,11 @@ pub fn postprocess_html(html: &str, config: &PostProcessConfig) -> String {
         processed = strip_classes(&processed);
     }
 
+    processed = remove_doc_chrome_nodes(&processed);
+    processed = remove_doc_chrome_text_blocks(&processed);
+
     if config.remove_empty_nodes {
-        processed = remove_empty_nodes(&processed);
+        processed = remove_empty_nodes(&processed, config.max_empty_node_passes);
     }
 
     if config.remove_high_link_density {
@@ -105,12 +111,13 @@ fn strip_classes(html: &str) -> String {
 ///
 /// A node is considered empty if it has no text content or only whitespace.
 /// This iteratively removes empty nodes until none remain.
-fn remove_empty_nodes(html: &str) -> String {
+fn remove_empty_nodes(html: &str, max_passes: usize) -> String {
     let mut result = html.to_string();
     let tags = [
         "div", "p", "span", "section", "article", "aside", "nav", "header", "footer",
     ];
 
+    let mut passes = 0;
     loop {
         let mut modified = false;
         let prev_result = result.clone();
@@ -130,6 +137,83 @@ fn remove_empty_nodes(html: &str) -> String {
         if !modified {
             break;
         }
+        passes += 1;
+        if passes >= max_passes {
+            break;
+        }
+    }
+
+    result
+}
+
+/// Remove doc-site chrome blocks like sidebars, TOCs, and breadcrumbs.
+fn remove_doc_chrome_nodes(html: &str) -> String {
+    let pattern = Regex::new(
+        r"(?i)(toc|table[-_ ]of[-_ ]contents|on[-_ ]this[-_ ]page|breadcrumbs?|breadcrumb|sidebar|sidenav|navigation|page[-_ ]nav|pagination|pager|edit[-_ ]on[-_ ]github|edit[-_ ]this[-_ ]page)",
+    )
+    .unwrap();
+
+    let tags = ["nav", "aside", "div", "section", "ul", "ol"];
+    let mut result = html.to_string();
+
+    for tag in tags {
+        let class_re = Regex::new(&format!(
+            r#"<{}((?:\s[^>]*?)?\s+class=["']([^"']*)["'][^>]*)>(.*?)</{}>"#,
+            tag, tag
+        ))
+        .unwrap();
+
+        result = class_re
+            .replace_all(&result, |caps: &regex::Captures| {
+                let classes = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                if classes.split_whitespace().any(|c| pattern.is_match(c)) {
+                    String::new()
+                } else {
+                    caps.get(0).map(|m| m.as_str()).unwrap_or("").to_string()
+                }
+            })
+            .to_string();
+
+        let id_re = Regex::new(&format!(
+            r#"<{}((?:\s[^>]*?)?\s+id=["']([^"']*)["'][^>]*)>(.*?)</{}>"#,
+            tag, tag
+        ))
+        .unwrap();
+
+        result = id_re
+            .replace_all(&result, |caps: &regex::Captures| {
+                let id = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                if pattern.is_match(id) {
+                    String::new()
+                } else {
+                    caps.get(0).map(|m| m.as_str()).unwrap_or("").to_string()
+                }
+            })
+            .to_string();
+    }
+
+    result
+}
+
+/// Remove doc-site utility blocks by text content.
+fn remove_doc_chrome_text_blocks(html: &str) -> String {
+    let text_pattern = Regex::new(r"(?i)(edit on github|ask about this page|copy for llm)").unwrap();
+    let tags = ["div", "p", "span", "a", "li"];
+    let mut result = html.to_string();
+
+    for tag in tags {
+        let element_re = Regex::new(&format!(r#"<{}[^>]*>(.*?)</{}>"#, tag, tag)).unwrap();
+        result = element_re
+            .replace_all(&result, |caps: &regex::Captures| {
+                let inner_html = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                let text = strip_tags(inner_html);
+                if text_pattern.is_match(text.trim()) {
+                    String::new()
+                } else {
+                    caps.get(0).map(|m| m.as_str()).unwrap_or("").to_string()
+                }
+            })
+            .to_string();
     }
 
     result
@@ -370,7 +454,7 @@ mod tests {
             </html>
         "#;
 
-        let result = remove_empty_nodes(html);
+        let result = remove_empty_nodes(html, 10);
         assert!(result.contains("Content"));
         assert!(result.contains("Text"));
     }
@@ -526,7 +610,7 @@ mod tests {
     #[test]
     fn test_remove_empty_nodes_nested() {
         let html = r#"<div><p></p><span>Content</span></div>"#;
-        let result = remove_empty_nodes(html);
+        let result = remove_empty_nodes(html, 10);
         assert!(!result.contains("<p></p>"));
         assert!(result.contains("Content"));
     }

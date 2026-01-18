@@ -8,6 +8,7 @@ use crate::article::Article;
 use crate::extract::{ExtractConfig, extract_content_with_config};
 use crate::fetch::{FetchConfig, fetch_url};
 use crate::parse::Document;
+use crate::preprocess::PreprocessConfig;
 use crate::scoring::{ScoreConfig, calculate_score};
 use crate::siteconfig::ConfigLoader;
 use crate::{LectitoError, Result};
@@ -165,14 +166,20 @@ impl Readability {
 
     /// Parses HTML string and extracts readable content.
     pub fn parse(&self, html: &str) -> Result<Article> {
-        let doc = Document::parse_with_preprocessing(html, None)?;
+        let preprocess_config = PreprocessConfig { remove_unlikely: self.config.remove_unlikely, ..Default::default() };
+        let doc = Document::parse_with_preprocessing_config(html, &preprocess_config)?;
         self.extract_from_document(&doc, None)
     }
 
     /// Parses HTML with a known base URL (for relative link resolution).
     pub fn parse_with_url(&self, html: &str, url: &str) -> Result<Article> {
         let base_url = Url::parse(url).map_err(|e| LectitoError::InvalidUrl(e.to_string()))?;
-        let doc = Document::parse_with_preprocessing(html, Some(base_url))?;
+        let preprocess_config = PreprocessConfig {
+            base_url: Some(base_url),
+            remove_unlikely: self.config.remove_unlikely,
+            ..Default::default()
+        };
+        let doc = Document::parse_with_preprocessing_config(html, &preprocess_config)?;
         self.extract_from_document(&doc, Some(url))
     }
 

@@ -75,6 +75,8 @@ pub async fn fetch_url(url: &str, config: &FetchConfig) -> Result<String> {
 }
 
 /// Reads HTML content from a local file.
+///
+/// Callers should validate and sanitize the path when accepting user input.
 pub fn fetch_file(path: &str) -> Result<String> {
     let path_buf = PathBuf::from(path);
 

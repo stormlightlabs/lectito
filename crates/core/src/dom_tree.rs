@@ -1,3 +1,8 @@
+//! DOM tree helper used for parent/child lookups during extraction.
+//!
+//! This module builds a lightweight containment graph from HTML and is used
+//! to propagate candidate scores to ancestors and to locate shared parents.
+
 use crate::Result;
 use crate::parse::Document;
 

@@ -127,7 +127,6 @@ pub mod scoring;
 pub mod siteconfig;
 
 pub use article::{Article, OutputFormat};
-#[doc(hidden)]
 pub use dom_tree::{DomNode, DomTree, build_dom_tree};
 pub use error::{LectitoError, Result};
 #[doc(hidden)]

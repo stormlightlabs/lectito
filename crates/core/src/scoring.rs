@@ -1,5 +1,6 @@
 use crate::parse::Element;
 use regex::Regex;
+use std::sync::OnceLock;
 
 /// Configuration for content scoring algorithm
 #[derive(Debug, Clone)]
@@ -84,15 +85,15 @@ pub fn base_tag_score(element: &Element<'_>) -> f64 {
 const POSITIVE_PATTERNS: &str = r"(?i)(article|body|content|entry|hentry|h-entry|main|page|post|text|blog|story|tweet)";
 
 /// Negative patterns that suggest an element does NOT contain main content
-const NEGATIVE_PATTERNS: &str = r"(?i)(banner|breadcrumbs?|combx|comment|community|disqus|extra|foot|header|menu|related|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|highlight|code|example)";
+const NEGATIVE_PATTERNS: &str = r"(?i)(banner|breadcrumbs?|combx|comment|community|disqus|extra|foot|header|menu|related|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup)";
 
 /// Calculate the class/ID weight adjustment for an element
 ///
 /// Returns +positive_weight if the element's class or ID matches positive patterns,
 /// or negative_weight if it matches negative patterns (but not positive).
 pub fn class_id_weight(element: &Element<'_>, config: &ScoreConfig) -> f64 {
-    let positive_regex = Regex::new(POSITIVE_PATTERNS).unwrap();
-    let negative_regex = Regex::new(NEGATIVE_PATTERNS).unwrap();
+    let positive_regex = positive_regex();
+    let negative_regex = negative_regex();
 
     if let Some(id) = element.attr("id") {
         if positive_regex.is_match(id) {
@@ -115,6 +116,16 @@ pub fn class_id_weight(element: &Element<'_>, config: &ScoreConfig) -> f64 {
     }
 
     0.0
+}
+
+fn positive_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(POSITIVE_PATTERNS).unwrap())
+}
+
+fn negative_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(NEGATIVE_PATTERNS).unwrap())
 }
 
 /// Calculate content density score based on text length and comma count

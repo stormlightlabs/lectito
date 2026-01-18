@@ -70,7 +70,7 @@ impl<'a> Candidate<'a> {
 }
 
 /// Tags that are considered potential content containers
-const CANDIDATE_TAGS: &[&str] = &["div", "article", "section", "main", "p", "td", "pre", "blockquote"];
+const CANDIDATE_TAGS: &[&str] = &["div", "article", "section", "main", "p", "pre", "blockquote"];
 
 /// Identify all candidate elements from the document
 fn identify_candidates<'a>(
@@ -120,7 +120,8 @@ fn propagate_scores<'a>(candidates: &mut Vec<Candidate<'a>>, doc: &'a Document, 
     for candidate in candidates.iter() {
         let cand_html = candidate.element.outer_html();
         let key = if cand_html.len() > 200 {
-            format!("{}-{}", candidate.element.tag_name(), &cand_html[..200])
+            let truncated = truncate_at_char_boundary(&cand_html, 200);
+            format!("{}-{}", candidate.element.tag_name(), truncated)
         } else {
             format!("{}-{}", candidate.element.tag_name(), cand_html)
         };
@@ -136,7 +137,8 @@ fn propagate_scores<'a>(candidates: &mut Vec<Candidate<'a>>, doc: &'a Document, 
             let parent_html = &parent_node.html;
             let parent_tag = &parent_node.tag_name;
             let parent_key = if parent_html.len() > 200 {
-                format!("{}-{}", parent_tag, &parent_html[..200])
+                let truncated = truncate_at_char_boundary(parent_html, 200);
+                format!("{}-{}", parent_tag, truncated)
             } else {
                 format!("{}-{}", parent_tag, parent_html)
             };
@@ -165,7 +167,8 @@ fn propagate_scores<'a>(candidates: &mut Vec<Candidate<'a>>, doc: &'a Document, 
                 let grandparent_html = &grandparent_node.html;
                 let grandparent_tag = &grandparent_node.tag_name;
                 let grandparent_key = if grandparent_html.len() > 200 {
-                    format!("{}-{}", grandparent_tag, &grandparent_html[..200])
+                    let truncated = truncate_at_char_boundary(grandparent_html, 200);
+                    format!("{}-{}", grandparent_tag, truncated)
                 } else {
                     format!("{}-{}", grandparent_tag, grandparent_html)
                 };
@@ -270,12 +273,19 @@ fn select_siblings<'a>(
             if header.outer_html() == top_candidate.element.outer_html() {
                 continue;
             }
+            if header.select("h1").ok().and_then(|els| els.first().cloned()).is_none() {
+                continue;
+            }
             let text_len = header.text().trim().chars().count();
             if text_len < 10 {
                 continue;
             }
+            let link_density = crate::scoring::link_density(&header);
+            if link_density > 0.3 {
+                continue;
+            }
             if !siblings.iter().any(|s| s.outer_html() == header.outer_html()) {
-                siblings.push(header);
+                siblings.insert(0, header);
             }
         }
     }
@@ -327,6 +337,15 @@ fn parent_id_for(element: &Element<'_>, dom_tree: &DomTree) -> Option<usize> {
     let html = element.outer_html();
     let tag = element.tag_name();
     dom_tree.find_by_html(&html, &tag).and_then(|node| node.parent_id)
+}
+
+fn truncate_at_char_boundary(s: &str, max_len: usize) -> &str {
+    if s.len() <= max_len {
+        return s;
+    }
+
+    let safe_len = s.floor_char_boundary(max_len);
+    &s[..safe_len]
 }
 
 fn compare_candidates<'a>(a: &Candidate<'a>, b: &Candidate<'a>) -> Option<std::cmp::Ordering> {

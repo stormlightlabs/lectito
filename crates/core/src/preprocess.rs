@@ -1,4 +1,7 @@
+use crate::{LectitoError, Result};
 use regex::Regex;
+use std::borrow::Cow;
+use std::io::Read;
 use url::Url;
 
 /// Configuration for HTML preprocessing
@@ -77,6 +80,168 @@ pub fn preprocess_html(html: &str, config: &PreprocessConfig) -> String {
     }
 
     processed
+}
+
+/// Preprocess HTML from a reader using a streaming rewriter.
+///
+/// This avoids holding both the original and cleaned HTML in memory at once.
+pub fn preprocess_reader<R: Read>(mut reader: R, config: &PreprocessConfig) -> Result<String> {
+    let mut output = String::new();
+    let mut rewriter = lol_html::HtmlRewriter::new(
+        lol_html::Settings { element_content_handlers: streaming_handlers(config), ..Default::default() },
+        |c: &[u8]| {
+            output.push_str(&String::from_utf8_lossy(c));
+        },
+    );
+
+    let mut buffer = [0u8; 8192];
+    loop {
+        let read_len = reader.read(&mut buffer).map_err(LectitoError::from)?;
+        if read_len == 0 {
+            break;
+        }
+        rewriter
+            .write(&buffer[..read_len])
+            .map_err(|e| LectitoError::HtmlParseError(e.to_string()))?;
+    }
+
+    rewriter
+        .end()
+        .map_err(|e| LectitoError::HtmlParseError(e.to_string()))?;
+
+    let cleaned = if output.is_empty() { String::new() } else { output };
+    Ok(remove_comments(&cleaned))
+}
+
+fn streaming_handlers(
+    config: &PreprocessConfig,
+) -> Vec<(
+    Cow<'static, lol_html::Selector>,
+    lol_html::ElementContentHandlers<'static>,
+)> {
+    let mut handlers: Vec<(
+        Cow<'static, lol_html::Selector>,
+        lol_html::ElementContentHandlers<'static>,
+    )> = Vec::new();
+
+    if config.remove_scripts {
+        handlers.push(lol_html::element!("script", |el| {
+            el.remove();
+            Ok(())
+        }));
+    }
+    if config.remove_styles {
+        handlers.push(lol_html::element!("style", |el| {
+            el.remove();
+            Ok(())
+        }));
+    }
+    if config.remove_noscript {
+        handlers.push(lol_html::element!("noscript", |el| {
+            el.remove();
+            Ok(())
+        }));
+    }
+    if config.remove_iframes {
+        handlers.push(lol_html::element!("iframe", |el| {
+            el.remove();
+            Ok(())
+        }));
+    }
+    if config.remove_svg {
+        handlers.push(lol_html::element!("svg", |el| {
+            el.remove();
+            Ok(())
+        }));
+    }
+    if config.remove_canvas {
+        handlers.push(lol_html::element!("canvas", |el| {
+            el.remove();
+            Ok(())
+        }));
+    }
+
+    if config.remove_unlikely {
+        let unlikely_pattern = Regex::new(
+            r"(?i)(banner|breadcrumbs?|combx|comment|community|disqus|extra|foot|header|menu|related|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup)",
+        )
+        .unwrap();
+        let positive_pattern =
+            Regex::new(r"(?i)(article|body|content|entry|hentry|h-entry|main|page|post|text|blog|story|tweet)")
+                .unwrap();
+
+        let keep_positive = config.keep_positive;
+        handlers.push(lol_html::element!("*", move |el| {
+            if let Some(id) = el.get_attribute("id")
+                && unlikely_pattern.is_match(&id)
+                && (!keep_positive || !positive_pattern.is_match(&id))
+            {
+                el.remove_and_keep_content();
+                return Ok(());
+            }
+
+            if let Some(class) = el.get_attribute("class") {
+                for class_name in class.split_whitespace() {
+                    if unlikely_pattern.is_match(class_name)
+                        && (!keep_positive || !positive_pattern.is_match(class_name))
+                    {
+                        el.remove_and_keep_content();
+                        return Ok(());
+                    }
+                }
+            }
+
+            Ok(())
+        }));
+    }
+
+    if config.remove_hidden {
+        let hidden_pattern = Regex::new(r"(?i)(display\s*:\s*none|visibility\s*:\s*hidden)").unwrap();
+        handlers.push(lol_html::element!("*", move |el| {
+            if let Some(style) = el.get_attribute("style")
+                && hidden_pattern.is_match(&style)
+            {
+                el.remove();
+            }
+            Ok(())
+        }));
+    }
+
+    if config.convert_urls
+        && let Some(base_url) = config.base_url.clone()
+    {
+        let link_base = base_url.clone();
+        handlers.push(lol_html::element!("a", move |el| {
+            if let Some(href) = el.get_attribute("href")
+                && let Ok(absolute) = link_base.join(&href)
+            {
+                el.set_attribute("href", absolute.as_str()).ok();
+            }
+            Ok(())
+        }));
+
+        let img_base = base_url.clone();
+        handlers.push(lol_html::element!("img", move |el| {
+            if let Some(src) = el.get_attribute("src")
+                && let Ok(absolute) = img_base.join(&src)
+            {
+                el.set_attribute("src", absolute.as_str()).ok();
+            }
+            Ok(())
+        }));
+
+        let link_tag_base = base_url;
+        handlers.push(lol_html::element!("link", move |el| {
+            if let Some(href) = el.get_attribute("href")
+                && let Ok(absolute) = link_tag_base.join(&href)
+            {
+                el.set_attribute("href", absolute.as_str()).ok();
+            }
+            Ok(())
+        }));
+    }
+
+    handlers
 }
 
 /// Remove script, style, noscript, iframe, svg, and canvas tags from HTML
@@ -159,7 +324,7 @@ fn remove_unwanted_tags(html: &str, config: &PreprocessConfig) -> String {
 
 /// Remove HTML comments from the document
 fn remove_comments(html: &str) -> String {
-    let re = Regex::new(r"<!--.*?-->").unwrap();
+    let re = Regex::new(r"(?s)<!--.*?-->").unwrap();
     re.replace_all(html, "").to_string()
 }
 

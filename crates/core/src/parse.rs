@@ -26,6 +26,7 @@
 //! ```
 
 use scraper::{Html, Selector};
+use std::io::Read;
 use url::Url;
 
 use crate::{LectitoError, PreprocessConfig, Result, preprocess};
@@ -119,10 +120,33 @@ impl Document {
     pub fn parse_with_preprocessing(html: &str, base_url: Option<Url>) -> Result<Self> {
         let config = PreprocessConfig { base_url: base_url.clone(), ..Default::default() };
 
-        let cleaned = preprocess::preprocess_html(html, &config);
+        Self::parse_with_preprocessing_config(html, &config)
+    }
+
+    /// Parses HTML from a string with custom preprocessing configuration.
+    ///
+    /// This applies HTML cleaning and normalization before parsing,
+    /// which improves content extraction accuracy.
+    ///
+    /// # Arguments
+    ///
+    /// * `html` - The HTML content to parse
+    /// * `config` - Preprocessing configuration
+    pub fn parse_with_preprocessing_config(html: &str, config: &PreprocessConfig) -> Result<Self> {
+        let cleaned = preprocess::preprocess_html(html, config);
         let html = Html::parse_document(&cleaned);
 
-        Ok(Self { html, base_url })
+        Ok(Self { html, base_url: config.base_url.clone() })
+    }
+
+    /// Parses HTML from a reader with preprocessing.
+    ///
+    /// This streams preprocessing to reduce peak memory usage on large inputs.
+    pub fn parse_with_preprocessing_reader<R: Read>(reader: R, config: &PreprocessConfig) -> Result<Self> {
+        let cleaned = preprocess::preprocess_reader(reader, config)?;
+        let html = Html::parse_document(&cleaned);
+
+        Ok(Self { html, base_url: config.base_url.clone() })
     }
 
     /// Gets the base URL used for preprocessing.
