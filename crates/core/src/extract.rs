@@ -193,7 +193,7 @@ fn propagate_scores<'a>(candidates: &mut Vec<Candidate<'a>>, doc: &'a Document) 
 /// Select the top candidate from the list
 ///
 /// Returns the highest scoring candidate if it meets the minimum threshold,
-/// otherwise returns a NotReaderable error.
+/// otherwise returns a NotReadable error.
 fn select_top_candidate<'a>(candidates: &'a [Candidate<'a>], config: &ExtractConfig) -> Result<&'a Candidate<'a>> {
     if candidates.is_empty() {
         return Err(LectitoError::NoContent);
@@ -205,10 +205,7 @@ fn select_top_candidate<'a>(candidates: &'a [Candidate<'a>], config: &ExtractCon
         .unwrap();
 
     if top_candidate.score() < config.min_score_threshold {
-        return Err(LectitoError::NotReaderable {
-            score: top_candidate.score(),
-            threshold: config.min_score_threshold,
-        });
+        return Err(LectitoError::NotReadable { score: top_candidate.score(), threshold: config.min_score_threshold });
     }
 
     Ok(top_candidate)
@@ -402,7 +399,7 @@ mod tests {
     }
 
     #[test]
-    fn test_not_readerable_error() {
+    fn test_not_readable_error() {
         let html = r##"
             <html>
                 <body>
@@ -428,9 +425,9 @@ mod tests {
         let config = ExtractConfig::default();
 
         let result = extract_content(&doc, &config);
-        assert!(matches!(result, Err(LectitoError::NotReaderable { .. })));
+        assert!(matches!(result, Err(LectitoError::NotReadable { .. })));
 
-        if let Err(LectitoError::NotReaderable { score, threshold }) = result {
+        if let Err(LectitoError::NotReadable { score, threshold }) = result {
             assert!(score < threshold);
         }
     }

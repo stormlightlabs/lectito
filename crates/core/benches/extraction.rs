@@ -37,7 +37,13 @@ fn bench_parse(c: &mut Criterion) {
 fn bench_full_extraction(c: &mut Criterion) {
     let html = std::fs::read_to_string(fixture_path("tests/fixtures/sites/wikipedia/article.html")).unwrap();
 
-    c.bench_function("full_extraction", |b| b.iter(|| parse(black_box(&html))));
+    let mut group = c.benchmark_group("extraction");
+    group.measurement_time(std::time::Duration::from_secs(10));
+    group.sample_size(100);
+
+    group.bench_function("full_extraction", |b| b.iter(|| parse(black_box(&html))));
+
+    group.finish();
 }
 
 fn bench_preprocess(c: &mut Criterion) {

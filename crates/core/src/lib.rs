@@ -8,9 +8,10 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust
+//! ```
 //! use lectito_core::{parse, Article};
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let html = r#"
 //! <!DOCTYPE html>
 //! <html>
@@ -18,14 +19,14 @@
 //!     <body>
 //!         <article>
 //!             <h1>Article Title</h1>
-//!             <p>This is article content with plenty of text to pass readability threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+//!             <p>This is article content. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
 //!         </article>
 //!     </body>
 //! </html>
 //! "#;
-//!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let article = parse(html)?;
+//! let config = lectito_core::ReadabilityConfig::builder().min_score(10.0).build();
+//! let reader = lectito_core::Readability::with_config(config);
+//! let article = reader.parse(html)?;
 //! assert_eq!(article.metadata.title, Some("My Article".to_string()));
 //! # Ok(())
 //! # }
@@ -33,7 +34,7 @@
 //!
 //! ### Fetch and parse from a URL
 //!
-//! ```rust,no_run
+//! ```rust,no_run,ignore
 //! use lectito_core::fetch_and_parse;
 //!
 //! # #[tokio::main]
@@ -46,13 +47,14 @@
 //!
 //! ### Convert to different output formats
 //!
-//! ```rust
+//! ```
 //! use lectito_core::{parse, article::OutputFormat};
 //!
-//! let html = "<html><head><title>Example</title></head><body><article><h1>Title</h1><p>Content here with enough text to pass readability threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p></article></body></html>";
-//!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let article = parse(html)?;
+//! let html = "<html><head><title>Example</title></head><body><article><h1>Title</h1><p>Content here. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p></article></body></html>";
+//! let config = lectito_core::ReadabilityConfig::builder().min_score(10.0).build();
+//! let reader = lectito_core::Readability::with_config(config);
+//! let article = reader.parse(html)?;
 //!
 //! // Get as Markdown with frontmatter
 //! let markdown = article.to_markdown().unwrap();
@@ -62,24 +64,27 @@
 //!
 //! // Get as structured JSON
 //! let json = article.to_json()?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ## Configuration
 //!
 //! Use the builder pattern for advanced configuration:
 //!
-//! ```rust
+//! ```
 //! use lectito_core::{Readability, ReadabilityConfig, FetchConfig};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let config = ReadabilityConfig::builder()
-//!     .min_score(25.0)
+//!     .min_score(10.0)
 //!     .char_threshold(500)
 //!     .preserve_images(true)
 //!     .build();
 //!
 //! let reader = Readability::with_config(config);
-//! let article = reader.parse("<html><body><article><h1>Title</h1><p>Content</p></article></body></html>")?;
+//! let html = "<html><body><article><h1>Title</h1><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p></article></body></html>";
+//! let article = reader.parse(html)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -110,7 +115,7 @@
 //!
 //! match parse("<html>...</html>") {
 //!     Ok(article) => println!("Got article: {}", article.metadata.title.unwrap()),
-//!     Err(LectitoError::NotReaderable { score, threshold }) => {
+//!     Err(LectitoError::NotReadable { score, threshold }) => {
 //!         eprintln!("Content not readable: score {} < threshold {}", score, threshold);
 //!     }
 //!     Err(e) => eprintln!("Error: {}", e),

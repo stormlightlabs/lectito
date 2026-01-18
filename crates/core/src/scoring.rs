@@ -4,7 +4,7 @@ use regex::Regex;
 /// Configuration for content scoring algorithm
 #[derive(Debug, Clone)]
 pub struct ScoreConfig {
-    /// Minimum score threshold to consider content as readerable
+    /// Minimum score threshold to consider content as readable
     pub min_score_threshold: f64,
     /// Maximum number of top candidates to track
     pub max_top_candidates: usize,

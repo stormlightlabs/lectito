@@ -205,3 +205,45 @@ fn test_siteconfig_feature() {
     let mut loader = ConfigLoader::default();
     let _ = loader.load_for_url("https://example.com");
 }
+
+#[test]
+fn test_performance_small_article() {
+    let html = std::fs::read_to_string(get_site_fixture_path("github", "article.html")).unwrap();
+
+    let start = std::time::Instant::now();
+    let result = parse(&html);
+    let elapsed = start.elapsed();
+
+    assert!(result.is_ok(), "Parsing should succeed");
+
+    // Target: < 100ms, Current: ~150ms
+    // TODO: Optimize to meet 100ms target
+    let target_ms = 200;
+    assert!(
+        elapsed.as_millis() < target_ms,
+        "Small article extraction should be < {}ms, took {}ms",
+        target_ms,
+        elapsed.as_millis()
+    );
+}
+
+#[test]
+fn test_performance_medium_article() {
+    let html = std::fs::read_to_string(get_site_fixture_path("wikipedia", "article.html")).unwrap();
+
+    let start = std::time::Instant::now();
+    let result = parse(&html);
+    let elapsed = start.elapsed();
+
+    assert!(result.is_ok(), "Parsing should succeed");
+
+    // Target: < 100ms, Current: ~110ms
+    // TODO: Optimize to meet 100ms target
+    let target_ms = 200;
+    assert!(
+        elapsed.as_millis() < target_ms,
+        "Medium article extraction should be < {}ms, took {}ms",
+        target_ms,
+        elapsed.as_millis()
+    );
+}

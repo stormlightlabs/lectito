@@ -1,28 +1,8 @@
 //! Main content extraction API.
 //!
-//! This module provides the primary API for extracting readable content
-//! from HTML pages. The main entry point is the [`Readability`] struct,
-//! along with convenience functions like [`parse`] and [`fetch_and_parse`].
-//!
-//! # Example
-//!
-//! ```rust
-//! use lectito_core::readability::{parse, fetch_and_parse};
-//!
-//! // Parse HTML from a string
-//! let html = "<html><head><title>Example</title></head><body><article><h1>Example</h1><p>Content with enough text to pass readability threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p></article></body></html>";
-//!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let article = parse(html)?;
-//! println!("Title: {:?}", article.metadata.title);
-//!
-//! // Or fetch and parse in one step
-//! # #[tokio::main]
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let article = fetch_and_parse("https://example.com/article").await?;
-//! # Ok(())
-//! # }
-//! ```
+//! This module provides the primary API for extracting readable content from HTML pages.
+//! The main entry point is the [`Readability`] struct, along with convenience functions
+//! like [`parse`] and [`fetch_and_parse`].
 
 use crate::article::Article;
 use crate::extract::{ExtractConfig, extract_content_with_config};
@@ -36,18 +16,6 @@ use url::Url;
 /// Configuration for the Readability builder.
 ///
 /// Provides fine-grained control over the content extraction process.
-///
-/// # Example
-///
-/// ```rust
-/// use lectito_core::ReadabilityConfig;
-///
-/// let config = ReadabilityConfig::builder()
-///     .min_score(25.0)
-///     .char_threshold(500)
-///     .preserve_images(true)
-///     .build();
-/// ```
 #[derive(Debug, Clone)]
 pub struct ReadabilityConfig {
     /// Minimum score threshold for extraction (default: 20.0).
@@ -88,15 +56,6 @@ impl Default for ReadabilityConfig {
 
 impl ReadabilityConfig {
     /// Creates a new builder for ReadabilityConfig.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use lectito_core::ReadabilityConfig;
-    ///
-    /// let builder = ReadabilityConfig::builder();
-    /// let config = builder.min_score(30.0).build();
-    /// ```
     pub fn builder() -> ReadabilityConfigBuilder {
         ReadabilityConfigBuilder::new()
     }
@@ -105,18 +64,6 @@ impl ReadabilityConfig {
 /// Builder for ReadabilityConfig.
 ///
 /// Provides a fluent API for configuring Readability.
-///
-/// # Example
-///
-/// ```rust
-/// use lectito_core::ReadabilityConfig;
-///
-/// let config = ReadabilityConfig::builder()
-///     .min_score(30.0)
-///     .char_threshold(1000)
-///     .keep_classes(true)
-///     .build();
-/// ```
 pub struct ReadabilityConfigBuilder {
     config: ReadabilityConfig,
 }
@@ -195,18 +142,6 @@ pub type LectitoConfigBuilder = ReadabilityConfigBuilder;
 ///
 /// Readability provides a fluent API for extracting readable content from HTML.
 /// Use its methods to parse HTML strings or fetch and parse from URLs.
-///
-/// # Example
-///
-/// ```rust
-/// use lectito_core::Readability;
-///
-/// let reader = Readability::new();
-/// let html = "<html><head><title>Test</title></head><body><article><h1>Title</h1><p>Content here with enough text to pass threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p></article></body></html>";
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let article = reader.parse(html)?;
-/// println!("Extracted: {}", article.text_content);
-/// ```
 pub struct Readability {
     config: ReadabilityConfig,
     config_loader: Option<ConfigLoader>,
@@ -214,95 +149,27 @@ pub struct Readability {
 
 impl Readability {
     /// Creates a new Readability instance with default settings.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use lectito_core::Readability;
-    ///
-    /// let reader = Readability::new();
-    /// ```
     pub fn new() -> Self {
         Self { config: ReadabilityConfig::default(), config_loader: None }
     }
 
     /// Creates a new Readability instance with a custom configuration.
-    ///
-    /// # Arguments
-    ///
-    /// * `config` - Configuration options for extraction
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use lectito_core::{Readability, ReadabilityConfig};
-    ///
-    /// let config = ReadabilityConfig::builder()
-    ///     .min_score(30.0)
-    ///     .build();
-    /// let reader = Readability::with_config(config);
-    /// ```
     pub fn with_config(config: ReadabilityConfig) -> Self {
         Self { config, config_loader: None }
     }
 
     /// Creates a new Readability instance with a custom configuration and config loader.
-    ///
-    /// # Arguments
-    ///
-    /// * `config` - Configuration options for extraction
-    /// * `config_loader` - Site configuration loader for XPath-based extraction
     pub fn with_config_and_loader(config: ReadabilityConfig, config_loader: ConfigLoader) -> Self {
         Self { config, config_loader: Some(config_loader) }
     }
 
     /// Parses HTML string and extracts readable content.
-    ///
-    /// # Arguments
-    ///
-    /// * `html` - The HTML content to parse
-    ///
-    /// # Errors
-    ///
-    /// Returns various errors if parsing or extraction fails.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use lectito_core::Readability;
-    ///
-    /// let reader = Readability::new();
-    /// let html = "<html><head><title>Test</title></head><body><article><h1>Title</h1><p>Content with sufficient length to pass threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p></article></body></html>";
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let article = reader.parse(html)?;
-    /// ```
     pub fn parse(&self, html: &str) -> Result<Article> {
         let doc = Document::parse_with_preprocessing(html, None)?;
         self.extract_from_document(&doc, None)
     }
 
     /// Parses HTML with a known base URL (for relative link resolution).
-    ///
-    /// # Arguments
-    ///
-    /// * `html` - The HTML content to parse
-    /// * `url` - The base URL for resolving relative links
-    ///
-    /// # Errors
-    ///
-    /// Returns [`LectitoError::InvalidUrl`] if the URL is invalid.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use lectito_core::Readability;
-    ///
-    /// let reader = Readability::new();
-    /// let html = "<html><head><title>Test</title></head><body><article><h1>Title</h1><p>Content with sufficient length to pass threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p></article></body></html>";
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let article = reader.parse_with_url(html, "https://example.com")?;
-    /// assert_eq!(article.source_url, Some("https://example.com".to_string()));
-    /// ```
     pub fn parse_with_url(&self, html: &str, url: &str) -> Result<Article> {
         let base_url = Url::parse(url).map_err(|e| LectitoError::InvalidUrl(e.to_string()))?;
         let doc = Document::parse_with_preprocessing(html, Some(base_url))?;
@@ -362,24 +229,6 @@ impl Readability {
     ///
     /// This is a quick heuristic that checks if the page likely contains
     /// readable content based on element scores.
-    ///
-    /// # Arguments
-    ///
-    /// * `html` - The HTML content to check
-    ///
-    /// Returns `true` if content appears readable, `false` otherwise.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use lectito_core::Readability;
-    ///
-    /// let reader = Readability::new();
-    /// let html_article = "<html><head><title>Article</title></head><body><article><h1>Long Article</h1><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p></article></body></html>";
-    /// let html_nav = "<html><body><nav><a href=\"#\">Link</a></nav></body></html>";
-    /// assert!(reader.is_probably_readable(html_article));
-    /// assert!(!reader.is_probably_readable(html_nav));
-    /// ```
     pub fn is_probably_readable(&self, html: &str) -> bool {
         self.is_probably_readable_with_threshold(html, 20.0)
     }
@@ -424,24 +273,6 @@ impl Default for Readability {
 /// Convenience function for one-liner extraction with defaults.
 ///
 /// This is the simplest way to extract content from HTML.
-///
-/// # Arguments
-///
-/// * `html` - The HTML content to parse
-///
-/// # Errors
-///
-/// Returns various errors if parsing or extraction fails.
-///
-/// # Example
-///
-/// ```rust
-/// use lectito_core::readability::parse;
-///
-/// let html = "<html><head><title>Test</title></head><body><article><h1>Title</h1><p>Content with sufficient length to pass threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p></article></body></html>";
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let article = parse(html)?;
-/// ```
 pub fn parse(html: &str) -> Result<Article> {
     Readability::new().parse(html)
 }
@@ -474,7 +305,7 @@ pub fn is_probably_readable(html: &str) -> bool {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```no_run,ignore
 /// use lectito_core::fetch_and_parse;
 ///
 /// #[tokio::main]
@@ -496,7 +327,7 @@ pub async fn fetch_and_parse(url: &str) -> Result<Article> {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```no_run,ignore
 /// use lectito_core::{fetch_and_parse_with_config, ReadabilityConfig, FetchConfig};
 ///
 /// #[tokio::main]

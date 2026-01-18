@@ -5,9 +5,10 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```
 //! use lectito_core::parse::Document;
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let html = r#"
 //!     <html>
 //!         <body>
@@ -20,6 +21,8 @@
 //! let doc = Document::parse(html).unwrap();
 //! let title = doc.title();
 //! let paragraphs = doc.select("p.content")?;
+//! # Ok(())
+//! # }
 //! ```
 
 use scraper::{Html, Selector};

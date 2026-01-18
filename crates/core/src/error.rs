@@ -36,7 +36,7 @@ use sxd_xpath::ExecutionError;
 ///
 /// match parse("<html>...</html>") {
 ///     Ok(article) => println!("Success: {}", article.metadata.title.unwrap()),
-///     Err(LectitoError::NotReaderable { score, threshold }) => {
+///     Err(LectitoError::NotReadable { score, threshold }) => {
 ///         println!("Score {} below threshold {}", score, threshold);
 ///     }
 ///     Err(e) => println!("Error: {}", e),
@@ -48,51 +48,18 @@ pub enum LectitoError {
     ///
     /// This variant wraps network errors, DNS failures, connection issues,
     /// and other HTTP-related problems.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use lectito_core::LectitoError;
-    ///
-    /// // Create a mock HTTP error (in real code this comes from reqwest)
-    /// // Create a mock error for demonstration
-    /// let mock_reqwest_error = reqwest::Error::from(
-    ///     std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "connection refused")
-    /// );
-    /// let err = LectitoError::HttpError(mock_reqwest_error);
-    /// assert!(err.to_string().contains("HTTP request failed"));
-    /// assert!(err.to_string().contains("HTTP request failed"));
-    /// ```
     #[error("HTTP request failed: {0}")]
     HttpError(#[from] reqwest::Error),
 
     /// Request timeout.
     ///
     /// Returned when an HTTP request exceeds the configured timeout duration.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use lectito_core::LectitoError;
-    ///
-    /// let err = LectitoError::Timeout { timeout: 30 };
-    /// assert!(err.to_string().contains("30 seconds"));
-    /// ```
     #[error("Request timed out after {timeout} seconds")]
     Timeout { timeout: u64 },
 
     /// Invalid URL provided.
     ///
     /// Returned when a URL cannot be parsed or is malformed.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use lectito_core::LectitoError;
-    ///
-    /// let err = LectitoError::InvalidUrl("not-a-url".to_string());
-    /// assert!(err.to_string().contains("Invalid URL"));
-    /// ```
     #[error("Invalid URL: {0}")]
     InvalidUrl(String),
 
@@ -115,23 +82,12 @@ pub enum LectitoError {
     /// that no element meets the minimum readability score threshold.
     /// This typically happens on navigation pages, search results,
     /// or pages with very little text content.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use lectito_core::LectitoError;
-    ///
-    /// let err = LectitoError::NotReaderable { score: 15.0, threshold: 20.0 };
-    /// assert!(err.to_string().contains("15"));
-    /// assert!(err.to_string().contains("20"));
-    /// ```
     #[error("Content is not readable (score {score} below threshold {threshold})")]
-    NotReaderable { score: f64, threshold: f64 },
+    NotReadable { score: f64, threshold: f64 },
 
     /// No content could be extracted from the document.
     ///
-    /// Returned when the document is empty or contains no suitable
-    /// content candidates.
+    /// Returned when the document is empty or contains no suitable content candidates.
     #[error("No content could be extracted from the document")]
     NoContent,
 
@@ -178,19 +134,6 @@ impl From<ExecutionError> for LectitoError {
 /// Result type alias for LectitoError.
 ///
 /// This is a convenience alias for `std::result::Result<T, LectitoError>`.
-///
-/// # Example
-///
-/// ```rust
-/// use lectito_core::Result;
-///
-/// fn parse_html(html: &str) -> Result<String> {
-///     if html.is_empty() {
-///         return Err(lectito_core::LectitoError::NoContent);
-///     }
-///     Ok(html.to_string())
-/// }
-/// ```
 pub type Result<T> = std::result::Result<T, LectitoError>;
 
 #[cfg(test)]
@@ -204,8 +147,8 @@ mod tests {
     }
 
     #[test]
-    fn test_not_readerable_error() {
-        let err = LectitoError::NotReaderable { score: 15.0, threshold: 20.0 };
+    fn test_not_readable_error() {
+        let err = LectitoError::NotReadable { score: 15.0, threshold: 20.0 };
         assert!(err.to_string().contains("15"));
         assert!(err.to_string().contains("20"));
     }

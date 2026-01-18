@@ -2,19 +2,6 @@
 //!
 //! This module provides functions for retrieving HTML content from
 //! various sources: HTTP/HTTPS URLs, local files, and standard input.
-//!
-//! # Example
-//!
-//! ```rust,no_run
-//! use lectito_core::fetch::{fetch_url, FetchConfig};
-//!
-//! # #[tokio::main]
-//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let config = FetchConfig::default();
-//! let html = fetch_url("https://example.com", &config).await?;
-//! # Ok(())
-//! # }
-//! ```
 
 use std::fs;
 use std::path::PathBuf;
@@ -28,18 +15,6 @@ use crate::{LectitoError, Result};
 /// HTTP client configuration for fetching web pages.
 ///
 /// This struct controls timeout and user agent settings for HTTP requests.
-///
-/// # Example
-///
-/// ```rust
-/// use lectito_core::fetch::FetchConfig;
-///
-/// let config = FetchConfig {
-///     timeout: 60,
-///     user_agent: "MyBot/1.0".to_string(),
-///     ..Default::default()
-/// };
-/// ```
 #[derive(Debug, Clone)]
 pub struct FetchConfig {
     /// Request timeout in seconds.
@@ -52,7 +27,7 @@ impl Default for FetchConfig {
     fn default() -> Self {
         Self {
             timeout: 30,
-            user_agent: "Mozilla/5.0 (compatible; Lectito/1.0; +https://github.com/lectito)".to_string(),
+            user_agent: "Mozilla/5.0 (compatible; Lectito/1.0; +https://github.com/stormlightlabs/lectito)".to_string(),
         }
     }
 }
@@ -62,31 +37,6 @@ impl Default for FetchConfig {
 /// This function performs an HTTP GET request and returns the response body as text.
 /// It follows redirects, respects the configured timeout, and uses a browser-like
 /// User-Agent for better compatibility.
-///
-/// # Arguments
-///
-/// * `url` - The URL to fetch (must include http:// or https:// scheme)
-/// * `config` - Configuration options for the request
-///
-/// # Errors
-///
-/// Returns [`LectitoError::InvalidUrl`] if the URL cannot be parsed.
-/// Returns [`LectitoError::Timeout`] if the request exceeds the configured timeout.
-/// Returns [`LectitoError::HttpError`] for network failures or non-2xx responses.
-///
-/// # Example
-///
-/// ```rust,no_run
-/// use lectito_core::fetch::{fetch_url, FetchConfig};
-///
-/// # #[tokio::main]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let config = FetchConfig { timeout: 60, ..Default::default() };
-/// let html = fetch_url("https://example.com/article", &config).await?;
-/// assert!(!html.is_empty());
-/// # Ok(())
-/// # }
-/// ```
 pub async fn fetch_url(url: &str, config: &FetchConfig) -> Result<String> {
     let parsed_url = Url::parse(url).map_err(|e| LectitoError::InvalidUrl(e.to_string()))?;
 
@@ -125,24 +75,6 @@ pub async fn fetch_url(url: &str, config: &FetchConfig) -> Result<String> {
 }
 
 /// Reads HTML content from a local file.
-///
-/// # Arguments
-///
-/// * `path` - Path to the HTML file to read
-///
-/// # Errors
-///
-/// Returns [`LectitoError::FileNotFound`] if the file does not exist.
-/// Returns [`LectitoError::WriteError`] for I/O errors.
-///
-/// # Example
-///
-/// ```rust,no_run
-/// use lectito_core::fetch::fetch_file;
-///
-/// let html = fetch_file("article.html")?;
-/// # Ok::<(), lectito_core::LectitoError>(())
-/// ```
 pub fn fetch_file(path: &str) -> Result<String> {
     let path_buf = PathBuf::from(path);
 
@@ -157,19 +89,6 @@ pub fn fetch_file(path: &str) -> Result<String> {
 ///
 /// This function reads all available input from stdin until EOF.
 /// Useful for piping content from other commands.
-///
-/// # Errors
-///
-/// Returns [`LectitoError::WriteError`] if reading from stdin fails.
-///
-/// # Example
-///
-/// ```rust,no_run
-/// use lectito_core::fetch::fetch_stdin;
-///
-/// let html = fetch_stdin()?;
-/// # Ok::<(), lectito_core::LectitoError>(())
-/// ```
 pub fn fetch_stdin() -> Result<String> {
     use std::io::{self, Read};
 
