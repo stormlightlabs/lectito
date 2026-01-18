@@ -302,19 +302,6 @@ pub fn is_probably_readable(html: &str) -> bool {
 ///
 /// This async function fetches HTML from the given URL and extracts
 /// readable content using default Readability and Fetch configurations.
-///
-/// # Example
-///
-/// ```no_run,ignore
-/// use lectito_core::fetch_and_parse;
-///
-/// #[tokio::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let article = fetch_and_parse("https://example.com/article").await?;
-///     println!("Title: {:?}", article.metadata.title);
-///     Ok(())
-/// }
-/// ```
 pub async fn fetch_and_parse(url: &str) -> Result<Article> {
     let reader = Readability::new();
     reader.fetch_and_parse(url).await
@@ -324,32 +311,6 @@ pub async fn fetch_and_parse(url: &str) -> Result<Article> {
 ///
 /// This async function fetches HTML from the given URL and extracts
 /// readable content using the provided Readability and Fetch configurations.
-///
-/// # Example
-///
-/// ```no_run,ignore
-/// use lectito_core::{fetch_and_parse_with_config, ReadabilityConfig, FetchConfig};
-///
-/// #[tokio::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let readability_config = ReadabilityConfig::builder()
-///         .min_score(30.0)
-///         .build();
-///     let fetch_config = FetchConfig {
-///         timeout: 60,
-///         ..Default::default()
-///     };
-///
-///     let article = fetch_and_parse_with_config(
-///         "https://example.com/article",
-///         &readability_config,
-///         &fetch_config
-///     ).await?;
-///
-///     println!("Title: {:?}", article.metadata.title);
-///     Ok(())
-/// }
-/// ```
 pub async fn fetch_and_parse_with_config(
     url: &str, readability_config: &ReadabilityConfig, fetch_config: &FetchConfig,
 ) -> Result<Article> {

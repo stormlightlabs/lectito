@@ -61,7 +61,8 @@ pub struct ScoreResult {
 /// - ARTICLE: +10 (primary content container)
 /// - SECTION: +8 (content section)
 /// - DIV: +5 (generic container)
-/// - PRE, TD, BLOCKQUOTE: +3 (content elements)
+/// - TD, BLOCKQUOTE: +3 (content elements)
+/// - PRE: 0 (code blocks are rarely main content, kept neutral)
 /// - FORM: -3 (unlikely to contain main content)
 /// - ADDRESS, OL, UL, DL, DD, DT, LI: -3 (list/metadata elements)
 /// - H1-H6, TH, HEADER, FOOTER, NAV: -5 (header/navigation elements)
@@ -70,7 +71,8 @@ pub fn base_tag_score(element: &Element<'_>) -> f64 {
         "article" => 10.0,
         "section" => 8.0,
         "div" => 5.0,
-        "pre" | "td" | "blockquote" => 3.0,
+        "td" | "blockquote" => 3.0,
+        "pre" => 0.0,
         "form" => -3.0,
         "address" | "ol" | "ul" | "dl" | "dd" | "dt" | "li" => -3.0,
         "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "th" | "header" | "footer" | "nav" => -5.0,
@@ -82,7 +84,7 @@ pub fn base_tag_score(element: &Element<'_>) -> f64 {
 const POSITIVE_PATTERNS: &str = r"(?i)(article|body|content|entry|hentry|h-entry|main|page|post|text|blog|story|tweet)";
 
 /// Negative patterns that suggest an element does NOT contain main content
-const NEGATIVE_PATTERNS: &str = r"(?i)(banner|breadcrumbs?|combx|comment|community|disqus|extra|foot|header|menu|related|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup)";
+const NEGATIVE_PATTERNS: &str = r"(?i)(banner|breadcrumbs?|combx|comment|community|disqus|extra|foot|header|menu|related|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup|highlight|code|example)";
 
 /// Calculate the class/ID weight adjustment for an element
 ///
@@ -158,6 +160,11 @@ pub fn link_density(element: &Element<'_>) -> f64 {
 /// - Class/ID weight adjustment
 /// - Content density
 /// - Link density penalty (multiplies by 1 - link_density)
+/// - Code detection penalty (for <pre> tags that look like code)
+///
+/// Link density penalty is reduced for elements with:
+/// - Positive class/ID patterns (content indicators)
+/// - High text content (prose vs navigation)
 pub fn calculate_score(element: &Element<'_>, config: &ScoreConfig) -> ScoreResult {
     let tag_name = element.tag_name();
     let class = element.attr("class").map(|s| s.to_string());
@@ -168,7 +175,31 @@ pub fn calculate_score(element: &Element<'_>, config: &ScoreConfig) -> ScoreResu
     let content_density = content_density_score(element, config);
     let ld = link_density(element);
     let raw_score = base_score + class_weight + content_density;
-    let final_score = raw_score * (1.0 - ld);
+
+    let text = element.text();
+    let is_code = if tag_name == "pre" && text.len() > 50 {
+        let comma_ratio = text.matches(',').count() as f64 / text.len() as f64;
+        let space_ratio = text.matches(' ').count() as f64 / text.len() as f64;
+        let special_ratio = text
+            .chars()
+            .filter(|c| !c.is_alphanumeric() && !c.is_whitespace())
+            .count() as f64
+            / text.len() as f64;
+
+        special_ratio > 0.15 && comma_ratio < 0.01 && space_ratio < 0.15
+    } else {
+        false
+    };
+
+    let has_positive_pattern = class_weight > 0.0;
+    let text_length = text.chars().count();
+    let is_content_rich = text_length > 500;
+
+    let link_penalty = if has_positive_pattern || is_content_rich { 1.0 - (ld * 0.5) } else { 1.0 - ld };
+
+    let code_penalty = if is_code { -10.0 } else { 0.0 };
+
+    let final_score = (raw_score + code_penalty) * link_penalty;
 
     ScoreResult { tag_name, class, id, base_score, class_weight, content_density, link_density: ld, final_score }
 }
@@ -208,7 +239,7 @@ mod tests {
         let doc = Document::parse(html).unwrap();
 
         let pre_elem = doc.select("pre").unwrap().into_iter().next().unwrap();
-        assert_eq!(base_tag_score(&pre_elem), 3.0);
+        assert_eq!(base_tag_score(&pre_elem), 0.0);
 
         let td_elem = doc.select("td").unwrap().into_iter().next().unwrap();
         assert_eq!(base_tag_score(&td_elem), 3.0);

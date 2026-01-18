@@ -50,6 +50,21 @@ impl StripProcessor {
     pub fn apply(&self, html: &str) -> Result<String> {
         let mut result = html.to_string();
 
+        let style_re = Regex::new(r"(?s)<style[^>]*>.*?</style>").unwrap();
+        result = style_re.replace_all(&result, "").to_string();
+
+        let edit_re = Regex::new(r#"(?s)<span[^>]*class="[^"]*mw-editsection[^"]*"[^>]*>.*?</span>"#).unwrap();
+        result = edit_re.replace_all(&result, "").to_string();
+
+        let edit_link_re = Regex::new(r#"(?s)<a[^>]*href="[^"]*action=edit[^"]*"[^>]*>.*?</a>"#).unwrap();
+        result = edit_link_re.replace_all(&result, "").to_string();
+
+        let ref_re = Regex::new(r#"(?s)<sup[^>]*class="[^"]*reference[^"]*"[^>]*>.*?</sup>"#).unwrap();
+        result = ref_re.replace_all(&result, "").to_string();
+
+        let cite_re = Regex::new(r#"(?s)<span[^>]*class="[^"]*cite-bracket[^"]*"[^>]*>.*?</span>"#).unwrap();
+        result = cite_re.replace_all(&result, "").to_string();
+
         for xpath in &self.config.strip {
             result = self.strip_by_xpath(&result, xpath)?;
         }
@@ -108,12 +123,15 @@ impl StripProcessor {
     /// Strip elements by ID attribute
     fn strip_element_by_attribute(&self, html: &str, attr: &str, value: &str) -> Result<String> {
         let pattern = if attr == "id" {
-            format!(r#"<[^>]*id="{}"[^>]*>.*?</[^>]*>"#, regex::escape(value))
+            format!(r#"(?s)<[^>]*id="{}"[^>]*>.*?</[^>]*>"#, regex::escape(value))
         } else if attr == "class" {
-            format!(r#"<[^>]*class="[^"]*{}[^"]*"[^>]*>.*?</[^>]*>"#, regex::escape(value))
+            format!(
+                r#"(?s)<[^>]*class="[^"]*{}[^"]*"[^>]*>.*?</[^>]*>"#,
+                regex::escape(value)
+            )
         } else {
             format!(
-                r#"<[^>]*{}="{}"[^>]*>.*?</[^>]*>"#,
+                r#"(?s)<[^>]*{}="{}"[^>]*>.*?</[^>]*>"#,
                 regex::escape(attr),
                 regex::escape(value)
             )
@@ -125,7 +143,7 @@ impl StripProcessor {
 
     /// Strip elements by tag name
     fn strip_element_by_tag(&self, html: &str, tag: &str) -> Result<String> {
-        let pattern = format!(r#"<{}[^>]*>.*?</{}>"#, regex::escape(tag), regex::escape(tag));
+        let pattern = format!(r#"(?s)<{}[^>]*>.*?</{}>"#, regex::escape(tag), regex::escape(tag));
         let re = Regex::new(&pattern).map_err(|e| LectitoError::SiteConfigError(format!("Regex error: {}", e)))?;
         Ok(re.replace_all(html, "").to_string())
     }
@@ -142,7 +160,7 @@ impl StripProcessor {
 
     /// Strip images by src pattern
     fn strip_images_by_src(&self, html: &str, pattern: &str) -> Result<String> {
-        let img_pattern = format!(r#"<img[^>]*src="[^"]*{}[^"]*"[^>]*>"#, regex::escape(pattern));
+        let img_pattern = format!(r#"(?s)<img[^>]*src="[^"]*{}[^"]*"[^>]*>"#, regex::escape(pattern));
         let re = Regex::new(&img_pattern).map_err(|e| LectitoError::SiteConfigError(format!("Regex error: {}", e)))?;
         Ok(re.replace_all(html, "").to_string())
     }

@@ -14,6 +14,7 @@ use lectito_core::{
     extract_content_with_config, fetch_url,
 };
 use owo_colors::OwoColorize;
+use url::Url;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -335,7 +336,14 @@ async fn main() -> anyhow::Result<()> {
 
     let parse_start = Instant::now();
 
+    let base_url = if input.starts_with("http://") || input.starts_with("https://") {
+        Url::parse(&input).ok()
+    } else {
+        None
+    };
+
     let mut processed_html = html.clone();
+    let mut has_site_config = false;
     if input.starts_with("http://") || input.starts_with("https://") {
         let mut config_loader = lectito_core::ConfigLoader::default();
         if let Some(config_dir) = &args.config_dir {
@@ -343,17 +351,24 @@ async fn main() -> anyhow::Result<()> {
         }
 
         if let Ok(site_config) = config_loader.load_for_url(&input) {
-            if args.verbose {
-                print_info("Applying site configuration");
-            }
+            if site_config.has_extraction_config() {
+                has_site_config = true;
+                if args.verbose {
+                    print_info("Applying site configuration");
+                }
 
-            if let Ok(processed) = site_config.apply_all_processing(&processed_html) {
-                processed_html = processed;
+                processed_html = site_config.apply_text_replacements(&processed_html);
+            } else if args.verbose {
+                print_info("No site configuration found for this domain");
             }
         }
     }
 
-    let doc = Document::parse(&processed_html).context("Failed to parse HTML")?;
+    let doc = if has_site_config {
+        Document::parse_with_base_url(&processed_html, base_url).context("Failed to parse HTML")?
+    } else {
+        Document::parse_with_preprocessing(&processed_html, base_url).context("Failed to parse HTML")?
+    };
 
     timings.push(("Parse".to_string(), parse_start.elapsed()));
 
@@ -384,22 +399,29 @@ async fn main() -> anyhow::Result<()> {
         }
 
         if let Ok(site_config) = config_loader.load_for_url(&input) {
-            if args.verbose {
-                print_info("Using site configuration for extraction");
-            }
-            match extract_content_with_config(&doc, &extract_config, Some(&site_config)) {
-                Ok(extracted) => {
-                    if args.verbose {
-                        print_success("Successfully extracted content using site configuration");
-                    }
-                    extracted
+            if site_config.has_extraction_config() {
+                if args.verbose {
+                    print_info("Using site configuration for extraction");
                 }
-                Err(_) => {
-                    if args.verbose {
-                        print_warning("Site config extraction failed, falling back to heuristics");
+                match extract_content_with_config(&doc, &extract_config, Some(&site_config)) {
+                    Ok(extracted) => {
+                        if args.verbose {
+                            print_success("Successfully extracted content using site configuration");
+                        }
+                        extracted
                     }
-                    extract_content(&doc, &extract_config).context("Failed to extract content")?
+                    Err(_) => {
+                        if args.verbose {
+                            print_warning("Site config extraction failed, falling back to heuristics");
+                        }
+                        extract_content(&doc, &extract_config).context("Failed to extract content")?
+                    }
                 }
+            } else {
+                if args.verbose {
+                    print_info("No site configuration found, using heuristics");
+                }
+                extract_content(&doc, &extract_config).context("Failed to extract content")?
             }
         } else {
             if args.verbose {
@@ -471,6 +493,7 @@ async fn main() -> anyhow::Result<()> {
                 include_frontmatter: args.frontmatter,
                 include_references: args.references,
                 strip_images: args.no_images,
+                include_title_heading: true, // Always include title as H1
             };
             convert_to_markdown(&extracted.content, &metadata, &config).context("Failed to convert to Markdown")?
         }

@@ -12,6 +12,8 @@ pub struct MarkdownConfig {
     pub include_references: bool,
     /// Strip images from output
     pub strip_images: bool,
+    /// Include title as H1 heading at the start of content
+    pub include_title_heading: bool,
 }
 
 /// A collected link reference
@@ -30,6 +32,12 @@ pub fn convert_to_markdown(html: &str, metadata: &Metadata, config: &MarkdownCon
     if config.include_frontmatter {
         output.push_str(&generate_frontmatter(metadata)?);
         output.push('\n');
+    }
+
+    if config.include_title_heading
+        && let Some(title) = &metadata.title
+    {
+        output.push_str(&format!("# {}\n\n", title));
     }
 
     let processed_html = if config.strip_images { strip_images(html)? } else { html.to_string() };

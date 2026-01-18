@@ -196,6 +196,15 @@ impl ConfigLoader {
             names.push(format!(".{}.txt", without_www));
         }
 
+        let parts: Vec<&str> = domain.split('.').collect();
+        for i in 1..parts.len().saturating_sub(1) {
+            let parent = parts[i..].join(".");
+            if parent.contains('.') {
+                names.push(format!("{}.txt", parent));
+                names.push(format!(".{}.txt", parent));
+            }
+        }
+
         names
     }
 
@@ -318,6 +327,34 @@ mod tests {
         let names = loader.generate_config_names("news.example.com");
         assert!(names.contains(&"news.example.com.txt".to_string()));
         assert!(names.contains(&".news.example.com.txt".to_string()));
+    }
+
+    #[test]
+    fn test_generate_config_names_parent_domains() {
+        let loader = ConfigLoader::new();
+        let names = loader.generate_config_names("en.wikipedia.org");
+
+        assert!(names.contains(&"en.wikipedia.org.txt".to_string()));
+        assert!(names.contains(&".en.wikipedia.org.txt".to_string()));
+
+        assert!(names.contains(&"wikipedia.org.txt".to_string()));
+        assert!(names.contains(&".wikipedia.org.txt".to_string()));
+
+        assert!(!names.iter().any(|n| n == "org.txt" || n == ".org.txt"));
+    }
+
+    #[test]
+    fn test_generate_config_names_deep_subdomain() {
+        let loader = ConfigLoader::new();
+        let names = loader.generate_config_names("news.bbc.co.uk");
+
+        assert!(names.contains(&"news.bbc.co.uk.txt".to_string()));
+        assert!(names.contains(&".news.bbc.co.uk.txt".to_string()));
+
+        assert!(names.contains(&"bbc.co.uk.txt".to_string()));
+        assert!(names.contains(&".bbc.co.uk.txt".to_string()));
+
+        assert!(!names.iter().any(|n| n == "uk.txt" || n == ".uk.txt"));
     }
 
     #[test]

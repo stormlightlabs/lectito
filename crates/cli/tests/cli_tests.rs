@@ -152,7 +152,6 @@ fn test_cli_github_fixture() {
         .stdout(predicate::str::contains("Linux kernel"));
 }
 
-
 #[test]
 fn test_cli_char_threshold() {
     cmd()

@@ -10,6 +10,12 @@ pub struct PreprocessConfig {
     pub remove_styles: bool,
     /// Whether to remove noscript tags
     pub remove_noscript: bool,
+    /// Whether to remove iframe tags
+    pub remove_iframes: bool,
+    /// Whether to remove svg tags
+    pub remove_svg: bool,
+    /// Whether to remove canvas tags
+    pub remove_canvas: bool,
     /// Whether to remove unlikely candidates
     pub remove_unlikely: bool,
     /// Whether to keep positive candidates even if they match unlikely patterns
@@ -28,6 +34,9 @@ impl Default for PreprocessConfig {
             remove_scripts: true,
             remove_styles: true,
             remove_noscript: true,
+            remove_iframes: true,
+            remove_svg: true,
+            remove_canvas: true,
             remove_unlikely: true,
             keep_positive: true,
             remove_hidden: true,
@@ -41,7 +50,13 @@ impl Default for PreprocessConfig {
 pub fn preprocess_html(html: &str, config: &PreprocessConfig) -> String {
     let mut processed = html.to_string();
 
-    if config.remove_scripts || config.remove_styles || config.remove_noscript {
+    if config.remove_scripts
+        || config.remove_styles
+        || config.remove_noscript
+        || config.remove_iframes
+        || config.remove_svg
+        || config.remove_canvas
+    {
         processed = remove_unwanted_tags(&processed, config);
     }
 
@@ -64,7 +79,7 @@ pub fn preprocess_html(html: &str, config: &PreprocessConfig) -> String {
     normalize_whitespace(processed)
 }
 
-/// Remove script, style, and noscript tags from HTML
+/// Remove script, style, noscript, iframe, svg, and canvas tags from HTML
 fn remove_unwanted_tags(html: &str, config: &PreprocessConfig) -> String {
     let mut output = String::new();
     let mut rewriter = lol_html::HtmlRewriter::new(
@@ -72,7 +87,7 @@ fn remove_unwanted_tags(html: &str, config: &PreprocessConfig) -> String {
             element_content_handlers: vec![
                 if config.remove_scripts {
                     Some(lol_html::element!("script", |el| {
-                        el.remove_and_keep_content();
+                        el.remove();
                         Ok(())
                     }))
                 } else {
@@ -80,7 +95,7 @@ fn remove_unwanted_tags(html: &str, config: &PreprocessConfig) -> String {
                 },
                 if config.remove_styles {
                     Some(lol_html::element!("style", |el| {
-                        el.remove_and_keep_content();
+                        el.remove();
                         Ok(())
                     }))
                 } else {
@@ -88,7 +103,31 @@ fn remove_unwanted_tags(html: &str, config: &PreprocessConfig) -> String {
                 },
                 if config.remove_noscript {
                     Some(lol_html::element!("noscript", |el| {
-                        el.remove_and_keep_content();
+                        el.remove();
+                        Ok(())
+                    }))
+                } else {
+                    None
+                },
+                if config.remove_iframes {
+                    Some(lol_html::element!("iframe", |el| {
+                        el.remove();
+                        Ok(())
+                    }))
+                } else {
+                    None
+                },
+                if config.remove_svg {
+                    Some(lol_html::element!("svg", |el| {
+                        el.remove();
+                        Ok(())
+                    }))
+                } else {
+                    None
+                },
+                if config.remove_canvas {
+                    Some(lol_html::element!("canvas", |el| {
+                        el.remove();
                         Ok(())
                     }))
                 } else {
@@ -180,7 +219,7 @@ fn remove_unlikely_candidates(html: &str, keep_positive: bool) -> String {
 }
 
 /// Convert relative URLs to absolute URLs
-fn convert_relative_urls(html: &str, base_url: &Url) -> String {
+pub fn convert_relative_urls(html: &str, base_url: &Url) -> String {
     let mut output = String::new();
     let mut rewriter = lol_html::HtmlRewriter::new(
         lol_html::Settings {
@@ -283,19 +322,42 @@ mod tests {
                 <head><script>alert('test');</script><style>body{color:red;}</style></head>
                 <body>
                     <noscript>Enable JavaScript</noscript>
+                    <iframe src="https://example.com"></iframe>
+                    <svg><rect width="100" height="100"/></svg>
+                    <canvas id="chart"></canvas>
                     <p>Content</p>
                 </body>
             </html>
         "#;
 
-        let config =
-            PreprocessConfig { remove_scripts: true, remove_styles: true, remove_noscript: true, ..Default::default() };
+        let config = PreprocessConfig {
+            remove_scripts: true,
+            remove_styles: true,
+            remove_noscript: true,
+            remove_iframes: true,
+            remove_svg: true,
+            remove_canvas: true,
+            ..Default::default()
+        };
 
         let result = remove_unwanted_tags(html, &config);
         assert!(!result.contains("<script"));
         assert!(!result.contains("<style"));
         assert!(!result.contains("<noscript"));
+        assert!(!result.contains("<iframe"));
+        assert!(!result.contains("<svg"));
+        assert!(!result.contains("<canvas"));
         assert!(result.contains("<p>Content</p>"));
+
+        assert!(!result.contains("alert"), "Script content should be removed");
+        assert!(!result.contains("color:red"), "Style content should be removed");
+        assert!(
+            !result.contains("Enable JavaScript"),
+            "Noscript content should be removed"
+        );
+        assert!(!result.contains("example.com"), "Iframe src should be removed");
+        assert!(!result.contains("rect"), "SVG content should be removed");
+        assert!(!result.contains("chart"), "Canvas id should be removed");
     }
 
     #[test]

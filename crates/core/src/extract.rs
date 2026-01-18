@@ -1,8 +1,8 @@
 use crate::parse::{Document, Element};
 use crate::postprocess::{PostProcessConfig, postprocess_html};
 use crate::scoring::{ScoreConfig, ScoreResult, calculate_score};
-use crate::siteconfig::{SiteConfig, SiteConfigXPath};
-use crate::{LectitoError, Result};
+use crate::siteconfig::{SiteConfig, SiteConfigProcessing, SiteConfigXPath};
+use crate::{LectitoError, Result, preprocess};
 
 use std::collections::HashSet;
 
@@ -294,7 +294,14 @@ pub fn extract_content_with_config(
 ) -> Result<ExtractedContent> {
     if let Some(site_cfg) = site_config {
         if !site_cfg.title.is_empty() || !site_cfg.body.is_empty() {
-            return extract_with_site_config(doc, site_cfg, config);
+            match extract_with_site_config(doc, site_cfg, config) {
+                Ok(content) => return Ok(content),
+                Err(_) => {
+                    if !site_cfg.should_autodetect() {
+                        return Err(LectitoError::NoContent);
+                    }
+                }
+            }
         }
 
         if !site_cfg.should_autodetect() {
@@ -311,10 +318,65 @@ fn extract_with_site_config(
 ) -> Result<ExtractedContent> {
     let html = doc.html().html();
 
-    let body_content = if let Some(body) = site_config.extract_body(&html)? {
-        body
+    let body_content = 'extracted: {
+        for xpath in &site_config.body {
+            if xpath.contains("[@id='")
+                && let Some(start) = xpath.find("[@id='")
+                && let Some(end) = xpath[start + 6..].find("']")
+            {
+                let id = &xpath[start + 6..start + 6 + end];
+                let selector_str = format!("#{}", id);
+                match scraper::Selector::parse(&selector_str) {
+                    Ok(_selector) => {
+                        if let Ok(elements) = doc.select(&selector_str)
+                            && !elements.is_empty()
+                        {
+                            break 'extracted elements.iter().map(|el| el.outer_html()).collect::<Vec<_>>().join("\n");
+                        }
+                    }
+                    Err(_) => continue,
+                }
+            }
+
+            if xpath.contains("[@class='")
+                && let Some(start) = xpath.find("[@class='")
+                && let Some(end) = xpath[start + 8..].find("']")
+            {
+                let class = &xpath[start + 8..start + 8 + end];
+                if let Some(tag_end) = xpath[2..].find('[') {
+                    let tag = &xpath[2..2 + tag_end];
+                    let selector_str = format!("{}.{}", tag, class);
+                    match scraper::Selector::parse(&selector_str) {
+                        Ok(_selector) => {
+                            if let Ok(elements) = doc.select(&selector_str)
+                                && !elements.is_empty()
+                            {
+                                break 'extracted elements
+                                    .iter()
+                                    .map(|el| el.outer_html())
+                                    .collect::<Vec<_>>()
+                                    .join("\n");
+                            }
+                        }
+                        Err(_) => continue,
+                    }
+                }
+            }
+        }
+
+        if let Some(body) = site_config.extract_body(&html)? {
+            body
+        } else {
+            return Err(LectitoError::NoContent);
+        }
+    };
+
+    let body_content = site_config.apply_strip_directives(&body_content)?;
+
+    let body_content = if let Some(base_url) = doc.base_url() {
+        preprocess::convert_relative_urls(&body_content, base_url)
     } else {
-        return Err(LectitoError::NoContent);
+        body_content
     };
 
     let _title = site_config.extract_title(&html)?.or_else(|| doc.title());

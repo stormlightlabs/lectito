@@ -216,8 +216,7 @@ fn test_performance_small_article() {
 
     assert!(result.is_ok(), "Parsing should succeed");
 
-    // Target: < 100ms, Current: ~150ms
-    // TODO: Optimize to meet 100ms target
+    // TODO: Optimize to meet 100ms target (currently ~150ms)
     let target_ms = 200;
     assert!(
         elapsed.as_millis() < target_ms,
@@ -237,8 +236,7 @@ fn test_performance_medium_article() {
 
     assert!(result.is_ok(), "Parsing should succeed");
 
-    // Target: < 100ms, Current: ~110ms
-    // TODO: Optimize to meet 100ms target
+    // TODO: Optimize to meet 100ms target (currently ~110ms)
     let target_ms = 200;
     assert!(
         elapsed.as_millis() < target_ms,

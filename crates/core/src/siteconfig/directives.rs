@@ -175,6 +175,21 @@ impl SiteConfig {
     pub fn should_tidy(&self) -> bool {
         self.tidy.unwrap_or(false)
     }
+
+    /// Check if this config has any meaningful extraction directives
+    pub fn has_extraction_config(&self) -> bool {
+        !self.body.is_empty() || !self.title.is_empty()
+    }
+
+    /// Check if this config is effectively empty
+    pub fn is_empty(&self) -> bool {
+        self.body.is_empty()
+            && self.title.is_empty()
+            && self.author.is_empty()
+            && self.date.is_empty()
+            && self.strip.is_empty()
+            && self.strip_id_or_class.is_empty()
+    }
 }
 
 /// Parse a directive line from FTR config format
@@ -385,5 +400,37 @@ mod tests {
             "<meta name=\"generator\" content=\"WordPress\""
         );
         assert_eq!(config.fingerprints[0].1, "fingerprint.wordpress.com");
+    }
+
+    #[test]
+    fn test_site_config_has_extraction_config() {
+        let config = SiteConfig::new();
+        assert!(!config.has_extraction_config());
+
+        let mut config = SiteConfig::new();
+        config.add_directive(Directive::Body("//article".to_string()));
+        assert!(config.has_extraction_config());
+
+        let mut config = SiteConfig::new();
+        config.add_directive(Directive::Title("//h1".to_string()));
+        assert!(config.has_extraction_config());
+
+        let mut config = SiteConfig::new();
+        config.add_directive(Directive::Strip("//aside".to_string()));
+        assert!(!config.has_extraction_config());
+    }
+
+    #[test]
+    fn test_site_config_is_empty() {
+        let config = SiteConfig::new();
+        assert!(config.is_empty());
+
+        let mut config = SiteConfig::new();
+        config.add_directive(Directive::Body("//article".to_string()));
+        assert!(!config.is_empty());
+
+        let mut config = SiteConfig::new();
+        config.add_directive(Directive::Strip("//aside".to_string()));
+        assert!(!config.is_empty());
     }
 }

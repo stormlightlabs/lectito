@@ -18,18 +18,15 @@ pub struct Metadata {
 
 impl Document {
     /// Extract title with priority fallback:
-    /// 1. JSON-LD `headline`
+    /// 1. `<title>` element (page title)
     /// 2. Open Graph `og:title`
     /// 3. Twitter `twitter:title`
     /// 4. Meta `title` / `DC.title`
-    /// 5. `<title>` element
+    /// 5. JSON-LD `headline`
     /// 6. First `<h1>` element
     pub fn extract_title(&self) -> Option<String> {
-        if let Some(json_ld) = self.extract_json_ld()
-            && let Some(headline) = json_ld.get("headline")
-            && let Some(value) = headline.as_str()
-        {
-            return Some(value.to_string());
+        if let Some(title) = self.title() {
+            return Some(title);
         }
 
         if let Some(title) = self.get_meta_content("og:title") {
@@ -44,10 +41,6 @@ impl Document {
             return Some(title);
         }
         if let Some(title) = self.get_meta_content("DC.title") {
-            return Some(title);
-        }
-
-        if let Some(title) = self.title() {
             return Some(title);
         }
 
@@ -472,7 +465,7 @@ mod tests {
     fn test_extract_title_from_json_ld() {
         let doc = Document::parse(HTML_WITH_META).unwrap();
         let title = doc.extract_title();
-        assert_eq!(title, Some("JSON-LD Headline".to_string()));
+        assert_eq!(title, Some("Test Page Title".to_string()));
     }
 
     #[test]
@@ -600,7 +593,7 @@ mod tests {
         assert!(metadata.word_count.is_some());
         assert!(metadata.reading_time_minutes.is_some());
 
-        assert_eq!(metadata.title, Some("JSON-LD Headline".to_string()));
+        assert_eq!(metadata.title, Some("Test Page Title".to_string()));
         assert_eq!(metadata.author, Some("Jane Smith".to_string()));
     }
 

@@ -32,19 +32,6 @@
 //! # }
 //! ```
 //!
-//! ### Fetch and parse from a URL
-//!
-//! ```rust,no_run,ignore
-//! use lectito_core::fetch_and_parse;
-//!
-//! # #[tokio::main]
-//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let article = fetch_and_parse("https://example.com/article").await?;
-//! println!("Extracted {} words", article.word_count);
-//! # Ok(())
-//! # }
-//! ```
-//!
 //! ### Convert to different output formats
 //!
 //! ```

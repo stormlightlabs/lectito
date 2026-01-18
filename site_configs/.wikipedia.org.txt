@@ -9,6 +9,7 @@ date: //span[@id='mw-indicator-mw-dateformat']
 
 # Elements to remove (Wikipedia has lots of navigation)
 strip_id_or_class: editsection
+strip_id_or_class: mw-editsection
 strip_id_or_class: jump-to-nav
 strip_id_or_class: vector-page-tabs
 strip_id_or_class: vector-menu
@@ -16,19 +17,35 @@ strip_id_or_class: sidebar
 strip_id_or_class: navbox
 strip_id_or_class: catlinks
 strip_id_or_class: printfooter
-strip_id_or_class: navbox
 strip_id_or_class: infobox
 strip_id_or_class: metadata
 strip_id_or_class: ambox
 strip_id_or_class: ombox
 strip_id_or_class: tmbox
+strip_id_or_class: siteSub
+strip_id_or_class: contentSub
+strip_id_or_class: mw-indicators
+strip_id_or_class: hatnote
+strip_id_or_class: navigation-not-searchable
+strip_id_or_class: shortdescription
+strip_id_or_class: noprint
+strip_id_or_class: mw-empty-elt
 
-# XPath-based strip
+# XPath-based strip (more precise targeting)
 strip: //*[@id='toc']
 strip: //div[@class='reflist']
 strip: //div[@class='navbox']
 strip: //table[contains(@class, 'infobox')]
 strip: //div[contains(@class, 'navigation')]
+strip: //div[@id='mw-content-text']//style
+strip: //span[@class='mw-editsection']
+strip: //span[@class='mw-editsection-bracket']
+strip: //a[@class='mw-editsection']
+strip: //div[contains(@class, 'thumb')]
+strip: //div[contains(@class, 'tright')]
+strip: //div[contains(@class, 'tleft')]
+strip: //div[contains(@class, 'infobox')]
+strip: //table[contains(@class, 'infobox')]
 
 # Behavior
 tidy: no

@@ -73,6 +73,31 @@ impl Document {
         Ok(Self { html, base_url: None })
     }
 
+    /// Parses HTML from a string with a base URL but without preprocessing.
+    ///
+    /// This creates a Document directly from the HTML string with a base URL
+    /// for resolving relative links, but without any cleaning or modification.
+    ///
+    /// # Arguments
+    ///
+    /// * `html` - The HTML content to parse
+    /// * `base_url` - Optional base URL for resolving relative links
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use lectito_core::parse::Document;
+    /// use url::Url;
+    ///
+    /// let html = r#"<html><body><a href="/page">Link</a></body></html>"#;
+    /// let base = Url::parse("https://example.com").unwrap();
+    /// let doc = Document::parse_with_base_url(html, Some(base)).unwrap();
+    /// ```
+    pub fn parse_with_base_url(html: &str, base_url: Option<Url>) -> Result<Self> {
+        let html = Html::parse_document(html);
+        Ok(Self { html, base_url })
+    }
+
     /// Parses HTML from a string with preprocessing.
     ///
     /// This applies HTML cleaning and normalization before parsing,

@@ -1023,6 +1023,7 @@ dependencies = [
  "predicates",
  "tempfile",
  "tokio",
+ "url",
 ]
 
 [[package]]
