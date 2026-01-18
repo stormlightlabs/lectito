@@ -10,8 +10,10 @@
 //! use lectito_core::readability::{parse, fetch_and_parse};
 //!
 //! // Parse HTML from a string
-//! let html = reqwest::get("https://example.com/article")?.text()?;
-//! let article = parse(&html)?;
+//! let html = "<html><head><title>Example</title></head><body><article><h1>Example</h1><p>Content with enough text to pass readability threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p></article></body></html>";
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let article = parse(html)?;
 //! println!("Title: {:?}", article.metadata.title);
 //!
 //! // Or fetch and parse in one step
@@ -200,8 +202,9 @@ pub type LectitoConfigBuilder = ReadabilityConfigBuilder;
 /// use lectito_core::Readability;
 ///
 /// let reader = Readability::new();
-/// let html = "<html><body><article><p>Content here</p></article></body></html>";
-/// let article = reader.parse(html).unwrap();
+/// let html = "<html><head><title>Test</title></head><body><article><h1>Title</h1><p>Content here with enough text to pass threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p></article></body></html>";
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let article = reader.parse(html)?;
 /// println!("Extracted: {}", article.text_content);
 /// ```
 pub struct Readability {
@@ -269,8 +272,9 @@ impl Readability {
     /// use lectito_core::Readability;
     ///
     /// let reader = Readability::new();
-    /// let html = "<html><body><article><p>Content</p></article></body></html>";
-    /// let article = reader.parse(html).unwrap();
+    /// let html = "<html><head><title>Test</title></head><body><article><h1>Title</h1><p>Content with sufficient length to pass threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p></article></body></html>";
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let article = reader.parse(html)?;
     /// ```
     pub fn parse(&self, html: &str) -> Result<Article> {
         let doc = Document::parse_with_preprocessing(html, None)?;
@@ -294,8 +298,9 @@ impl Readability {
     /// use lectito_core::Readability;
     ///
     /// let reader = Readability::new();
-    /// let html = "<html><body><article><p>Content</p></article></body></html>";
-    /// let article = reader.parse_with_url(html, "https://example.com").unwrap();
+    /// let html = "<html><head><title>Test</title></head><body><article><h1>Title</h1><p>Content with sufficient length to pass threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p></article></body></html>";
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let article = reader.parse_with_url(html, "https://example.com")?;
     /// assert_eq!(article.source_url, Some("https://example.com".to_string()));
     /// ```
     pub fn parse_with_url(&self, html: &str, url: &str) -> Result<Article> {
@@ -370,9 +375,8 @@ impl Readability {
     /// use lectito_core::Readability;
     ///
     /// let reader = Readability::new();
-    /// let html_article = "<html><body><article><p>Long content here...</p></article></body></html>";
+    /// let html_article = "<html><head><title>Article</title></head><body><article><h1>Long Article</h1><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p></article></body></html>";
     /// let html_nav = "<html><body><nav><a href=\"#\">Link</a></nav></body></html>";
-    ///
     /// assert!(reader.is_probably_readable(html_article));
     /// assert!(!reader.is_probably_readable(html_nav));
     /// ```
@@ -434,8 +438,9 @@ impl Default for Readability {
 /// ```rust
 /// use lectito_core::readability::parse;
 ///
-/// let html = "<html><body><article><p>Content here</p></article></body></html>";
-/// let article = parse(html).unwrap();
+/// let html = "<html><head><title>Test</title></head><body><article><h1>Title</h1><p>Content with sufficient length to pass threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p></article></body></html>";
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let article = parse(html)?;
 /// ```
 pub fn parse(html: &str) -> Result<Article> {
     Readability::new().parse(html)

@@ -16,7 +16,7 @@
 //! let markdown = convert_to_markdown(html, &metadata, &Default::default()).unwrap();
 //!
 //! // Convert to plain text
-//! let text = convert_to_text(html).unwrap();
+//! let text = convert_to_text(html, &metadata, &Default::default()).unwrap();
 //! ```
 
 pub mod json;

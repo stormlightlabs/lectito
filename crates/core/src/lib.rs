@@ -8,50 +8,27 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust,no_run
+//! ```rust
 //! use lectito_core::{parse, Article};
 //!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let html = reqwest::get("https://example.com/article")?.text()?;
-//! let article: Article = parse(&html)?;
-//!
-//! println!("Title: {:?}", article.metadata.title);
-//! println!("Author: {:?}", article.metadata.author);
-//! println!("Content: {}", article.to_markdown()?);
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! ## Features
-//!
-//! - **Content Extraction**: Identifies and extracts the main article content
-//! - **Metadata Extraction**: Pulls title, author, date, excerpt, and language
-//! - **Multiple Output Formats**: HTML, Markdown, plain text, and JSON
-//! - **URL Fetching**: Built-in async HTTP client with timeout support
-//! - **Site Configuration**: Optional XPath-based extraction rules
-//!
-//! ## Basic Usage
-//!
-//! ### Parse HTML from a string
-//!
-//! ```rust
-//! use lectito_core::parse;
-//!
 //! let html = r#"
-//!     <!DOCTYPE html>
-//!     <html>
-//!         <head><title>My Article</title></head>
-//!         <body>
-//!             <article>
-//!                 <h1>Article Title</h1>
-//!                 <p>This is the article content with plenty of text.</p>
-//!             </article>
-//!         </body>
-//!     </html>
+//! <!DOCTYPE html>
+//! <html>
+//!     <head><title>My Article</title></head>
+//!     <body>
+//!         <article>
+//!             <h1>Article Title</h1>
+//!             <p>This is article content with plenty of text to pass readability threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+//!         </article>
+//!     </body>
+//! </html>
 //! "#;
 //!
-//! let article = parse(html).unwrap();
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let article = parse(html)?;
 //! assert_eq!(article.metadata.title, Some("My Article".to_string()));
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ### Fetch and parse from a URL
@@ -72,8 +49,10 @@
 //! ```rust
 //! use lectito_core::{parse, article::OutputFormat};
 //!
-//! let html = "<h1>Title</h1><p>Content here</p>";
-//! let article = parse(html).unwrap();
+//! let html = "<html><head><title>Example</title></head><body><article><h1>Title</h1><p>Content here with enough text to pass readability threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p></article></body></html>";
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let article = parse(html)?;
 //!
 //! // Get as Markdown with frontmatter
 //! let markdown = article.to_markdown().unwrap();
@@ -82,7 +61,7 @@
 //! let text = article.to_text();
 //!
 //! // Get as structured JSON
-//! let json = article.to_json().unwrap();
+//! let json = article.to_json()?;
 //! ```
 //!
 //! ## Configuration
@@ -100,7 +79,7 @@
 //!     .build();
 //!
 //! let reader = Readability::with_config(config);
-//! let article = reader.parse("<html>...</html>")?;
+//! let article = reader.parse("<html><body><article><h1>Title</h1><p>Content</p></article></body></html>")?;
 //! # Ok(())
 //! # }
 //! ```

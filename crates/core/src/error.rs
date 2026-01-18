@@ -54,12 +54,13 @@ pub enum LectitoError {
     /// ```rust
     /// use lectito_core::LectitoError;
     ///
-    /// let err = LectitoError::HttpError(
-    ///     reqwest::Error::from(std::io::Error::new(
-    ///         std::io::ErrorKind::ConnectionRefused,
-    ///         "connection refused"
-    ///     ))
+    /// // Create a mock HTTP error (in real code this comes from reqwest)
+    /// // Create a mock error for demonstration
+    /// let mock_reqwest_error = reqwest::Error::from(
+    ///     std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "connection refused")
     /// );
+    /// let err = LectitoError::HttpError(mock_reqwest_error);
+    /// assert!(err.to_string().contains("HTTP request failed"));
     /// assert!(err.to_string().contains("HTTP request failed"));
     /// ```
     #[error("HTTP request failed: {0}")]

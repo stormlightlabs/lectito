@@ -9,12 +9,14 @@
 //! ```rust
 //! use lectito_core::{parse, Article};
 //!
-//! let html = "<html><head><title>Test</title></head><body><p>Content here</p></body></html>";
-//! let article: Article = parse(html).unwrap();
+//! let html = "<html><head><title>Test</title></head><body><article><h1>Test Article</h1><p>Content here with sufficient length to pass readability threshold. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p></article></body></html>";
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let article = parse(html)?;
 //!
 //! println!("Title: {:?}", article.metadata.title);
-//! println!("Word count: {}", article.word_count);
 //! println!("Reading time: {:.1} min", article.reading_time);
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::formatters::markdown::MarkdownConfig;

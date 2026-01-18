@@ -18,8 +18,8 @@
 //! "#;
 //!
 //! let doc = Document::parse(html).unwrap();
-//! let title = doc.title().unwrap();
-//! let paragraphs = doc.select("p.content").unwrap();
+//! let title = doc.title();
+//! let paragraphs = doc.select("p.content")?;
 //! ```
 
 use scraper::{Html, Selector};
