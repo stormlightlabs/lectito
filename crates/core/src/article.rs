@@ -1,52 +1,125 @@
+//! Article output type with content, metadata, and format conversion.
+//!
+//! This module defines the [`Article`] struct which represents the complete
+//! result of content extraction, including the extracted HTML, plain text,
+//! metadata, and calculated metrics.
+//!
+//! # Example
+//!
+//! ```rust
+//! use lectito_core::{parse, Article};
+//!
+//! let html = "<html><head><title>Test</title></head><body><p>Content here</p></body></html>";
+//! let article: Article = parse(html).unwrap();
+//!
+//! println!("Title: {:?}", article.metadata.title);
+//! println!("Word count: {}", article.word_count);
+//! println!("Reading time: {:.1} min", article.reading_time);
+//! ```
+
 use crate::formatters::markdown::MarkdownConfig;
 use crate::formatters::markdown::convert_to_markdown;
 use crate::{Document, Metadata};
 use crate::{LectitoError, Result};
 use serde::Serialize;
 
-/// Output format options for Article content
+/// Output format options for Article content.
+///
+/// Specifies the desired output format when converting article content.
+///
+/// # Example
+///
+/// ```rust
+/// use lectito_core::article::OutputFormat;
+///
+/// // Get content as Markdown
+/// let format = OutputFormat::Markdown;
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
-    /// HTML format (original extracted content)
+    /// HTML format (original extracted content).
     Html,
-    /// Markdown format with TOML frontmatter
+    /// Markdown format with TOML frontmatter.
     Markdown,
-    /// Plain text format (stripped HTML tags)
+    /// Plain text format (stripped HTML tags).
     PlainText,
-    /// JSON format (structured data)
+    /// JSON format (structured data).
     Json,
 }
 
-/// The complete result of reading an HTML document
+/// The complete result of reading an HTML document.
 ///
-/// Combines extracted content with metadata and provides additional
-/// metrics like length, word count, and reading time.
+/// Article combines extracted content with metadata and provides additional
+/// metrics like length, word count, and estimated reading time.
+///
+/// # Example
+///
+/// ```rust
+/// use lectito_core::article::Article;
+/// use lectito_core::Metadata;
+///
+/// let metadata = Metadata {
+///     title: Some("My Article".to_string()),
+///     ..Default::default()
+/// };
+///
+/// let article = Article::new(
+///     "<p>Content here with multiple words for counting.</p>".to_string(),
+///     metadata,
+///     Some("https://example.com".to_string())
+/// );
+///
+/// assert_eq!(article.word_count, 7);
+/// assert!(article.reading_time > 0.0);
+/// ```
 #[derive(Debug, Clone, Serialize)]
 pub struct Article {
-    /// Extracted readable content as clean HTML
+    /// Extracted readable content as clean HTML.
     pub content: String,
 
-    /// Plain text version of content (all HTML tags stripped)
+    /// Plain text version of content (all HTML tags stripped).
     pub text_content: String,
 
-    /// Extracted metadata (title, author, date, etc.)
+    /// Extracted metadata (title, author, date, etc.).
     pub metadata: Metadata,
 
-    /// Length of content in characters
+    /// Length of content in characters.
     pub length: usize,
 
-    /// Word count of content
+    /// Word count of content.
     pub word_count: usize,
 
-    /// Estimated reading time in minutes (assuming 200 words per minute)
+    /// Estimated reading time in minutes (assuming 200 words per minute).
     pub reading_time: f64,
 
-    /// Source URL if known
+    /// Source URL if known.
     pub source_url: Option<String>,
 }
 
 impl Article {
-    /// Create a new Article from its components
+    /// Creates a new Article from its components.
+    ///
+    /// This constructor automatically calculates derived metrics including
+    /// plain text content, character length, word count, and reading time.
+    ///
+    /// # Arguments
+    ///
+    /// * `content` - The HTML content of the article
+    /// * `metadata` - Extracted metadata (title, author, etc.)
+    /// * `source_url` - Optional source URL
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use lectito_core::{Article, Metadata};
+    ///
+    /// let metadata = Metadata::default();
+    /// let article = Article::new(
+    ///     "<p>Article content goes here.</p>".to_string(),
+    ///     metadata,
+    ///     None
+    /// );
+    /// ```
     pub fn new(content: String, metadata: Metadata, source_url: Option<String>) -> Self {
         let text_content = html_to_text(&content);
         let length = content.chars().count();
@@ -56,13 +129,42 @@ impl Article {
         Self { content, text_content, metadata, length, word_count, reading_time, source_url }
     }
 
-    /// Create an Article from a Document and extracted content HTML
+    /// Creates an Article from a Document and extracted content HTML.
+    ///
+    /// This is a convenience method that extracts metadata from the document
+    /// and creates an Article with the provided content HTML.
+    ///
+    /// # Arguments
+    ///
+    /// * `doc` - The parsed document
+    /// * `content_html` - The extracted article content as HTML
+    /// * `source_url` - Optional source URL
     pub fn from_document(doc: &Document, content_html: String, source_url: Option<String>) -> Self {
         let metadata = doc.extract_metadata();
         Self::new(content_html, metadata, source_url)
     }
 
-    /// Convert content to specified format
+    /// Converts content to the specified format.
+    ///
+    /// # Arguments
+    ///
+    /// * `format` - The desired output format
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LectitoError::HtmlParseError`] if conversion fails.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use lectito_core::{Article, Metadata, article::OutputFormat};
+    ///
+    /// let metadata = Metadata::default();
+    /// let article = Article::new("<p>Content</p>".to_string(), metadata, None);
+    ///
+    /// let markdown = article.to_format(OutputFormat::Markdown).unwrap();
+    /// let text = article.to_format(OutputFormat::PlainText).unwrap();
+    /// ```
     pub fn to_format(&self, format: OutputFormat) -> Result<String> {
         match format {
             OutputFormat::Html => Ok(self.content.clone()),
@@ -72,23 +174,76 @@ impl Article {
         }
     }
 
-    /// Get content as Markdown with TOML frontmatter
+    /// Gets content as Markdown with TOML frontmatter.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LectitoError::HtmlParseError`] if conversion fails.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use lectito_core::{Article, Metadata};
+    ///
+    /// let metadata = Metadata { title: Some("Title".to_string()), ..Default::default() };
+    /// let article = Article::new("<h1>Title</h1><p>Content</p>".to_string(), metadata, None);
+    /// let markdown = article.to_markdown().unwrap();
+    /// assert!(markdown.contains("Title"));
+    /// ```
     pub fn to_markdown(&self) -> Result<String> {
         let config = MarkdownConfig::default();
         convert_to_markdown(&self.content, &self.metadata, &config)
     }
 
-    /// Get content as Markdown with custom configuration
+    /// Gets content as Markdown with custom configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Markdown conversion options
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LectitoError::HtmlParseError`] if conversion fails.
     pub fn to_markdown_with_config(&self, config: &MarkdownConfig) -> Result<String> {
         convert_to_markdown(&self.content, &self.metadata, config)
     }
 
-    /// Get content as structured JSON
+    /// Gets content as structured JSON.
+    ///
+    /// Returns a `serde_json::Value` representing the complete article
+    /// including content, metadata, and metrics.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`LectitoError::HtmlParseError`] if serialization fails.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use lectito_core::{Article, Metadata};
+    ///
+    /// let metadata = Metadata::default();
+    /// let article = Article::new("<p>Content</p>".to_string(), metadata, None);
+    /// let json = article.to_json().unwrap();
+    /// assert!(json.is_object());
+    /// ```
     pub fn to_json(&self) -> Result<serde_json::Value> {
         serde_json::to_value(self).map_err(|e| LectitoError::HtmlParseError(e.to_string()))
     }
 
-    /// Get content as plain text (alias for text_content)
+    /// Gets content as plain text.
+    ///
+    /// This is an alias for the `text_content` field.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use lectito_core::{Article, Metadata};
+    ///
+    /// let metadata = Metadata::default();
+    /// let article = Article::new("<p>Plain text</p>".to_string(), metadata, None);
+    /// assert_eq!(article.to_text(), "Plain text");
+    /// ```
     pub fn to_text(&self) -> String {
         self.text_content.clone()
     }

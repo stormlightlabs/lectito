@@ -87,22 +87,29 @@ See |CHANGELOG.md|
 MILESTONE XIII: Documentation & Release
 ================================================================================
 
-[ ] Finalize public API surface:
+[x] Finalize public API surface:
     - Review all pub exports
     - Add #[doc(hidden)] to internals
     - Ensure stable API for v1.0
-[ ] Write comprehensive rustdoc:
+[x] Write comprehensive rustdoc:
     - Module-level documentation
     - Function examples in doc comments
     - Error handling examples
 [ ] Write user documentation:
     - README.md with quick start and feature flags
-    - Man page for CLI usage
+    - Man page for CLI usage (using clap_mangen)
 [ ] Prepare Cargo.toml for publishing:
     - Verify metadata (license, repository, keywords)
     - Set version to 1.0.0
     - Add categories for crates.io
+[ ] Prepare CLI crate for publishing:
+    - Add metadata to crates/cli/Cargo.toml
+    - Create crates/cli/README.md with installation instructions
+    - Name binary as "lectito" via [[bin]] section
+    - Generate shell completions (build.rs + clap_complete)
+    - Set up pre-built binary workflow (GitHub Actions)
 [ ] Publish lectito-core to crates.io
+[ ] Publish lectito-cli to crates.io (depends on published core)
 [ ] Create GitHub release with changelog
 
 Acceptance Criteria:

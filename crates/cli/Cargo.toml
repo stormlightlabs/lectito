@@ -2,6 +2,14 @@
 name = "lectito-cli"
 version = "0.1.0"
 edition = "2024"
+license = "MPL-2.0"
+description = "CLI tool for extracting readable content from web pages"
+readme = "README.md"
+repository = "https://github.com/stormlightlabs/lectito"
+homepage = "https://github.com/stormlightlabs/lectito"
+keywords = ["readability", "article", "extraction", "cli", "html"]
+categories = ["command-line-utilities", "text-processing", "web-programming"]
+authors = ["Owais J. <info@stormlightlabs.org>"]
 
 [dependencies]
 anyhow = "1.0.100"
