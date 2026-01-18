@@ -48,3 +48,21 @@ completions:
     cargo run --release -- --completions fish > completions/lectito.fish
     cargo run --release -- --completions powershell > completions/lectito.ps1
     echo "Completions generated in completions/"
+
+# Build mdbook documentation
+docs-build:
+    mdbook build docs/
+
+# Serve documentation locally (opens browser)
+docs-serve:
+    mdbook serve docs/ --open
+
+# Serve documentation without opening browser
+docs:
+    mdbook serve docs/
+
+# Test mdbook code examples
+docs-test:
+    mdbook test docs/
+
+alias doc := docs

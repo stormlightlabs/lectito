@@ -1,0 +1,196 @@
+/*
+ * Iceberg Theme for mdbook
+ * Based on iceberg.vim by cocopon
+ * Fonts: Lora (headings), Overpass (body), Overpass Mono (code)
+ */
+
+/* Google Fonts Import */
+@import url("https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Overpass:wght@400;600&family=Overpass+Mono:wght@400;600&display=swap");
+
+/* Iceberg Dark Theme Colors */
+:root {
+    --bg: #161821;
+    --sidebar-bg: #1e2132;
+    --quote-bg: #1e2132;
+    --table-border-color: #3e445e;
+    --theme-popup-bg: #1e2132;
+    --theme-popup-border: #3e445e;
+    --theme-hover: #272c42;
+
+    --fg: #c6c8d1;
+    --sidebar-fg: #c6c8d1;
+    --sidebar-non-existant: #6b7089;
+    --sidebar-active: #84a0c6;
+    --quote-fg: #c6c8d1;
+
+    --links: #84a0c6;
+
+    --inline-code-color: #89b8c2;
+
+    --title-color: #e2a478;
+
+    --search-mark-bg: #e4aa80;
+    --searchbar-fg: #c6c8d1;
+    --searchbar-bg: #1e2132;
+    --searchbar-border-color: #3e445e;
+    --searchresults-header-fg: #e2a478;
+    --searchresults-border-color: #3e445e;
+
+    --scrollbar: #3e445e;
+}
+
+body {
+    font-family:
+        "Overpass",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    font-size: 16px;
+    line-height: 1.2;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: "Lora", Georgia, serif;
+    font-weight: 600;
+    color: var(--title-color);
+}
+
+h1 {
+    font-size: 2.2em;
+}
+h2 {
+    font-size: 1.8em;
+    border-bottom: 1px solid #3e445e;
+}
+h3 {
+    font-size: 1.4em;
+}
+
+code {
+    font-family: "Overpass Mono", "JetBrains Mono", "Fira Code", monospace;
+    font-size: 0.9em;
+}
+
+pre {
+    background-color: #1e2132;
+    border: 1px solid #3e445e;
+    border-radius: 4px;
+    padding: 1em;
+}
+
+pre > code {
+    color: #c6c8d1;
+}
+
+.hljs-keyword {
+    color: #84a0c6;
+}
+.hljs-string {
+    color: #89b8c2;
+}
+.hljs-function {
+    color: #84a0c6;
+}
+.hljs-number {
+    color: #a093c7;
+}
+.hljs-comment {
+    color: #6b7089;
+    font-style: italic;
+}
+.hljs-type {
+    color: #84a0c6;
+}
+.hljs-built_in {
+    color: #89b8c2;
+}
+.hljs-literal {
+    color: #a093c7;
+}
+.hljs-title {
+    color: #b4be82;
+}
+.hljs-attribute {
+    color: #89b8c2;
+}
+
+a {
+    color: var(--links);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s ease;
+}
+
+a:hover {
+    border-bottom-color: var(--links);
+}
+
+.sidebar {
+    background-color: var(--sidebar-bg);
+    font-family: "Overpass", sans-serif;
+}
+
+.sidebar .sidebar-scrollbox {
+    background-color: var(--sidebar-bg);
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+th,
+td {
+    border: 1px solid #3e445e;
+    padding: 0.6em 1em;
+}
+
+th {
+    background-color: #1e2132;
+    color: #e2a478;
+    font-family: "Lora", serif;
+}
+
+blockquote {
+    border-left: 4px solid #84a0c6;
+    background-color: #1e2132;
+    padding: 0.5em 1em;
+    margin: 1em 0;
+}
+
+.admonition.note {
+    border-color: #84a0c6;
+}
+.admonition.tip {
+    border-color: #b4be82;
+}
+.admonition.warning {
+    border-color: #e2a478;
+}
+.admonition.danger {
+    border-color: #e27878;
+}
+
+::selection {
+    background-color: #272c42;
+    color: #c6c8d1;
+}
+
+#menu-bar {
+    background-color: #161821;
+    border-bottom: 1px solid #3e445e;
+}
+
+.nav-chapters {
+    color: #84a0c6;
+}
+
+.nav-chapters:hover {
+    color: #89b8c2;
+}

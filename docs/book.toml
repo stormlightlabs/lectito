@@ -1,0 +1,34 @@
+[book]
+title = "Lectito Documentation"
+authors = ["Stormlight Labs"]
+description = "User documentation for the Lectito article extraction library and CLI"
+language = "en"
+src = "src"
+
+[rust]
+edition = "2021"
+
+[build]
+build-dir = "output"
+create-missing = true
+
+[output.html]
+default-theme = "coal"
+preferred-dark-theme = "coal"
+additional-css = ["theme/css/iceberg.css"]
+git-repository-url = "https://github.com/stormlightlabs/lectito"
+edit-url-template = "https://github.com/stormlightlabs/lectito/edit/main/docs/{path}"
+site-url = "/lectito/"
+no-section-label = false
+
+[output.html.search]
+enable = true
+limit-results = 20
+use-hierarchical-search = true
+
+[output.html.playground]
+editable = true
+copyable = true
+runnable = true
+
+[preprocessor.links]
