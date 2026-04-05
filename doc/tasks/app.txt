@@ -35,13 +35,13 @@ MILESTONE A: Algorithm Improvements
     - Remove related-article trailing sections
     - Remove boilerplate ("This article appeared in...", copyright)
 
-[ ] Enhanced main content detection
+[x] Enhanced main content detection
     - Priority-ordered entry point selector list
     - Score formula: (list_length - index) * 40 + content_score
     - Prefer deepest child matching higher-priority selector (>50 words)
     - Table-based layout fallback for old-style pages
 
-[ ] HTML standardization pass
+[x] HTML standardization pass
     - Footnote normalization (detect 15+ patterns, unify format)
     - Code block language detection and class normalization
     - Callout/admonition standardization (GitHub alerts, Bootstrap)

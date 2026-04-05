@@ -1,5 +1,6 @@
 use crate::parse::Document;
 use regex::Regex;
+use std::collections::HashSet;
 use std::sync::OnceLock;
 use url::Url;
 
@@ -22,6 +23,8 @@ pub struct PostProcessConfig {
     pub strip_images: bool,
     /// Whether to keep class attributes (default: false)
     pub keep_classes: bool,
+    /// Whether to run the HTML standardization pass
+    pub standardize_html: bool,
     /// Whether to remove content-pattern tails and metadata after scoring
     pub remove_content_patterns: bool,
     /// Custom strip patterns (class/ID regex)
@@ -41,6 +44,7 @@ impl Default for PostProcessConfig {
             remove_conditional_comments: true,
             strip_images: false,
             keep_classes: false,
+            standardize_html: true,
             remove_content_patterns: true,
             strip_patterns: None,
             base_url: None,
@@ -60,9 +64,11 @@ pub fn postprocess_html(html: &str, config: &PostProcessConfig) -> String {
         processed = strip_images(&processed);
     }
 
-    if !config.keep_classes {
-        processed = strip_classes(&processed);
+    if config.standardize_html {
+        processed = standardize_html(&processed);
     }
+
+    processed = strip_unwanted_attributes(&processed, config.keep_classes);
 
     processed = remove_doc_chrome_nodes(&processed);
     processed = remove_doc_chrome_text_blocks(&processed);
@@ -114,6 +120,547 @@ fn strip_images(html: &str) -> String {
 fn strip_classes(html: &str) -> String {
     let re = Regex::new(r#"\s+class=["'][^"']*["']"#).unwrap();
     re.replace_all(html, "").to_string()
+}
+
+fn escape_html(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
+fn allowed_attributes() -> &'static HashSet<&'static str> {
+    static ATTRS: OnceLock<HashSet<&'static str>> = OnceLock::new();
+    ATTRS.get_or_init(|| {
+        [
+            "alt",
+            "allow",
+            "allowfullscreen",
+            "aria-label",
+            "checked",
+            "colspan",
+            "controls",
+            "data-callout",
+            "data-callout-title",
+            "data-lang",
+            "data-latex",
+            "dir",
+            "display",
+            "frameborder",
+            "headers",
+            "height",
+            "href",
+            "kind",
+            "label",
+            "lang",
+            "poster",
+            "role",
+            "rowspan",
+            "src",
+            "srclang",
+            "srcset",
+            "title",
+            "type",
+            "width",
+            "xmlns",
+        ]
+        .into_iter()
+        .collect()
+    })
+}
+
+fn code_language_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r"(?i)(?:language|lang|highlight-source|brush)[-:=\s]+([a-z0-9_+-]+)").unwrap())
+}
+
+fn reference_fragment_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r"(?i)(?:cite_(?:note|ref)-|fnref:?|footnote-|reference-|fn:?|^r|^b)").unwrap())
+}
+
+fn reference_label_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r"\d+[A-Za-z0-9_-]*").unwrap())
+}
+
+fn replace_html_snippets(mut html: String, mut replacements: Vec<(String, String)>) -> String {
+    replacements.sort_by_key(|(old, _)| std::cmp::Reverse(old.len()));
+    for (old, new) in replacements {
+        if old.is_empty() || old == new {
+            continue;
+        }
+        if let Some(idx) = html.find(&old) {
+            html.replace_range(idx..idx + old.len(), &new);
+        }
+    }
+    html
+}
+
+fn standardize_html(html: &str) -> String {
+    let mut processed = html.to_string();
+    processed = standardize_code_blocks(&processed);
+    processed = standardize_callouts(&processed);
+    processed = normalize_footnotes(&processed);
+    processed = normalize_math(&processed);
+    processed = flatten_wrapper_divs(&processed);
+    processed
+}
+
+fn normalize_language(value: &str) -> Option<String> {
+    let trimmed = value.trim().trim_matches(|c: char| c == '"' || c == '\'');
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let lower = trimmed.to_lowercase();
+    let candidate = code_language_regex()
+        .captures(&lower)
+        .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
+        .unwrap_or(lower);
+    let cleaned = candidate
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '+' | '-'))
+        .collect::<String>();
+
+    (!cleaned.is_empty()).then_some(cleaned)
+}
+
+fn detect_code_language(pre: &crate::parse::Element<'_>, code: Option<&crate::parse::Element<'_>>) -> Option<String> {
+    let candidates = [
+        pre.attr("data-lang"),
+        pre.attr("data-language"),
+        pre.attr("lang"),
+        pre.attr("class"),
+        code.and_then(|element| element.attr("data-lang")),
+        code.and_then(|element| element.attr("data-language")),
+        code.and_then(|element| element.attr("lang")),
+        code.and_then(|element| element.attr("class")),
+    ];
+
+    candidates.into_iter().flatten().find_map(normalize_language)
+}
+
+fn standardize_code_blocks(html: &str) -> String {
+    if !html.contains("<pre") && !html.contains("<code") {
+        return html.to_string();
+    }
+
+    let Ok(doc) = Document::parse(html) else {
+        return html.to_string();
+    };
+
+    let mut replacements = Vec::new();
+
+    for pre in doc.select("pre").unwrap_or_default() {
+        let nested_code = pre.select("code").unwrap_or_default();
+        let replacement = if let Some(code) = nested_code.first() {
+            let language = detect_code_language(&pre, Some(code));
+            let class_attr = language
+                .as_ref()
+                .map(|lang| format!(r#" class="language-{}""#, lang))
+                .unwrap_or_default();
+            format!(r#"<pre><code{}>{}</code></pre>"#, class_attr, code.inner_html())
+        } else {
+            let language = detect_code_language(&pre, None);
+            let class_attr = language
+                .as_ref()
+                .map(|lang| format!(r#" class="language-{}""#, lang))
+                .unwrap_or_default();
+            format!(r#"<pre><code{}>{}</code></pre>"#, class_attr, pre.inner_html())
+        };
+
+        replacements.push((pre.outer_html(), replacement));
+    }
+
+    replace_html_snippets(html.to_string(), replacements)
+}
+
+fn normalize_callout_type(value: &str) -> String {
+    match value.to_ascii_lowercase().as_str() {
+        "danger" | "error" => "warning".to_string(),
+        "success" => "tip".to_string(),
+        "secondary" | "info" => "note".to_string(),
+        "" => "note".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn remove_nested_snippet(mut html: String, snippet: Option<String>) -> String {
+    if let Some(snippet) = snippet
+        && !snippet.is_empty()
+        && let Some(idx) = html.find(&snippet)
+    {
+        html.replace_range(idx..idx + snippet.len(), "");
+    }
+    html.trim().to_string()
+}
+
+fn build_callout_html(callout_type: &str, title: &str, body_html: &str) -> String {
+    let heading = if title.is_empty() {
+        String::new()
+    } else {
+        format!(r#"<p><strong>{}</strong></p>"#, escape_html(title))
+    };
+    format!(
+        r#"<blockquote data-callout="{}">{}{}</blockquote>"#,
+        callout_type,
+        heading,
+        body_html.trim()
+    )
+}
+
+fn standardize_callouts(html: &str) -> String {
+    if !html.contains("markdown-alert") && !html.contains("callout") && !html.contains("alert-") {
+        return html.to_string();
+    }
+
+    let Ok(doc) = Document::parse(html) else {
+        return html.to_string();
+    };
+
+    let mut replacements = Vec::new();
+
+    for alert in doc.select(".markdown-alert").unwrap_or_default() {
+        let classes = alert.attr("class").unwrap_or("");
+        let callout_type = classes
+            .split_whitespace()
+            .find_map(|class_name| class_name.strip_prefix("markdown-alert-"))
+            .map(normalize_callout_type)
+            .unwrap_or_else(|| "note".to_string());
+        let title_element = alert
+            .select(".markdown-alert-title")
+            .unwrap_or_default()
+            .first()
+            .cloned();
+        let title = title_element
+            .as_ref()
+            .map(|element| normalize_text(&element.text()))
+            .unwrap_or_else(|| callout_type.to_ascii_uppercase());
+        let body_html = remove_nested_snippet(alert.inner_html(), title_element.map(|element| element.outer_html()));
+        replacements.push((
+            alert.outer_html(),
+            build_callout_html(&callout_type, &title, &body_html),
+        ));
+    }
+
+    for alert in doc
+        .select("aside[class*=\"callout\"], div.alert[class*=\"alert-\"]")
+        .unwrap_or_default()
+    {
+        let classes = alert.attr("class").unwrap_or("");
+        let callout_type = classes
+            .split_whitespace()
+            .find_map(|class_name| {
+                class_name
+                    .strip_prefix("callout-")
+                    .or_else(|| class_name.strip_prefix("alert-"))
+                    .map(normalize_callout_type)
+            })
+            .unwrap_or_else(|| "note".to_string());
+        let title_element = alert
+            .select(".alert-heading, .alert-title, .callout-title")
+            .unwrap_or_default()
+            .first()
+            .cloned();
+        let title = title_element
+            .as_ref()
+            .map(|element| normalize_text(&element.text()))
+            .unwrap_or_else(|| {
+                let mut chars = callout_type.chars();
+                chars
+                    .next()
+                    .map(|first| first.to_ascii_uppercase().to_string() + chars.as_str())
+                    .unwrap_or_else(|| "Note".to_string())
+            });
+        let body_html = remove_nested_snippet(alert.inner_html(), title_element.map(|element| element.outer_html()));
+        replacements.push((
+            alert.outer_html(),
+            build_callout_html(&callout_type, &title, &body_html),
+        ));
+    }
+
+    replace_html_snippets(html.to_string(), replacements)
+}
+
+fn ensure_math_xmlns(math_html: String) -> String {
+    if math_html.contains("xmlns=") {
+        math_html
+    } else {
+        math_html.replacen("<math", r#"<math xmlns="http://www.w3.org/1998/Math/MathML""#, 1)
+    }
+}
+
+fn build_math_html(content: &str, display: &str) -> String {
+    let escaped = escape_html(content);
+    format!(
+        r#"<math xmlns="http://www.w3.org/1998/Math/MathML" display="{}" data-latex="{}">{}</math>"#,
+        display, escaped, escaped
+    )
+}
+
+fn normalize_math(html: &str) -> String {
+    if !html.contains("katex")
+        && !html.contains("MathJax")
+        && !html.contains("mjx-container")
+        && !html.contains(r#"type="math/"#)
+    {
+        return html.to_string();
+    }
+
+    let Ok(doc) = Document::parse(html) else {
+        return html.to_string();
+    };
+
+    let mut replacements = Vec::new();
+
+    for script in doc.select(r#"script[type^="math/"]"#).unwrap_or_default() {
+        let text = normalize_text(&script.text());
+        if !text.is_empty() {
+            replacements.push((script.outer_html(), build_math_html(&text, "inline")));
+        }
+    }
+
+    for element in doc
+        .select(".katex, .MathJax, .MathJax_Display, mjx-container")
+        .unwrap_or_default()
+    {
+        let display = if element
+            .attr("class")
+            .is_some_and(|classes| classes.contains("display") || classes.contains("Display"))
+            || element
+                .attr("display")
+                .is_some_and(|value| value.eq_ignore_ascii_case("block"))
+        {
+            "block"
+        } else {
+            "inline"
+        };
+
+        let replacement = if let Some(math) = element.select("math").unwrap_or_default().first() {
+            ensure_math_xmlns(math.outer_html())
+        } else if let Some(annotation) = element
+            .select(r#"annotation[encoding="application/x-tex"]"#)
+            .unwrap_or_default()
+            .first()
+        {
+            build_math_html(&normalize_text(&annotation.text()), display)
+        } else if let Some(label) = element.attr("aria-label") {
+            build_math_html(label, display)
+        } else {
+            let text = normalize_text(&element.text());
+            if text.is_empty() {
+                continue;
+            }
+            build_math_html(&text, display)
+        };
+
+        replacements.push((element.outer_html(), replacement));
+    }
+
+    replace_html_snippets(html.to_string(), replacements)
+}
+
+fn normalize_reference_id(value: &str) -> Option<String> {
+    let fragment = value.rsplit('#').next().unwrap_or(value).trim().to_lowercase();
+    if fragment.is_empty() {
+        return None;
+    }
+    let stripped = reference_fragment_regex().replace_all(&fragment, "").to_string();
+    let cleaned = stripped
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-'))
+        .collect::<String>();
+    (!cleaned.is_empty()).then_some(cleaned)
+}
+
+fn reference_label(text: &str, fallback: &str) -> String {
+    reference_label_regex()
+        .find(text)
+        .map(|m| m.as_str().to_string())
+        .unwrap_or_else(|| fallback.to_string())
+}
+
+fn build_footnote_ref_html(id: &str, label: &str) -> String {
+    format!(
+        r##"<sup id="fnref:{}"><a href="#fn:{}">[{}]</a></sup>"##,
+        id,
+        id,
+        escape_html(label)
+    )
+}
+
+fn standardize_footnote_item(item: &crate::parse::Element<'_>, position: usize) -> String {
+    let raw_id = item
+        .attr("id")
+        .and_then(normalize_reference_id)
+        .or_else(|| item.attr("data-counter").and_then(normalize_reference_id))
+        .unwrap_or_else(|| position.to_string());
+    let label = reference_label(&item.text(), &raw_id);
+    let mut content_html = item.inner_html();
+    if let Ok(backrefs) = item.select("a[href^=\"#fnref\"], a[href*=\"cite_ref\"], a.footnote-backref") {
+        for backref in backrefs {
+            content_html = remove_nested_snippet(content_html, Some(backref.outer_html()));
+        }
+    }
+    content_html = Regex::new(r#"(?is)^\s*(?:<sup[^>]*>.*?</sup>\s*)?(?:\[\s*)?\d+[A-Za-z0-9_-]*(?:\s*\])?[:.)-]?\s*"#)
+        .unwrap()
+        .replace(&content_html, "")
+        .to_string();
+    if !content_html.trim_start().starts_with('<') || !content_html.contains("<p") {
+        content_html = format!("<p>{}</p>", content_html.trim());
+    }
+
+    format!(
+        r##"<li id="fn:{}">{}<a href="#fnref:{}" class="footnote-backref">↩</a></li>"##,
+        raw_id,
+        content_html.trim(),
+        raw_id
+    )
+    .replace(&format!("[{}]", raw_id), &format!("[{}]", label))
+}
+
+fn normalize_footnotes(html: &str) -> String {
+    if !html.contains("cite_note")
+        && !html.contains("cite_ref")
+        && !html.contains("references")
+        && !html.contains("footnote")
+        && !html.contains("doc-endnotes")
+        && !html.contains("doc-footnotes")
+    {
+        return html.to_string();
+    }
+
+    let Ok(doc) = Document::parse(html) else {
+        return html.to_string();
+    };
+
+    let mut replacements = Vec::new();
+
+    for reference in doc
+        .select(
+            "sup.reference, sup[id^=\"fnr\"], sup.footnoteref, a[href*=\"cite_note\"], a[href*=\"cite_ref\"], a[href^=\"#fn\"], a[href^=\"#footnote\"], a[role=\"doc-biblioref\"], a[id^=\"fnref\"], span.footnote-link",
+        )
+        .unwrap_or_default()
+    {
+        let raw_id = reference
+            .attr("href")
+            .and_then(normalize_reference_id)
+            .or_else(|| reference.attr("id").and_then(normalize_reference_id))
+            .or_else(|| normalize_reference_id(&normalize_text(&reference.text())));
+        let Some(id) = raw_id else {
+            continue;
+        };
+        let label = reference_label(&reference.text(), &id);
+        replacements.push((reference.outer_html(), build_footnote_ref_html(&id, &label)));
+    }
+
+    for container in doc
+        .select(
+            "ol.references, ol.footnotes, div.footnotes, section.footnotes, section[role=\"doc-endnotes\"], section[role=\"doc-footnotes\"], section[role=\"doc-bibliography\"], div[role=\"doc-endnotes\"], div[role=\"doc-footnotes\"], div[role=\"doc-bibliography\"], #footnotes",
+        )
+        .unwrap_or_default()
+    {
+        let items = container.select("li").unwrap_or_default();
+        if items.is_empty() {
+            continue;
+        }
+
+        let normalized_items = items
+            .iter()
+            .enumerate()
+            .map(|(index, item)| standardize_footnote_item(item, index + 1))
+            .collect::<Vec<_>>()
+            .join("");
+        let replacement = format!(r#"<section id="footnotes"><ol>{}</ol></section>"#, normalized_items);
+        replacements.push((container.outer_html(), replacement));
+    }
+
+    replace_html_snippets(html.to_string(), replacements)
+}
+
+fn flatten_wrapper_divs(html: &str) -> String {
+    let mut result = clean_nested_divs(html);
+    let wrapper_re = Regex::new(
+        r#"(?is)<div(?:\s[^>]*?(?:class|id)=["'][^"']*(?:container|content-area|content-wrapper|inner|layout|outer|wrapper)[^"']*["'][^>]*)>\s*((?:<(?:div|section|article|p|h[1-6]|ul|ol|pre|blockquote|figure|table)[^>]*>.*?</(?:div|section|article|p|h[1-6]|ul|ol|pre|blockquote|figure|table)>\s*)+)</div>"#,
+    )
+    .unwrap();
+
+    for _ in 0..4 {
+        let next = wrapper_re.replace_all(&result, "$1").to_string();
+        if next == result {
+            break;
+        }
+        result = next;
+    }
+
+    result
+}
+
+fn is_allowed_id(value: &str) -> bool {
+    value == "footnotes" || value.starts_with("fn:") || value.starts_with("fnref:")
+}
+
+fn filter_allowed_classes(value: &str) -> String {
+    value
+        .split_whitespace()
+        .filter(|class_name| class_name.starts_with("language-") || *class_name == "footnote-backref")
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn strip_unwanted_attributes(html: &str, keep_classes: bool) -> String {
+    let mut output = String::new();
+    let mut rewriter = lol_html::HtmlRewriter::new(
+        lol_html::Settings {
+            element_content_handlers: vec![lol_html::element!("*", move |el| {
+                let attrs = el
+                    .attributes()
+                    .iter()
+                    .map(|attr| (attr.name(), attr.value()))
+                    .collect::<Vec<_>>();
+
+                for (name, value) in attrs {
+                    if name == "class" {
+                        if keep_classes {
+                            continue;
+                        }
+                        let filtered = filter_allowed_classes(&value);
+                        if filtered.is_empty() {
+                            el.remove_attribute("class");
+                        } else {
+                            el.set_attribute("class", &filtered).ok();
+                        }
+                        continue;
+                    }
+
+                    if name == "id" {
+                        if !is_allowed_id(&value) {
+                            el.remove_attribute("id");
+                        }
+                        continue;
+                    }
+
+                    if !allowed_attributes().contains(name.as_str()) {
+                        el.remove_attribute(&name);
+                    }
+                }
+                Ok(())
+            })],
+            ..Default::default()
+        },
+        |c: &[u8]| {
+            output.push_str(&String::from_utf8_lossy(c));
+        },
+    );
+
+    if rewriter.write(html.as_bytes()).is_err() || rewriter.end().is_err() {
+        return if keep_classes { html.to_string() } else { strip_classes(html) };
+    }
+
+    if output.is_empty() { html.to_string() } else { output }
 }
 
 fn content_root_selector() -> &'static str {
@@ -866,5 +1413,48 @@ mod tests {
         assert!(!result.contains("From Wikipedia"));
         assert!(!result.contains("By Jane Doe"));
         assert!(!result.contains("3 min read"));
+    }
+
+    #[test]
+    fn test_postprocess_standardizes_code_blocks() {
+        let html = r#"<pre class="lang-rust">fn main() { println!("hi"); }</pre>"#;
+        let result = postprocess_html(html, &PostProcessConfig::default());
+        assert!(result.contains(r#"<code class="language-rust">"#));
+    }
+
+    #[test]
+    fn test_postprocess_standardizes_github_callouts() {
+        let html = r#"
+            <div class="markdown-alert markdown-alert-note">
+                <p class="markdown-alert-title">Note</p>
+                <p>Important context.</p>
+            </div>
+        "#;
+        let result = postprocess_html(html, &PostProcessConfig::default());
+        assert!(result.contains(r#"data-callout="note""#));
+        assert!(result.contains("Important context."));
+        assert!(!result.contains("markdown-alert-title"));
+    }
+
+    #[test]
+    fn test_postprocess_normalizes_footnotes() {
+        let html = r##"
+            <p>Reference<a href="#cite_note-1">1</a></p>
+            <ol class="references">
+                <li id="cite_note-1">First source</li>
+            </ol>
+        "##;
+        let result = postprocess_html(html, &PostProcessConfig::default());
+        assert!(result.contains(r#"id="fnref:1""#));
+        assert!(result.contains(r#"<section id="footnotes"><ol>"#));
+        assert!(result.contains(r#"id="fn:1""#));
+    }
+
+    #[test]
+    fn test_postprocess_normalizes_math_scripts() {
+        let html = r#"<p><script type="math/tex">x^2 + y^2</script></p>"#;
+        let result = postprocess_html(html, &PostProcessConfig::default());
+        assert!(result.contains("<math"));
+        assert!(result.contains("data-latex=\"x^2 + y^2\""));
     }
 }
