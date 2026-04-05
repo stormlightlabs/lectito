@@ -1,6 +1,10 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { SITE } from '$lib/content';
+
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-expect-error Axum serves Swagger UI outside the SvelteKit route manifest.
+  const swaggerUiHref = resolve('/api-docs');
 </script>
 
 <footer class="mt-20 border-t-2 border-ink bg-[rgba(255,255,255,0.88)]">
@@ -20,8 +24,9 @@
       <div>
         <p class="muted-label mb-4">Developers</p>
         <div class="space-y-2 text-sm">
-          <a class="block font-serif hover:text-stone" href={resolve('/about#api-reference')}>API Reference</a>
-          <a class="block font-serif hover:text-stone" href={resolve('/about#example-usage')}>Example Usage</a>
+          <a class="block font-serif hover:text-stone" href={resolve('/docs')}>API Reference</a>
+          <a class="block font-serif hover:text-stone" href={resolve('/docs#examples')}>Example Usage</a>
+          <a class="block font-serif hover:text-stone" href={swaggerUiHref}>Swagger UI</a>
         </div>
       </div>
       <div>
@@ -38,6 +43,7 @@
       <div class="flex gap-6 text-sm text-stone">
         <a class="font-serif hover:text-ink" href={resolve('/')}>Home</a>
         <a class="font-serif hover:text-ink" href={resolve('/library')}>Library</a>
+        <a class="font-serif hover:text-ink" href={resolve('/docs')}>Docs</a>
         <a class="font-serif hover:text-ink" href={resolve('/about')}>About</a>
       </div>
     </div>

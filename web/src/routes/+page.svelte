@@ -186,7 +186,7 @@
       <div class="flex flex-wrap items-center gap-4">
         <a
           class="border-b border-stone font-medium text-stone hover:border-ink hover:text-ink"
-          href="/api-docs">
+          href={resolve('/docs')}>
           View API docs
         </a>
         <a

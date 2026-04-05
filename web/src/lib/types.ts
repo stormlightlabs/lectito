@@ -77,3 +77,82 @@ export type LimitsResponse = {
 };
 
 export type RateLimitHeaders = { limit?: number; remaining?: number; reset?: number };
+
+export type OpenApiReference = { $ref: string };
+
+export type OpenApiSchemaObject = {
+  type?: string | string[];
+  format?: string;
+  enum?: string[];
+  default?: unknown;
+  description?: string;
+  properties?: Record<string, OpenApiSchema>;
+  items?: OpenApiSchema;
+  required?: string[];
+  example?: unknown;
+};
+
+export type OpenApiSchema = OpenApiReference | OpenApiSchemaObject;
+
+export type OpenApiParameterObject = {
+  name: string;
+  in: string;
+  required?: boolean;
+  description?: string;
+  schema?: OpenApiSchema;
+};
+
+export type OpenApiParameter = OpenApiReference | OpenApiParameterObject;
+
+export type OpenApiHeaderObject = { description?: string; schema?: OpenApiSchema };
+
+export type OpenApiMediaTypeObject = { schema?: OpenApiSchema; example?: unknown };
+
+export type OpenApiRequestBodyObject = { required?: boolean; content?: Record<string, OpenApiMediaTypeObject> };
+
+export type OpenApiRequestBody = OpenApiReference | OpenApiRequestBodyObject;
+
+export type OpenApiResponseObject = {
+  description?: string;
+  headers?: Record<string, OpenApiHeaderObject>;
+  content?: Record<string, OpenApiMediaTypeObject>;
+};
+
+export type OpenApiResponse = OpenApiReference | OpenApiResponseObject;
+
+export type OpenApiOperation = {
+  tags?: string[];
+  summary?: string;
+  description?: string;
+  operationId?: string;
+  parameters?: OpenApiParameter[];
+  requestBody?: OpenApiRequestBody;
+  responses: Record<string, OpenApiResponse>;
+};
+
+export type OpenApiPathItem = {
+  parameters?: OpenApiParameter[];
+  get?: OpenApiOperation;
+  post?: OpenApiOperation;
+  put?: OpenApiOperation;
+  patch?: OpenApiOperation;
+  delete?: OpenApiOperation;
+};
+
+export type OpenApiTag = { name: string; description?: string };
+
+export type OpenApiComponents = {
+  schemas?: Record<string, OpenApiSchemaObject>;
+  parameters?: Record<string, OpenApiParameterObject>;
+  responses?: Record<string, OpenApiResponseObject>;
+};
+
+type OpenApiDocumentInfo = { title: string; version: string; description?: string };
+
+export type OpenApiDocument = {
+  openapi: string;
+  info: OpenApiDocumentInfo;
+  tags?: OpenApiTag[];
+  paths: Record<string, OpenApiPathItem>;
+  components?: OpenApiComponents;
+};
