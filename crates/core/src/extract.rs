@@ -74,8 +74,39 @@ impl<'a> Candidate<'a> {
     }
 }
 
+#[derive(Debug, Clone)]
+struct EntryPointCandidate<'a> {
+    candidate: Candidate<'a>,
+    selector_index: usize,
+    word_count: usize,
+    content_score: f64,
+}
+
+impl<'a> EntryPointCandidate<'a> {
+    fn score(&self) -> f64 {
+        self.candidate.score()
+    }
+}
+
 /// Tags that are considered potential content containers
-const CANDIDATE_TAGS: &[&str] = &["div", "article", "section", "main", "p", "pre", "blockquote"];
+const CANDIDATE_TAGS: &[&str] = &["div", "article", "section", "main", "p", "pre", "blockquote", "td"];
+
+/// Priority-ordered entry points for main-content detection.
+const ENTRY_POINT_SELECTORS: &[&str] = &[
+    "#post",
+    ".post-content",
+    ".article-body",
+    ".entry-content",
+    ".markdown-body",
+    "#content",
+    "#mw-content-text",
+    ".mw-parser-output",
+    "article",
+    "[role='main']",
+    "main",
+    "body",
+];
+const MIN_ENTRY_POINT_WORDS: usize = 50;
 
 /// Exact selectors that are safe to remove before scoring.
 const PRE_SCORE_EXACT_SELECTORS: &[&str] = &[
@@ -233,6 +264,10 @@ fn prepare_scoring_document(doc: &Document, config: &ExtractConfig) -> Option<Do
     Document::parse_with_base_url(&filtered_html, doc.base_url().cloned()).ok()
 }
 
+fn count_words(text: &str) -> usize {
+    text.split_whitespace().count()
+}
+
 /// Identify all candidate elements from the document
 fn identify_candidates<'a>(
     doc: &'a Document, config: &ExtractConfig, score_config: &ScoreConfig,
@@ -259,6 +294,37 @@ fn identify_candidates<'a>(
                 let score_result = calculate_score(&element, score_config);
                 candidates.push(Candidate::new(element, score_result));
             }
+        }
+    }
+
+    candidates
+}
+
+fn identify_entry_point_candidates<'a>(doc: &'a Document, score_config: &ScoreConfig) -> Vec<EntryPointCandidate<'a>> {
+    let mut candidates = Vec::new();
+    let selector_count = ENTRY_POINT_SELECTORS.len();
+
+    for (index, selector) in ENTRY_POINT_SELECTORS.iter().enumerate() {
+        let Ok(elements) = doc.select(selector) else {
+            continue;
+        };
+
+        for element in elements {
+            let words = count_words(&element.text());
+            if element.tag_name() != "body" && words < MIN_ENTRY_POINT_WORDS {
+                continue;
+            }
+
+            let mut score_result = calculate_score(&element, score_config);
+            let content_score = score_result.final_score;
+            score_result.final_score += ((selector_count - index) * 40) as f64;
+
+            candidates.push(EntryPointCandidate {
+                candidate: Candidate::new(element, score_result),
+                selector_index: index,
+                word_count: words,
+                content_score,
+            });
         }
     }
 
@@ -379,6 +445,200 @@ fn select_top_candidate<'a>(candidates: &'a [Candidate<'a>], config: &ExtractCon
     Ok(top_candidate)
 }
 
+fn node_id_for_element(element: &Element<'_>, dom_tree: &DomTree) -> Option<usize> {
+    let html = element.outer_html();
+    let tag = element.tag_name();
+    dom_tree
+        .find_by_html(&html, &tag)
+        .and_then(|node| (node.html == html).then_some(()))
+        .and_then(|_| {
+            (0..dom_tree.len()).find(|idx| {
+                dom_tree
+                    .get_node(*idx)
+                    .is_some_and(|node| node.tag_name == tag && node.html == html)
+            })
+        })
+}
+
+fn node_depth(node_id: usize, dom_tree: &DomTree) -> usize {
+    let mut depth = 0usize;
+    let mut current = Some(node_id);
+
+    while let Some(id) = current {
+        current = dom_tree.get_node(id).and_then(|node| node.parent_id);
+        if current.is_some() {
+            depth += 1;
+        }
+    }
+
+    depth
+}
+
+fn is_descendant_of(candidate_id: usize, ancestor_id: usize, dom_tree: &DomTree) -> bool {
+    let mut current = Some(candidate_id);
+
+    while let Some(id) = current {
+        if id == ancestor_id {
+            return true;
+        }
+        current = dom_tree.get_node(id).and_then(|node| node.parent_id);
+    }
+
+    false
+}
+
+fn select_preferred_entry_candidate<'a>(
+    entry_candidates: &'a [EntryPointCandidate<'a>], dom_tree: Option<&DomTree>,
+) -> Option<&'a EntryPointCandidate<'a>> {
+    if entry_candidates.is_empty() {
+        return None;
+    }
+
+    let mut ordered = entry_candidates.iter().collect::<Vec<_>>();
+    ordered.sort_by(|a, b| {
+        b.score()
+            .partial_cmp(&a.score())
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.selector_index.cmp(&b.selector_index))
+            .then_with(|| b.word_count.cmp(&a.word_count))
+    });
+
+    let top = ordered[0];
+    let Some(dom_tree) = dom_tree else {
+        return Some(top);
+    };
+    let Some(top_id) = node_id_for_element(&top.candidate.element, dom_tree) else {
+        return Some(top);
+    };
+
+    let preferred = ordered
+        .into_iter()
+        .filter(|candidate| {
+            candidate.selector_index < top.selector_index && candidate.word_count > MIN_ENTRY_POINT_WORDS
+        })
+        .filter_map(|candidate| {
+            let candidate_id = node_id_for_element(&candidate.candidate.element, dom_tree)?;
+            if !is_descendant_of(candidate_id, top_id, dom_tree) || candidate_id == top_id {
+                return None;
+            }
+
+            let siblings_at_priority = entry_candidates
+                .iter()
+                .filter(|other| other.selector_index == candidate.selector_index)
+                .filter_map(|other| node_id_for_element(&other.candidate.element, dom_tree))
+                .filter(|other_id| is_descendant_of(*other_id, top_id, dom_tree) && *other_id != top_id)
+                .count();
+
+            if siblings_at_priority > 1 {
+                return None;
+            }
+
+            Some((candidate, node_depth(candidate_id, dom_tree)))
+        })
+        .max_by(|(a_candidate, a_depth), (b_candidate, b_depth)| {
+            b_candidate
+                .selector_index
+                .cmp(&a_candidate.selector_index)
+                .then_with(|| a_depth.cmp(b_depth))
+                .then_with(|| {
+                    a_candidate
+                        .score()
+                        .partial_cmp(&b_candidate.score())
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+        });
+
+    preferred.map(|(candidate, _)| candidate).or(Some(top))
+}
+
+fn should_prefer_scored_descendant(
+    entry_candidate: &EntryPointCandidate<'_>, scored_candidate: &Candidate<'_>, dom_tree: Option<&DomTree>,
+) -> bool {
+    if !matches!(entry_candidate.candidate.element.tag_name().as_str(), "main" | "body") {
+        return false;
+    }
+
+    let Some(dom_tree) = dom_tree else {
+        return false;
+    };
+    let Some(entry_id) = node_id_for_element(&entry_candidate.candidate.element, dom_tree) else {
+        return false;
+    };
+    let Some(scored_id) = node_id_for_element(&scored_candidate.element, dom_tree) else {
+        return false;
+    };
+    if scored_id == entry_id || !is_descendant_of(scored_id, entry_id, dom_tree) {
+        return false;
+    }
+
+    let entry_words = entry_candidate.word_count.max(1);
+    let scored_words = count_words(&scored_candidate.element.text());
+    scored_words >= MIN_ENTRY_POINT_WORDS && scored_words * 10 >= entry_words * 6
+}
+
+fn entry_candidate_meets_threshold(entry_candidate: &EntryPointCandidate<'_>, config: &ExtractConfig) -> bool {
+    let tag = entry_candidate.candidate.element.tag_name();
+    tag != "body" || entry_candidate.content_score >= config.min_score_threshold
+}
+
+fn looks_like_table_layout(table: &Element<'_>) -> bool {
+    let width = table
+        .attr("width")
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(0);
+    if width > 400
+        || table
+            .attr("align")
+            .is_some_and(|value| value.eq_ignore_ascii_case("center"))
+    {
+        return true;
+    }
+
+    let attrs = selector_attrs(table);
+    if attrs.contains("content") || attrs.contains("article") {
+        return true;
+    }
+
+    table.select("tr").unwrap_or_default().into_iter().any(|row| {
+        let cells = row.select("td, th").unwrap_or_default();
+        cells.len() >= 2 && cells.iter().any(|cell| cell.attr("width").is_some())
+    })
+}
+
+fn select_table_layout_candidate<'a>(doc: &'a Document, score_config: &ScoreConfig) -> Option<Candidate<'a>> {
+    let tables = doc.select("table").ok()?;
+    if !tables.iter().any(looks_like_table_layout) {
+        return None;
+    }
+
+    let mut candidates = Vec::new();
+
+    for selector in ["td", "table"] {
+        let Ok(elements) = doc.select(selector) else {
+            continue;
+        };
+        for element in elements {
+            let words = count_words(&element.text());
+            if words < MIN_ENTRY_POINT_WORDS {
+                continue;
+            }
+
+            let link_density = crate::scoring::link_density(&element);
+            if link_density > 0.45 {
+                continue;
+            }
+
+            let mut score_result = calculate_score(&element, score_config);
+            score_result.final_score += if selector == "td" { 30.0 } else { 20.0 };
+            candidates.push(Candidate::new(element, score_result));
+        }
+    }
+
+    candidates
+        .into_iter()
+        .max_by(|a, b| compare_candidates(a, b).unwrap_or(std::cmp::Ordering::Equal))
+}
+
 /// Select siblings that should be included with the top candidate
 ///
 /// Siblings are included if:
@@ -491,11 +751,13 @@ pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<Extract
     let filtered_doc = prepare_scoring_document(doc, config);
     let mut working_doc = filtered_doc.as_ref().unwrap_or(doc);
     let score_config = ScoreConfig::default();
+    let mut entry_candidates = identify_entry_point_candidates(working_doc, &score_config);
 
     let mut candidates = identify_candidates(working_doc, config, &score_config);
 
     if candidates.is_empty() && filtered_doc.is_some() {
         working_doc = doc;
+        entry_candidates = identify_entry_point_candidates(working_doc, &score_config);
         candidates = identify_candidates(working_doc, config, &score_config);
     }
 
@@ -506,8 +768,27 @@ pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<Extract
 
     candidates.sort_by(|a, b| b.score().partial_cmp(&a.score()).unwrap_or(std::cmp::Ordering::Equal));
     candidates.truncate(config.max_top_candidates);
+    let table_layout_candidate = select_table_layout_candidate(working_doc, &score_config);
+    let scored_top_candidate = select_top_candidate(&candidates, config).ok();
+    let preferred_entry_candidate = select_preferred_entry_candidate(&entry_candidates, dom_tree.as_ref())
+        .filter(|candidate| candidate.score() >= config.min_score_threshold)
+        .filter(|candidate| entry_candidate_meets_threshold(candidate, config));
 
-    let top_candidate = select_top_candidate(&candidates, config)?;
+    let top_candidate = match (
+        preferred_entry_candidate,
+        scored_top_candidate,
+        table_layout_candidate.as_ref(),
+    ) {
+        (Some(entry_candidate), Some(scored_candidate), _)
+            if should_prefer_scored_descendant(entry_candidate, scored_candidate, dom_tree.as_ref()) =>
+        {
+            scored_candidate
+        }
+        (Some(entry_candidate), _, _) => &entry_candidate.candidate,
+        (None, Some(scored_candidate), _) => scored_candidate,
+        (None, None, Some(table_candidate)) if table_candidate.score() >= config.min_score_threshold => table_candidate,
+        _ => select_top_candidate(&candidates, config)?,
+    };
     let siblings = select_siblings(working_doc, top_candidate, &candidates, config, dom_tree.as_ref());
     let mut leading = Vec::new();
     let mut trailing = Vec::new();
@@ -1151,5 +1432,31 @@ mod tests {
 
         assert!(extracted.content.contains("ownership, borrowing, and lifetimes"));
         assert!(!extracted.content.contains("Subscribe to our newsletter"));
+    }
+
+    #[test]
+    fn test_extract_content_prefers_specific_entry_point_inside_main() {
+        let html = r#"
+            <html>
+                <body>
+                    <main>
+                        <header>
+                            <h1>Integral</h1>
+                            <p>94 languages</p>
+                        </header>
+                        <div class="mw-parser-output">
+                            <p>Integrals are used to calculate area, volume, accumulation, and continuous change across many areas of mathematics and physics.</p>
+                            <p>They connect antiderivatives to signed area and are one of the central concepts in calculus.</p>
+                        </div>
+                    </main>
+                </body>
+            </html>
+        "#;
+
+        let doc = Document::parse(html).unwrap();
+        let extracted = extract_content(&doc, &ExtractConfig::default()).unwrap();
+
+        assert!(extracted.content.contains("calculate area, volume, accumulation"));
+        assert!(!extracted.content.contains("<main"));
     }
 }
