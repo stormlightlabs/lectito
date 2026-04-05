@@ -6,7 +6,7 @@ export const SITE = {
   status: 'API status: operational'
 };
 
-export const NAV = { extract: 'Extract', library: 'Library', about: 'About', api: 'API' };
+export const NAV = { extract: 'Extract', library: 'Library', about: 'About', api: 'API Docs' };
 
 export const HOME = {
   meta: {
@@ -16,7 +16,7 @@ export const HOME = {
   hero: {
     label: 'Fast Rust extraction for research, archives, and reading queues',
     heading: 'Paste a URL to extract',
-    body: 'Clean, readable articles from any web page. No clutter, no tracking detours, just the content you came for.'
+    body: 'Clean, readable articles from any web page.'
   },
   form: {
     urlLabel: 'Article URL',
