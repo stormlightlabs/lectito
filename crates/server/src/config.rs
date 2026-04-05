@@ -22,6 +22,11 @@ pub struct Config {
     pub db_idle_timeout_secs: u64,
     pub cleanup_interval_secs: u64,
     pub trust_proxy_headers: bool,
+    pub request_timeout_secs: u64,
+    pub admin_token: Option<String>,
+    pub auto_ban_threshold: u32,
+    pub auto_ban_window_secs: u64,
+    pub auto_ban_duration_secs: u64,
 }
 
 impl Config {
@@ -72,6 +77,11 @@ impl Config {
             db_idle_timeout_secs: parse_u64(vars, "DB_IDLE_TIMEOUT_SECS", 600)?,
             cleanup_interval_secs: parse_u64(vars, "CLEANUP_INTERVAL_SECS", 900)?,
             trust_proxy_headers: parse_bool(vars, "TRUST_PROXY_HEADERS", false)?,
+            request_timeout_secs: parse_u64(vars, "REQUEST_TIMEOUT_SECS", 60)?,
+            admin_token: vars.get("ADMIN_TOKEN").cloned(),
+            auto_ban_threshold: parse_u32(vars, "AUTO_BAN_THRESHOLD", 5)?,
+            auto_ban_window_secs: parse_u64(vars, "AUTO_BAN_WINDOW_SECS", 600)?,
+            auto_ban_duration_secs: parse_u64(vars, "AUTO_BAN_DURATION_SECS", 3600)?,
         })
     }
 }
@@ -152,6 +162,8 @@ mod tests {
         assert_eq!(config.db_max_connections, 16);
         assert_eq!(config.cleanup_interval_secs, 900);
         assert!(!config.trust_proxy_headers);
+        assert_eq!(config.request_timeout_secs, 60);
+        assert_eq!(config.auto_ban_threshold, 5);
     }
 
     #[test]

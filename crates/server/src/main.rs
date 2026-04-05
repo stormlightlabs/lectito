@@ -1,10 +1,8 @@
+use lectito_server::{AppState, Config, build_app, db};
 use std::error::Error;
 use std::time::Duration;
-
 use tracing::info;
 use tracing_subscriber::EnvFilter;
-
-use lectito_server::{AppState, Config, build_app, db};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

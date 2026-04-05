@@ -1,10 +1,8 @@
-use std::time::Duration;
-
 use deadpool_postgres::{
     Config as DeadpoolConfig, ManagerConfig, Pool, PoolConfig, RecyclingMethod, Runtime, Timeouts,
 };
+use std::time::Duration;
 use tokio_postgres::NoTls;
-use tracing::{info, warn};
 
 use crate::Config;
 
@@ -33,7 +31,7 @@ pub fn create_pool(config: &Config) -> Result<Pool, deadpool_postgres::CreatePoo
 pub async fn run_migrations(pool: &Pool) -> Result<(), Box<dyn std::error::Error>> {
     let client = pool.get().await?;
     client.batch_execute(MIGRATION_001).await?;
-    info!("Migrations applied successfully");
+    tracing::info!("Migrations applied successfully");
     Ok(())
 }
 
@@ -65,10 +63,10 @@ pub fn spawn_cleanup_task(pool: Pool, interval: Duration) {
                     {
                         Ok(n) => {
                             if n > 0 {
-                                info!("Cache cleanup: removed {n} expired articles");
+                                tracing::info!("Cache cleanup: removed {n} expired articles");
                             }
                         }
-                        Err(e) => warn!("Cache cleanup failed: {e}"),
+                        Err(e) => tracing::warn!("Cache cleanup failed: {e}"),
                     }
 
                     match client
@@ -81,13 +79,13 @@ pub fn spawn_cleanup_task(pool: Pool, interval: Duration) {
                     {
                         Ok(n) => {
                             if n > 0 {
-                                info!("Rate-limit cleanup: removed {n} expired rows");
+                                tracing::info!("Rate-limit cleanup: removed {n} expired rows");
                             }
                         }
-                        Err(e) => warn!("Rate-limit cleanup failed: {e}"),
+                        Err(e) => tracing::warn!("Rate-limit cleanup failed: {e}"),
                     }
                 }
-                Err(e) => warn!("Cleanup task: could not acquire DB connection: {e}"),
+                Err(e) => tracing::warn!("Cleanup task: could not acquire DB connection: {e}"),
             }
         }
     });

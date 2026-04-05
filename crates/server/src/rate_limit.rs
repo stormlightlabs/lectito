@@ -22,6 +22,8 @@ const HEADER_LIMIT: &str = "x-ratelimit-limit";
 const HEADER_REMAINING: &str = "x-ratelimit-remaining";
 const HEADER_RESET: &str = "x-ratelimit-reset";
 
+type RateLimitBucketStore = Arc<RwLock<HashMap<(IpAddr, i64, u32), u32>>>;
+
 #[derive(Debug, Clone, Copy)]
 struct RateLimitWindow {
     window_seconds: u32,
@@ -58,7 +60,7 @@ pub struct LimitsResponse {
 
 #[derive(Clone, Default)]
 struct InMemoryRateLimitStore {
-    buckets: Arc<RwLock<HashMap<(IpAddr, i64, u32), u32>>>,
+    buckets: RateLimitBucketStore,
 }
 
 #[derive(Clone)]
@@ -114,7 +116,7 @@ impl RateLimiter {
             .extensions()
             .get::<ConnectInfo<SocketAddr>>()
             .map(|connect_info| connect_info.0.ip())
-            .unwrap_or(IpAddr::from([127, 0, 0, 1]))
+            .unwrap_or_else(|| IpAddr::from([127, 0, 0, 1]))
     }
 
     async fn check_and_increment_db(&self, pool: &Pool, ip: IpAddr) -> Result<RateLimitSnapshot, String> {
@@ -126,7 +128,7 @@ impl RateLimiter {
         let mut states = Vec::with_capacity(self.windows.len());
 
         for window in self.windows {
-            let window_start = window_start(now, window.window_seconds);
+            let start = window_start(now, window.window_seconds);
             let row = client
                 .query_one(
                     "INSERT INTO rate_limits (ip, window_start, window_seconds, request_count)
@@ -134,13 +136,12 @@ impl RateLimiter {
                      ON CONFLICT (ip, window_start, window_seconds)
                      DO UPDATE SET request_count = rate_limits.request_count + 1
                      RETURNING request_count",
-                    &[&ip, &window_start, &(window.window_seconds as i32)],
+                    &[&ip, &start, &(window.window_seconds as i32)],
                 )
                 .await
                 .map_err(|err| format!("failed to update rate limit row: {err}"))?;
-
             let request_count = row.get::<_, i32>("request_count") as u32;
-            states.push(build_window_state(window, request_count, window_start));
+            states.push(build_window_state(window, request_count, start));
         }
 
         Ok(RateLimitSnapshot { windows: states })
@@ -240,9 +241,9 @@ impl RateLimitSnapshot {
 
     pub fn apply_headers(&self, headers: &mut HeaderMap) {
         let window = self.header_window();
-        insert_header(headers, HEADER_LIMIT, window.limit);
-        insert_header(headers, HEADER_REMAINING, window.remaining);
-        insert_header(headers, HEADER_RESET, window.reset_at.unix_timestamp());
+        insert_header(headers, HEADER_LIMIT, &window.limit);
+        insert_header(headers, HEADER_REMAINING, &window.remaining);
+        insert_header(headers, HEADER_RESET, &window.reset_at.unix_timestamp());
     }
 
     fn header_window(&self) -> &RateLimitWindowState {
@@ -260,14 +261,23 @@ impl RateLimitSnapshot {
 
 pub async fn middleware(State(state): State<AppState>, mut request: Request, next: Next) -> Response<Body> {
     let ip = state.rate_limiter.client_ip_from_request(&request);
-    let snapshot = state.rate_limiter.check_and_increment(&state.pool, ip).await;
 
+    if let Err(error) = state.spam_filter.check_ip_ban(&state.pool, ip).await {
+        let snapshot = state.rate_limiter.current_snapshot(&state.pool, ip).await;
+        let mut response = error.into_response();
+        snapshot.apply_headers(response.headers_mut());
+        return response;
+    }
+
+    let snapshot = state.rate_limiter.check_and_increment(&state.pool, ip).await;
     if snapshot.is_limited() {
+        state.spam_filter.record_rate_limit_violation(&state.pool, ip).await;
         let mut response = AppError::TooManyRequests { retry_after: snapshot.retry_after_seconds() }.into_response();
         snapshot.apply_headers(response.headers_mut());
         return response;
     }
 
+    state.spam_filter.clear_rate_limit_violations(ip).await;
     request
         .extensions_mut()
         .insert(ClientRateLimitContext { client_ip: ip, snapshot: snapshot.clone() });
@@ -311,7 +321,7 @@ fn window_start(now: OffsetDateTime, window_seconds: u32) -> OffsetDateTime {
     OffsetDateTime::from_unix_timestamp(start).expect("window start should be a valid timestamp")
 }
 
-fn insert_header(headers: &mut HeaderMap, name: &'static str, value: impl ToString) {
+fn insert_header(headers: &mut HeaderMap, name: &'static str, value: &impl ToString) {
     if let Ok(header_name) = HeaderName::from_bytes(name.as_bytes())
         && let Ok(header_value) = HeaderValue::from_str(&value.to_string())
     {
@@ -352,6 +362,11 @@ mod tests {
             db_idle_timeout_secs: 1,
             cleanup_interval_secs: 900,
             trust_proxy_headers: false,
+            request_timeout_secs: 60,
+            admin_token: None,
+            auto_ban_threshold: 5,
+            auto_ban_window_secs: 600,
+            auto_ban_duration_secs: 3600,
         };
 
         let limiter = RateLimiter::new(&config);
