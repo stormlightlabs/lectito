@@ -32,10 +32,10 @@ For frontend-only work, you can run:
 pnpm --dir web dev
 ```
 
-That starts the Vite dev server for the Svelte app. The app currently uses
-relative `/api/v1/*` requests and there is no Vite proxy configured, so API
-features still need the Rust server on the same origin. For a fully working
-local stack, build `web` and run `lectito-server`.
+That starts the Vite dev server for the Svelte app. API requests to `/api/*`
+are proxied to `http://127.0.0.1:3000` by default, so run `lectito-server` in a
+separate terminal for a fully working local stack. Set `LECTITO_SERVER_URL` if
+your backend listens elsewhere.
 
 ## Useful Environment Variables
 
