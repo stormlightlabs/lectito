@@ -79,7 +79,7 @@ Acceptance Criteria:
 MILESTONE B: Server Crate Foundation
 ================================================================================
 
-[ ] Create crates/server/ with Cargo.toml
+[x] Create crates/server/ with Cargo.toml
     - Dependencies: axum 0.8, tower, tower-http, tokio-postgres, serde,
       serde_json, tracing, tracing-subscriber, tokio, lectito-core
     - Add to workspace members in root Cargo.toml
