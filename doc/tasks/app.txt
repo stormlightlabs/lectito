@@ -47,7 +47,7 @@ MILESTONE A: Algorithm Improvements
     - Callout/admonition standardization (GitHub alerts, Bootstrap)
     - Div flattening (unwrap unnecessary wrapper divs)
     - Attribute whitelist (~40 allowed attrs, strip rest)
-    - Math normalization (KaTeX, MathJax -> MathML) [stretch goal]
+    - Math normalization (KaTeX, MathJax -> MathML)
 
 [ ] Hidden element detection improvements
     - Detect Tailwind/CSS framework hidden utilities

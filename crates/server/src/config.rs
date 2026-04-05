@@ -8,12 +8,14 @@ pub struct Config {
     pub database_url: String,
     pub listen_addr: SocketAddr,
     pub cache_ttl_secs: u64,
+    // TODO: make a rate limit config struct for these
     pub rate_limit_per_min: u32,
     pub rate_limit_per_hour: u32,
     pub rate_limit_per_day: u32,
     pub blocked_domains_path: Option<String>,
     pub fetch_timeout_secs: u64,
     pub web_dir: PathBuf,
+    // TODO: make a db config struct for these
     pub db_max_connections: usize,
     pub db_connect_timeout_secs: u64,
     pub db_wait_timeout_secs: u64,
@@ -24,6 +26,7 @@ pub struct Config {
     pub trust_proxy_headers: bool,
     pub request_timeout_secs: u64,
     pub admin_token: Option<String>,
+    // TODO: make a security config struct for these
     pub auto_ban_threshold: u32,
     pub auto_ban_window_secs: u64,
     pub auto_ban_duration_secs: u64,
