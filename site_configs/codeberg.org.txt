@@ -1,0 +1,5 @@
+title: //h1
+body: //article[contains(@class, 'markdown-body')]
+strip: //nav
+autodetect_on_failure: yes
+test_url: https://codeberg.org/ziglang/zig/issues/30677

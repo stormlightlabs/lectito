@@ -1,0 +1,5 @@
+title: //h1
+body: //article[contains(@class, 'markdown-body')]
+strip: //div[contains(@class, 'Header')]
+autodetect_on_failure: yes
+test_url: https://github.com/stormlightlabs/lazurite

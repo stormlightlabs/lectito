@@ -19,6 +19,48 @@ pub struct Metadata {
     pub language: Option<String>,
 }
 
+impl Metadata {
+    /// Merge a partial metadata patch, preferring patch values when present.
+    pub fn apply_patch(&mut self, patch: &Metadata) {
+        if patch.title.is_some() {
+            self.title = patch.title.clone();
+        }
+        if patch.author.is_some() {
+            self.author = patch.author.clone();
+        }
+        if patch.date.is_some() {
+            self.date = patch.date.clone();
+        }
+        if patch.excerpt.is_some() {
+            self.excerpt = patch.excerpt.clone();
+        }
+        if patch.site_name.is_some() {
+            self.site_name = patch.site_name.clone();
+        }
+        if patch.image.is_some() {
+            self.image = patch.image.clone();
+        }
+        if patch.favicon.is_some() {
+            self.favicon = patch.favicon.clone();
+        }
+        if patch.word_count.is_some() {
+            self.word_count = patch.word_count;
+        }
+        if patch.reading_time_minutes.is_some() {
+            self.reading_time_minutes = patch.reading_time_minutes;
+        }
+        if patch.language.is_some() {
+            self.language = patch.language.clone();
+        }
+    }
+
+    /// Return a new metadata value with a partial patch applied.
+    pub fn with_patch(mut self, patch: &Metadata) -> Self {
+        self.apply_patch(patch);
+        self
+    }
+}
+
 impl Document {
     /// Extract title with priority fallback:
     /// 1. `<title>` element (page title)

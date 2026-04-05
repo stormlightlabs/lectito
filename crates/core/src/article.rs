@@ -77,6 +77,15 @@ impl Article {
         Self::new(content_html, metadata, source_url)
     }
 
+    /// Creates an Article from a Document and extracted content HTML, overriding
+    /// metadata fields with a partial patch when provided.
+    pub fn from_document_with_metadata(
+        doc: &Document, content_html: String, source_url: Option<String>, metadata_patch: &Metadata,
+    ) -> Self {
+        let metadata = doc.extract_metadata().with_patch(metadata_patch);
+        Self::new(content_html, metadata, source_url)
+    }
+
     /// Converts content to the specified format.
     pub fn to_format(&self, format: OutputFormat) -> Result<String> {
         match format {

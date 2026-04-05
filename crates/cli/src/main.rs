@@ -9,6 +9,7 @@ use lectito_core::{
     extract_content_with_config, fetch_url,
 };
 use owo_colors::OwoColorize;
+use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Read};
 use std::path::PathBuf;
@@ -176,7 +177,7 @@ async fn read_input(
         }
 
         let user_agent = resolve_user_agent(args, site_config);
-        let config = FetchConfig { timeout: args.timeout, user_agent };
+        let config = FetchConfig { timeout: args.timeout, user_agent, headers: HashMap::new() };
 
         let content = fetch_url(input, &config).await.context("Failed to fetch URL")?;
         let len = content.len();

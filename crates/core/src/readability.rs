@@ -12,8 +12,10 @@ use crate::fetch::{FetchConfig, fetch_url};
 use crate::parse::Document;
 use crate::preprocess::PreprocessConfig;
 use crate::scoring::{ScoreConfig, calculate_score};
-use crate::siteconfig::ConfigLoader;
+use crate::siteconfig::{ConfigLoader, SiteConfig, SiteConfigXPath};
+use crate::siteextractors::{ExtractorOutcome, ExtractorRegistry};
 use crate::{LectitoError, Result};
+use std::collections::HashMap;
 use url::Url;
 
 /// Minimum word count that satisfies content extraction — below this threshold
@@ -200,8 +202,21 @@ impl Readability {
     /// This async method fetches HTML from the given URL and extracts
     /// readable content using the provided Fetch configuration.
     pub async fn fetch_and_parse_with_config(&self, url: &str, fetch_config: &FetchConfig) -> Result<Article> {
-        let html = fetch_url(url, fetch_config).await?;
-        self.parse_with_url(&html, url)
+        let parsed_url = Url::parse(url).map_err(|e| LectitoError::InvalidUrl(e.to_string()))?;
+        let prefetch_site_config = self.resolve_site_config(Some(url), None);
+        let request_config = self.apply_site_config_headers(fetch_config, prefetch_site_config.as_ref());
+        let html = fetch_url(url, &request_config).await?;
+        let merged_site_config = self.resolve_site_config(Some(url), Some(&html));
+
+        let doc = Document::parse_with_base_url(&html, Some(parsed_url.clone()))?;
+
+        if let Some(article) =
+            self.try_site_extractor_async(&doc, &parsed_url, &request_config, merged_site_config.as_ref()).await?
+        {
+            return Ok(article);
+        }
+
+        self.parse_with_retry_and_site_config(&html, Some(url), merged_site_config)
     }
 
     /// Multi-pass retry extraction strategy.
@@ -221,6 +236,13 @@ impl Readability {
     /// | 4    | Scoring threshold removed (`min_score = 0.0`) |
     /// | 5    | schema.org `articleBody` / `text` fallback |
     fn parse_with_retry(&self, html: &str, url: Option<&str>) -> Result<Article> {
+        let site_config = self.resolve_site_config(url, Some(html));
+        self.parse_with_retry_and_site_config(html, url, site_config)
+    }
+
+    fn parse_with_retry_and_site_config(
+        &self, html: &str, url: Option<&str>, site_config: Option<SiteConfig>,
+    ) -> Result<Article> {
         let base_url = url
             .map(|u| Url::parse(u).map_err(|e| LectitoError::InvalidUrl(e.to_string())))
             .transpose()?;
@@ -232,14 +254,21 @@ impl Readability {
             remove_unlikely: self.config.remove_unlikely,
             ..Default::default()
         };
-        match self.try_extract_pass(html, url, &preprocess0, self.config.min_score) {
+        if let Ok(raw_doc) = Document::parse_with_base_url(html, base_url.clone())
+            && let Some(url) = url
+            && let Ok(parsed_url) = Url::parse(url)
+            && let Some(article) = self.try_site_extractor(&raw_doc, &parsed_url, site_config.as_ref())?
+        {
+            return Ok(article);
+        }
+        match self.try_extract_pass(html, url, &preprocess0, self.config.min_score, site_config.as_ref()) {
             Ok(article) if article.word_count >= RETRY_WORD_THRESHOLD => return Ok(article),
             Ok(article) => update_best(&mut best, article),
             Err(_) => {}
         }
 
         let preprocess1 = PreprocessConfig { base_url: base_url.clone(), remove_unlikely: false, ..Default::default() };
-        match self.try_extract_pass(html, url, &preprocess1, self.config.min_score) {
+        match self.try_extract_pass(html, url, &preprocess1, self.config.min_score, site_config.as_ref()) {
             Ok(article) if article.word_count >= RETRY_WORD_THRESHOLD => return Ok(article),
             Ok(article) => update_best(&mut best, article),
             Err(_) => {}
@@ -252,7 +281,7 @@ impl Readability {
             ..Default::default()
         };
         if let Ok(pass2_doc) = Document::parse_with_preprocessing_config(html, &preprocess2) {
-            match self.extract_from_doc(&pass2_doc, url, self.config.min_score) {
+            match self.extract_from_doc(&pass2_doc, url, self.config.min_score, site_config.as_ref()) {
                 Ok(article) if article.word_count >= RETRY_WORD_THRESHOLD => return Ok(article),
                 Ok(article) => update_best(&mut best, article),
                 Err(_) => {}
@@ -266,7 +295,7 @@ impl Readability {
                 update_best(&mut best, article);
             }
 
-            match self.extract_from_doc(&pass2_doc, url, 0.0) {
+            match self.extract_from_doc(&pass2_doc, url, 0.0, site_config.as_ref()) {
                 Ok(article) if article.word_count >= RETRY_WORD_THRESHOLD => return Ok(article),
                 Ok(article) => update_best(&mut best, article),
                 Err(_) => {}
@@ -296,21 +325,19 @@ impl Readability {
     /// Run a single extraction pass with explicit preprocessing and scoring settings.
     fn try_extract_pass(
         &self, html: &str, url: Option<&str>, preprocess_config: &PreprocessConfig, min_score: f64,
+        site_config: Option<&SiteConfig>,
     ) -> Result<Article> {
         let doc = Document::parse_with_preprocessing_config(html, preprocess_config)?;
-        self.extract_from_doc(&doc, url, min_score)
+        self.extract_from_doc(&doc, url, min_score, site_config)
     }
 
     /// Run content extraction on an already-parsed document with a specific score threshold.
     ///
     /// Shared by passes that differ only in `min_score` and reuse the same document,
     /// avoiding redundant HTML re-parsing.
-    fn extract_from_doc(&self, doc: &Document, url: Option<&str>, min_score: f64) -> Result<Article> {
-        let site_config = self.config_loader.as_ref().and_then(|loader| {
-            let mut l = loader.clone();
-            l.load_for_html(&doc.as_string()).ok()
-        });
-
+    fn extract_from_doc(
+        &self, doc: &Document, url: Option<&str>, min_score: f64, site_config: Option<&SiteConfig>,
+    ) -> Result<Article> {
         let extract_config = ExtractConfig {
             min_score_threshold: min_score,
             max_top_candidates: self.config.nb_top_candidates,
@@ -325,12 +352,22 @@ impl Readability {
             },
         };
 
-        let extracted = extract_content_with_config(doc, &extract_config, site_config.as_ref())?;
-        Ok(Article::from_document(
-            doc,
-            extracted.content,
-            url.map(|u| u.to_string()),
-        ))
+        let extracted = extract_content_with_config(doc, &extract_config, site_config)?;
+        if let Some(site_config) = site_config {
+            let metadata_patch = build_site_config_metadata_patch(site_config, doc);
+            Ok(Article::from_document_with_metadata(
+                doc,
+                extracted.content,
+                url.map(|u| u.to_string()),
+                &metadata_patch,
+            ))
+        } else {
+            Ok(Article::from_document(
+                doc,
+                extracted.content,
+                url.map(|u| u.to_string()),
+            ))
+        }
     }
 
     /// Checks if content appears readable without full extraction.
@@ -370,6 +407,95 @@ impl Readability {
 
         max_score >= threshold
     }
+
+    fn resolve_site_config(&self, url: Option<&str>, html: Option<&str>) -> Option<SiteConfig> {
+        let mut loader = self.config_loader.clone().or_else(|| url.map(|_| ConfigLoader::default()))?;
+        match (url, html) {
+            (Some(url), html) => loader.load_merged_for_url(url, html).ok(),
+            (None, _) => None,
+        }
+    }
+
+    fn apply_site_config_headers(&self, fetch_config: &FetchConfig, site_config: Option<&SiteConfig>) -> FetchConfig {
+        let mut merged = fetch_config.clone();
+        let mut headers = HashMap::new();
+
+        if let Some(site_config) = site_config {
+            for (name, value) in &site_config.http_headers {
+                if name.eq_ignore_ascii_case("user-agent") {
+                    merged.user_agent = value.clone();
+                } else {
+                    headers.insert(name.clone(), value.clone());
+                }
+            }
+        }
+
+        headers.extend(merged.headers.clone());
+        merged.headers = headers;
+        merged
+    }
+
+    fn try_site_extractor(
+        &self, doc: &Document, url: &Url, site_config: Option<&SiteConfig>,
+    ) -> Result<Option<Article>> {
+        let registry = ExtractorRegistry::new();
+        let Some(outcome) = registry.extract(doc, url)? else {
+            return Ok(None);
+        };
+
+        self.article_from_extractor_outcome(doc, url, outcome, site_config).map(Some)
+    }
+
+    async fn try_site_extractor_async(
+        &self, doc: &Document, url: &Url, fetch_config: &FetchConfig, site_config: Option<&SiteConfig>,
+    ) -> Result<Option<Article>> {
+        let registry = ExtractorRegistry::new();
+        let Some(outcome) = registry.extract_async(doc, url, fetch_config).await? else {
+            return Ok(None);
+        };
+
+        self.article_from_extractor_outcome(doc, url, outcome, site_config).map(Some)
+    }
+
+    fn article_from_extractor_outcome(
+        &self, doc: &Document, url: &Url, outcome: ExtractorOutcome, site_config: Option<&SiteConfig>,
+    ) -> Result<Article> {
+        let site_config_patch = site_config
+            .map(|site_config| build_site_config_metadata_patch(site_config, doc))
+            .unwrap_or_default();
+
+        match outcome {
+            ExtractorOutcome::Selector { selector } => {
+                let selected_html = doc
+                    .select(&selector)?
+                    .into_iter()
+                    .map(|element| element.outer_html())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if selected_html.trim().is_empty() {
+                    return Err(LectitoError::NoContent);
+                }
+                Ok(Article::from_document_with_metadata(
+                    doc,
+                    selected_html,
+                    Some(url.to_string()),
+                    &site_config_patch,
+                ))
+            }
+            ExtractorOutcome::Html {
+                content_html,
+                metadata_patch,
+            } => {
+                let merged_patch = site_config_patch.with_patch(&metadata_patch);
+                Ok(Article::from_document_with_metadata(
+                    doc,
+                    content_html,
+                    Some(url.to_string()),
+                    &merged_patch,
+                ))
+            }
+        }
+    }
 }
 
 impl Default for Readability {
@@ -382,6 +508,16 @@ impl Default for Readability {
 fn update_best(best: &mut Option<Article>, article: Article) {
     if best.as_ref().map_or(0, |a| a.word_count) < article.word_count {
         *best = Some(article);
+    }
+}
+
+fn build_site_config_metadata_patch(site_config: &SiteConfig, doc: &Document) -> crate::Metadata {
+    let html = doc.as_string();
+    crate::Metadata {
+        title: site_config.extract_title(&html).ok().flatten(),
+        author: site_config.extract_author(&html).ok().flatten(),
+        date: site_config.extract_date(&html).ok().flatten(),
+        ..Default::default()
     }
 }
 
