@@ -21,6 +21,8 @@ use crate::error::AppError;
 const HEADER_LIMIT: &str = "x-ratelimit-limit";
 const HEADER_REMAINING: &str = "x-ratelimit-remaining";
 const HEADER_RESET: &str = "x-ratelimit-reset";
+pub const WEB_CLIENT_HEADER: &str = "x-lectito-client";
+pub const WEB_CLIENT_WEB_APP: &str = "web-app";
 
 type RateLimitBucketStore = Arc<RwLock<HashMap<(IpAddr, i64, u32), u32>>>;
 
@@ -48,6 +50,7 @@ pub struct RateLimitSnapshot {
 pub struct ClientRateLimitContext {
     pub client_ip: IpAddr,
     pub snapshot: RateLimitSnapshot,
+    pub exempt: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -261,12 +264,21 @@ impl RateLimitSnapshot {
 
 pub async fn middleware(State(state): State<AppState>, mut request: Request, next: Next) -> Response<Body> {
     let ip = state.rate_limiter.client_ip_from_request(&request);
+    let exempt = is_web_app_request(request.headers());
 
     if let Err(error) = state.spam_filter.check_ip_ban(&state.pool, ip).await {
         let snapshot = state.rate_limiter.current_snapshot(&state.pool, ip).await;
         let mut response = error.into_response();
         snapshot.apply_headers(response.headers_mut());
         return response;
+    }
+
+    if exempt {
+        let snapshot = state.rate_limiter.current_snapshot(&state.pool, ip).await;
+        request
+            .extensions_mut()
+            .insert(ClientRateLimitContext { client_ip: ip, snapshot, exempt: true });
+        return next.run(request).await;
     }
 
     let snapshot = state.rate_limiter.check_and_increment(&state.pool, ip).await;
@@ -278,13 +290,23 @@ pub async fn middleware(State(state): State<AppState>, mut request: Request, nex
     }
 
     state.spam_filter.clear_rate_limit_violations(ip).await;
-    request
-        .extensions_mut()
-        .insert(ClientRateLimitContext { client_ip: ip, snapshot: snapshot.clone() });
+    request.extensions_mut().insert(ClientRateLimitContext {
+        client_ip: ip,
+        snapshot: snapshot.clone(),
+        exempt: false,
+    });
 
     let mut response = next.run(request).await;
     snapshot.apply_headers(response.headers_mut());
     response
+}
+
+#[must_use]
+pub fn is_web_app_request(headers: &HeaderMap) -> bool {
+    headers
+        .get(WEB_CLIENT_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.eq_ignore_ascii_case(WEB_CLIENT_WEB_APP))
 }
 
 fn forwarded_ip(headers: &HeaderMap) -> Option<IpAddr> {
@@ -412,5 +434,13 @@ mod tests {
         assert_eq!(headers.get(HEADER_LIMIT).unwrap(), "60");
         assert_eq!(headers.get(HEADER_REMAINING).unwrap(), "55");
         assert!(headers.get(HEADER_RESET).is_some());
+    }
+
+    #[test]
+    fn recognizes_web_app_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert(WEB_CLIENT_HEADER, HeaderValue::from_static(WEB_CLIENT_WEB_APP));
+
+        assert!(is_web_app_request(&headers));
     }
 }

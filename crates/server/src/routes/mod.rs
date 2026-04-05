@@ -513,6 +513,7 @@ async fn handle_extract(
 ) -> Result<ExtractResponse, AppError> {
     validate_extract_options(&input)?;
 
+    let web_request = rate_limit::is_web_app_request(&headers);
     let parsed_url = state.spam_filter.validate_extract_url(&state.pool, &input.url).await?;
     let format = input.format.unwrap_or(CachedFormat::Markdown);
     let normalized_url = cache::normalize_url(parsed_url.as_str())?;
@@ -537,7 +538,7 @@ async fn handle_extract(
     let extracted = fetch_and_extract_article(&parsed_url, &input, state.config.fetch_timeout_secs).await?;
     let fetched_at = OffsetDateTime::now_utc();
     let content = render_article(&extracted.article, format, &input)?;
-    let cached_id = if is_cacheable_request(&input) {
+    let mut cached_id = if is_cacheable_request(&input) {
         write_cached_article(
             &state,
             CachedExtractedArticle {
@@ -555,6 +556,10 @@ async fn handle_extract(
         None
     };
 
+    if cached_id.is_none() && web_request {
+        cached_id = ensure_reader_cache_id(&state, &normalized_url, &extracted, fetched_at).await;
+    }
+
     let response = ExtractResponse {
         id: cached_id,
         url: normalized_url,
@@ -566,6 +571,24 @@ async fn handle_extract(
     };
 
     Ok(response)
+}
+
+async fn ensure_reader_cache_id(
+    state: &AppState, normalized_url: &str, extracted: &ExtractedArticle, fetched_at: OffsetDateTime,
+) -> Option<Uuid> {
+    write_cached_article(
+        state,
+        CachedExtractedArticle {
+            id: Uuid::new_v4(),
+            url: normalized_url.to_string(),
+            format: CachedFormat::Html,
+            content: extracted.article.content.clone(),
+            metadata: extracted.metadata.clone(),
+            fetched_at,
+        },
+        cache::build_cache_key(normalized_url, CachedFormat::Html),
+    )
+    .await
 }
 
 async fn fetch_and_extract_article(

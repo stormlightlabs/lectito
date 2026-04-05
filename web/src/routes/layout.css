@@ -200,6 +200,26 @@ button {
   box-shadow: 0 0 0 6px var(--color-accent-soft);
 }
 
+.site-status-dot--checking {
+  background: #ca8a04;
+  box-shadow: 0 0 0 6px rgba(202, 138, 4, 0.14);
+}
+
+.site-status-dot--operational {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 6px var(--color-accent-soft);
+}
+
+.site-status-dot--degraded {
+  background: #b45309;
+  box-shadow: 0 0 0 6px rgba(180, 83, 9, 0.14);
+}
+
+.site-status-dot--unavailable {
+  background: #b91c1c;
+  box-shadow: 0 0 0 6px rgba(185, 28, 28, 0.14);
+}
+
 .stat-strip {
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.88)),

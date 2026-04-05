@@ -1,6 +1,7 @@
 import type {
   ExtractRequest,
   ExtractResponse,
+  HealthResponse,
   LibraryResponse,
   LimitsResponse,
   OpenApiDocument,
@@ -8,6 +9,10 @@ import type {
 } from '$lib/types';
 
 type FetchLike = typeof fetch;
+
+const WEB_CLIENT_HEADER = 'x-lectito-client';
+const WEB_CLIENT_VALUE = 'web-app';
+const BASE_URL = '/api/v1';
 
 export class ApiError extends Error {
   status: number;
@@ -50,7 +55,10 @@ function parseRateLimit(headers: Headers): RateLimitHeaders {
 }
 
 async function request<T>(fetcher: FetchLike, path: string, init?: RequestInit): Promise<ApiResult<T>> {
-  const response = await fetcher(path, init);
+  const headers = new Headers(init?.headers);
+  headers.set(WEB_CLIENT_HEADER, WEB_CLIENT_VALUE);
+
+  const response = await fetcher(path, { ...init, headers });
   const rateLimit = parseRateLimit(response.headers);
 
   if (!response.ok) {
@@ -83,15 +91,19 @@ export function getLibrary(
     date_to?: string;
   } = {}
 ) {
-  return request<LibraryResponse>(fetcher, `/api/v1/library${buildQuery(params)}`);
+  return request<LibraryResponse>(fetcher, `${BASE_URL}/library${buildQuery(params)}`);
+}
+
+export function getHealth(fetcher: FetchLike) {
+  return request<HealthResponse>(fetcher, `${BASE_URL}/health`);
 }
 
 export function getLibraryArticle(fetcher: FetchLike, id: string) {
-  return request<ExtractResponse>(fetcher, `/api/v1/library/${id}`);
+  return request<ExtractResponse>(fetcher, `${BASE_URL}/library/${id}`);
 }
 
 export function extractArticle(fetcher: FetchLike, body: ExtractRequest) {
-  return request<ExtractResponse>(fetcher, '/api/v1/extract', {
+  return request<ExtractResponse>(fetcher, `${BASE_URL}/extract`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body)
@@ -108,11 +120,11 @@ export function extractArticleByUrl(
     strip_images?: boolean;
   }
 ) {
-  return request<ExtractResponse>(fetcher, `/api/v1/extract${buildQuery(params)}`);
+  return request<ExtractResponse>(fetcher, `${BASE_URL}/extract${buildQuery(params)}`);
 }
 
 export function getLimits(fetcher: FetchLike) {
-  return request<LimitsResponse>(fetcher, '/api/v1/limits');
+  return request<LimitsResponse>(fetcher, `${BASE_URL}/limits`);
 }
 
 export function getOpenApiSpec(fetcher: FetchLike) {

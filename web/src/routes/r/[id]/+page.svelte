@@ -16,6 +16,41 @@
   } from '$lib/utils';
 
   type ViewMode = 'rendered' | ExtractFormat;
+  type PreferredExtractRequest = {
+    format: ExtractFormat;
+    include_frontmatter: boolean;
+    include_references: boolean;
+    strip_images: boolean;
+  };
+
+  function parseExtractFormat(value: string | null): ExtractFormat | null {
+    return value === 'html' || value === 'markdown' || value === 'text' || value === 'json' ? value : null;
+  }
+
+  function parseBooleanParam(value: string | null) {
+    return value === 'true' || value === '1';
+  }
+
+  function preferredExtractRequest(
+    searchParams: URLSearchParams,
+    fallbackFormat: ExtractFormat
+  ): PreferredExtractRequest {
+    return {
+      format: parseExtractFormat(searchParams.get('format')) ?? fallbackFormat,
+      include_frontmatter: parseBooleanParam(searchParams.get('include_frontmatter')),
+      include_references: parseBooleanParam(searchParams.get('include_references')),
+      strip_images: parseBooleanParam(searchParams.get('strip_images'))
+    };
+  }
+
+  function matchesCachedArticle(article: ExtractResponse, preferred: PreferredExtractRequest) {
+    return (
+      article.format === preferred.format &&
+      !preferred.include_frontmatter &&
+      !preferred.include_references &&
+      !preferred.strip_images
+    );
+  }
 
   let article = $state<ExtractResponse | null>(null);
   let activeView = $state<ViewMode>('html');
@@ -27,6 +62,7 @@
 
   $effect(() => {
     const id = page.params.id;
+    const search = page.url.search;
     let cancelled = false;
 
     void (async () => {
@@ -42,22 +78,49 @@
         const articleResult = await getLibraryArticle(fetch, id);
         if (cancelled) return;
 
-        article = articleResult.data;
-        variantContent = { [article.format]: article.content };
-        activeView = article.format === 'html' ? 'rendered' : article.format;
-        renderedHtml = article.format === 'html' ? sanitizeExtractedHtml(article.content) : '';
+        const cachedArticle = articleResult.data;
+        const preferred = preferredExtractRequest(new URLSearchParams(search), cachedArticle.format);
+
+        article = cachedArticle;
+        variantContent = { [cachedArticle.format]: cachedArticle.content };
+        activeView = cachedArticle.format === 'html' ? 'rendered' : cachedArticle.format;
+        renderedHtml = cachedArticle.format === 'html' ? sanitizeExtractedHtml(cachedArticle.content) : '';
         errorMessage = null;
 
-        if (article.format !== 'html') {
+        if (!matchesCachedArticle(cachedArticle, preferred)) {
           try {
-            const rendered = await extractArticleByUrl(fetch, { url: article.url, format: 'html' });
+            const preferredResult = await extractArticleByUrl(fetch, {
+              url: cachedArticle.url,
+              format: preferred.format,
+              include_frontmatter: preferred.include_frontmatter,
+              include_references: preferred.include_references,
+              strip_images: preferred.strip_images
+            });
+
+            if (cancelled) return;
+
+            variantContent = { ...variantContent, [preferred.format]: preferredResult.data.content };
+            if (preferred.format === 'html') {
+              renderedHtml = sanitizeExtractedHtml(preferredResult.data.content);
+              activeView = 'rendered';
+            } else {
+              activeView = preferred.format;
+            }
+          } catch {
+            console.warn('Failed to fetch preferred extract variant, falling back to cached version.');
+          }
+        }
+
+        if (cachedArticle.format !== 'html' && !variantContent.html) {
+          try {
+            const rendered = await extractArticleByUrl(fetch, { url: cachedArticle.url, format: 'html' });
 
             if (cancelled) return;
 
             variantContent = { ...variantContent, html: rendered.data.content };
             renderedHtml = sanitizeExtractedHtml(rendered.data.content);
           } catch {
-            // Keep the primary format even if the rendered variant is unavailable.
+            console.warn('Failed to fetch rendered HTML variant, rendered view will be unavailable.');
           }
         }
       } catch (requestError) {

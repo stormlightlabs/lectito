@@ -78,6 +78,12 @@ export type LimitsResponse = {
 
 export type RateLimitHeaders = { limit?: number; remaining?: number; reset?: number };
 
+export type HealthResponse = {
+  status: 'ok' | 'degraded' | string;
+  version: string;
+  database: 'ok' | 'unreachable' | string;
+};
+
 export type OpenApiReference = { $ref: string };
 
 export type OpenApiSchemaObject = {
