@@ -456,28 +456,101 @@ fn candidate_priority(tag_name: &str) -> u8 {
     }
 }
 
+/// Extract content from the largest hidden element subtree (Pass 3 of multi-pass retry).
+///
+/// Scans for elements hidden via inline `display:none` or `visibility:hidden` styles
+/// and returns the subtree with the most text content. This targets pages that hide
+/// their main content until JavaScript runs.
+pub(crate) fn extract_largest_hidden_subtree(doc: &Document) -> Option<ExtractedContent> {
+    let hidden_pattern = regex::Regex::new(r"(?i)(display\s*:\s*none|visibility\s*:\s*hidden)").unwrap();
+
+    let mut best_html = String::new();
+    let mut best_word_count = 0usize;
+
+    for tag in &["article", "section", "div", "main", "p", "li", "span"] {
+        let Ok(elements) = doc.select(tag) else {
+            continue;
+        };
+        for el in elements {
+            let style = el.attr("style").unwrap_or("");
+            if !hidden_pattern.is_match(style) {
+                continue;
+            }
+            let text = el.text();
+            let word_count = text.split_whitespace().count();
+            if word_count > best_word_count {
+                best_word_count = word_count;
+                best_html = el.outer_html();
+            }
+        }
+    }
+
+    if best_word_count == 0 {
+        return None;
+    }
+
+    Some(ExtractedContent { content: best_html, top_score: best_word_count as f64, element_count: 1 })
+}
+
+/// Extract content from schema.org structured data (final fallback in multi-pass retry).
+///
+/// Checks two sources in priority order:
+/// 1. Microdata: `[itemprop="articleBody"]` or `[itemprop="text"]` elements
+/// 2. JSON-LD: `articleBody` or `text` field in `<script type="application/ld+json">`
+///
+/// JSON-LD plain text is HTML-escaped and wrapped in a `<div>`.
+pub(crate) fn extract_schema_org_article(doc: &Document) -> Option<ExtractedContent> {
+    for selector in &[r#"[itemprop="articleBody"]"#, r#"[itemprop="text"]"#] {
+        if let Ok(elements) = doc.select(selector) {
+            if let Some(el) = elements.first() {
+                if !el.text().trim().is_empty() {
+                    return Some(ExtractedContent { content: el.outer_html(), top_score: 100.0, element_count: 1 });
+                }
+            }
+        }
+    }
+
+    let Ok(scripts) = doc.select(r#"script[type="application/ld+json"]"#) else {
+        return None;
+    };
+
+    for script in scripts {
+        let text = script.text();
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(text.trim()) else {
+            continue;
+        };
+
+        for field in &["articleBody", "text"] {
+            if let Some(body_text) = value.get(*field).and_then(|v| v.as_str()) {
+                let trimmed = body_text.trim();
+                if !trimmed.is_empty() {
+                    return Some(ExtractedContent {
+                        content: format!("<div>{}</div>", escape_html(trimmed)),
+                        top_score: 100.0,
+                        element_count: 1,
+                    });
+                }
+            }
+        }
+    }
+
+    None
+}
+
 /// Extract content using site configuration with fallback to heuristics
 pub fn extract_content_with_config(
     doc: &Document, config: &ExtractConfig, site_config: Option<&SiteConfig>,
 ) -> Result<ExtractedContent> {
-    if let Some(site_cfg) = site_config {
-        if !site_cfg.title.is_empty() || !site_cfg.body.is_empty() {
+    match site_config {
+        Some(site_cfg) if !site_cfg.title.is_empty() || !site_cfg.body.is_empty() => {
             match extract_with_site_config(doc, site_cfg, config) {
-                Ok(content) => return Ok(content),
-                Err(_) => {
-                    if !site_cfg.should_autodetect() {
-                        return Err(LectitoError::NoContent);
-                    }
-                }
+                Ok(content) => Ok(content),
+                Err(_) if site_cfg.should_autodetect() => extract_content(doc, config),
+                Err(_) => Err(LectitoError::NoContent),
             }
         }
-
-        if !site_cfg.should_autodetect() {
-            return Err(LectitoError::NoContent);
-        }
+        _ => extract_content(doc, config),
     }
-
-    extract_content(doc, config)
 }
 
 /// Extract content using explicit site configuration XPath expressions
@@ -515,7 +588,7 @@ fn extract_with_site_config(
                     let tag = &xpath[2..2 + tag_end];
                     let selector_str = format!("{}.{}", tag, class);
                     match scraper::Selector::parse(&selector_str) {
-                        Ok(_selector) => {
+                        Ok(_) => {
                             if let Ok(elements) = doc.select(&selector_str)
                                 && !elements.is_empty()
                             {
@@ -547,6 +620,7 @@ fn extract_with_site_config(
         body_content
     };
 
+    // TODO: we should use this
     let _title = site_config.extract_title(&html)?.or_else(|| doc.title());
 
     let element_count = 1;
@@ -729,5 +803,129 @@ mod tests {
         let result = extract_content(&doc, &config);
 
         assert!(matches!(result, Err(LectitoError::NoContent)));
+    }
+
+    #[test]
+    fn test_extract_largest_hidden_subtree_finds_content() {
+        let long_text = "word ".repeat(100);
+        let html = format!(
+            r#"<html><body>
+                <nav>Short nav link</nav>
+                <div style="display:none">
+                    <p>{}</p>
+                </div>
+            </body></html>"#,
+            long_text
+        );
+
+        let doc = Document::parse(&html).unwrap();
+        let result = extract_largest_hidden_subtree(&doc);
+
+        assert!(result.is_some());
+        let extracted = result.unwrap();
+        assert!(extracted.content.contains("word"));
+        assert!(extracted.top_score > 0.0);
+    }
+
+    #[test]
+    fn test_extract_largest_hidden_subtree_picks_largest() {
+        let html = r#"<html><body>
+            <div style="display:none">Short hidden text</div>
+            <section style="visibility:hidden">
+                This is a much longer hidden section with many more words and content
+                that should be preferred over the shorter hidden div above.
+            </section>
+        </body></html>"#;
+
+        let doc = Document::parse(html).unwrap();
+        let result = extract_largest_hidden_subtree(&doc);
+
+        assert!(result.is_some());
+        let extracted = result.unwrap();
+        assert!(extracted.content.contains("longer hidden section"));
+    }
+
+    #[test]
+    fn test_extract_largest_hidden_subtree_empty_when_no_hidden() {
+        let html = r#"<html><body>
+            <div>Visible content</div>
+            <p>More visible content</p>
+        </body></html>"#;
+
+        let doc = Document::parse(html).unwrap();
+        let result = extract_largest_hidden_subtree(&doc);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extract_schema_org_microdata_article_body() {
+        let html = r#"<html><body>
+            <div itemprop="articleBody">
+                <p>This is the article body content from microdata.</p>
+                <p>It has multiple paragraphs with real text.</p>
+            </div>
+        </body></html>"#;
+
+        let doc = Document::parse(html).unwrap();
+        let result = extract_schema_org_article(&doc);
+
+        assert!(result.is_some());
+        let extracted = result.unwrap();
+        assert!(extracted.content.contains("articleBody"));
+        assert_eq!(extracted.top_score, 100.0);
+    }
+
+    #[test]
+    fn test_extract_schema_org_json_ld_article_body() {
+        let html = r#"<html>
+        <head>
+            <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@type": "Article",
+                "articleBody": "This is the full article body text extracted from JSON-LD structured data."
+            }
+            </script>
+        </head>
+        <body><nav>Just navigation</nav></body></html>"#;
+
+        let doc = Document::parse(html).unwrap();
+        let result = extract_schema_org_article(&doc);
+
+        assert!(result.is_some());
+        let extracted = result.unwrap();
+        assert!(extracted.content.contains("full article body text"));
+        assert_eq!(extracted.top_score, 100.0);
+    }
+
+    #[test]
+    fn test_extract_schema_org_json_ld_text_field() {
+        let html = r#"<html>
+        <head>
+            <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@type": "WebPage",
+                "text": "Article content from the text field of JSON-LD."
+            }
+            </script>
+        </head>
+        <body></body></html>"#;
+
+        let doc = Document::parse(html).unwrap();
+        let result = extract_schema_org_article(&doc);
+
+        assert!(result.is_some());
+        let extracted = result.unwrap();
+        assert!(extracted.content.contains("Article content from the text field"));
+    }
+
+    #[test]
+    fn test_extract_schema_org_returns_none_when_absent() {
+        let html = r#"<html><body><p>No schema.org data here.</p></body></html>"#;
+
+        let doc = Document::parse(html).unwrap();
+        let result = extract_schema_org_article(&doc);
+        assert!(result.is_none());
     }
 }
