@@ -5,7 +5,9 @@ use crate::scoring::{ScoreConfig, ScoreResult, calculate_score};
 use crate::siteconfig::{SiteConfig, SiteConfigProcessing, SiteConfigXPath};
 use crate::{LectitoError, Result, preprocess};
 
+use regex::Regex;
 use std::collections::HashSet;
+use std::sync::OnceLock;
 
 /// Configuration for content extraction
 #[derive(Debug, Clone)]
@@ -20,6 +22,8 @@ pub struct ExtractConfig {
     pub max_elements: usize,
     /// Sibling score threshold (multiplier of top score)
     pub sibling_threshold: f64,
+    /// Whether to remove selector-matched clutter before scoring
+    pub pre_score_selector_removal: bool,
     /// Post-processing configuration
     pub postprocess: PostProcessConfig,
 }
@@ -32,6 +36,7 @@ impl Default for ExtractConfig {
             char_threshold: 500,
             max_elements: 1000,
             sibling_threshold: 0.2,
+            pre_score_selector_removal: true,
             postprocess: PostProcessConfig::default(),
         }
     }
@@ -71,6 +76,162 @@ impl<'a> Candidate<'a> {
 
 /// Tags that are considered potential content containers
 const CANDIDATE_TAGS: &[&str] = &["div", "article", "section", "main", "p", "pre", "blockquote"];
+
+/// Exact selectors that are safe to remove before scoring.
+const PRE_SCORE_EXACT_SELECTORS: &[&str] = &[
+    "nav",
+    "aside",
+    "footer",
+    "[role='navigation']",
+    "[role='complementary']",
+    ".sidebar",
+    "#sidebar",
+    ".toc",
+    "#toc",
+    ".navbox",
+    ".reflist",
+    ".mw-references-wrap",
+    ".mw-editsection",
+    ".mw-editsection-bracket",
+    ".hatnote",
+    ".shortdescription",
+    "sup.reference",
+    "span.cite-bracket",
+    "ol.references",
+    "table.infobox",
+    "form[action*='comment']",
+    "form[action*='subscribe']",
+    "[data-testid*='sidebar']",
+    "[data-testid*='related']",
+    "[data-component*='sidebar']",
+    "[data-component*='related']",
+];
+
+fn pre_score_partial_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(
+            r"(?i)(advert|banner|breadcrumb|comment|cookie|consent|editsection|footer|infobox|nav|navbox|newsletter|pager|pagination|popup|promo|reference|related|share|sidebar|social|sponsor|subscribe|toc|toolbar|widget)",
+        )
+        .unwrap()
+    })
+}
+
+fn pre_score_positive_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(r"(?i)(article|body|content|entry|hentry|h-entry|main|page|post|text|blog|story)").unwrap()
+    })
+}
+
+fn is_heading_tag(tag: &str) -> bool {
+    matches!(tag, "h1" | "h2" | "h3" | "h4" | "h5" | "h6")
+}
+
+fn selector_attrs(element: &Element<'_>) -> String {
+    [
+        element.attr("class").unwrap_or(""),
+        element.attr("id").unwrap_or(""),
+        element.attr("data-component").unwrap_or(""),
+        element.attr("data-test").unwrap_or(""),
+        element.attr("data-testid").unwrap_or(""),
+        element.attr("data-test-id").unwrap_or(""),
+        element.attr("data-qa").unwrap_or(""),
+        element.attr("data-cy").unwrap_or(""),
+    ]
+    .join(" ")
+    .to_lowercase()
+}
+
+fn should_remove_partial_selector_candidate(element: &Element<'_>) -> bool {
+    let tag = element.tag_name();
+    if matches!(
+        tag.as_str(),
+        "article" | "main" | "body" | "html" | "pre" | "code" | "math"
+    ) || is_heading_tag(&tag)
+    {
+        return false;
+    }
+
+    let attrs = selector_attrs(element);
+    if attrs.trim().is_empty() || !pre_score_partial_regex().is_match(&attrs) {
+        return false;
+    }
+    if pre_score_positive_regex().is_match(&attrs) {
+        return false;
+    }
+    if element
+        .select("pre, code, math")
+        .ok()
+        .is_some_and(|els| !els.is_empty())
+    {
+        return false;
+    }
+
+    let text_len = element.text().chars().count();
+    let paragraph_count = element.select("p").map(|els| els.len()).unwrap_or(0);
+    let ld = crate::scoring::link_density(element);
+
+    if text_len > 1800 || paragraph_count > 5 {
+        return false;
+    }
+    if matches!(tag.as_str(), "div" | "section") && text_len > 600 && ld < 0.35 {
+        return false;
+    }
+
+    match tag.as_str() {
+        "div" | "section" | "aside" | "nav" | "ul" | "ol" | "li" | "form" | "table" => true,
+        "p" | "span" => text_len <= 240,
+        _ => text_len <= 160,
+    }
+}
+
+fn remove_html_snippets(mut html: String, mut snippets: Vec<String>) -> String {
+    snippets.sort_by_key(|b| std::cmp::Reverse(b.len()));
+    for snippet in snippets {
+        if snippet.is_empty() {
+            continue;
+        }
+        if let Some(idx) = html.find(&snippet) {
+            html.replace_range(idx..idx + snippet.len(), "");
+        }
+    }
+    html
+}
+
+fn prepare_scoring_document(doc: &Document, config: &ExtractConfig) -> Option<Document> {
+    if !config.pre_score_selector_removal {
+        return None;
+    }
+
+    let original_html = doc.as_string();
+    let mut snippets = Vec::new();
+
+    for selector in PRE_SCORE_EXACT_SELECTORS {
+        if let Ok(elements) = doc.select(selector) {
+            snippets.extend(elements.into_iter().map(|el| el.outer_html()));
+        }
+    }
+
+    if let Ok(elements) = doc.select("*") {
+        for element in elements {
+            if should_remove_partial_selector_candidate(&element) {
+                snippets.push(element.outer_html());
+            }
+        }
+    }
+
+    if snippets.is_empty() {
+        return None;
+    }
+
+    let filtered_html = remove_html_snippets(original_html.clone(), snippets);
+    if filtered_html == original_html {
+        return None;
+    }
+
+    Document::parse_with_base_url(&filtered_html, doc.base_url().cloned()).ok()
+}
 
 /// Identify all candidate elements from the document
 fn identify_candidates<'a>(
@@ -327,20 +488,27 @@ fn select_siblings<'a>(
 /// 5. Post-processes the extracted content
 /// 6. Returns the cleaned content
 pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<ExtractedContent> {
+    let filtered_doc = prepare_scoring_document(doc, config);
+    let mut working_doc = filtered_doc.as_ref().unwrap_or(doc);
     let score_config = ScoreConfig::default();
 
-    let mut candidates = identify_candidates(doc, config, &score_config);
+    let mut candidates = identify_candidates(working_doc, config, &score_config);
 
-    let dom_tree = crate::build_dom_tree(&doc.as_string()).ok();
+    if candidates.is_empty() && filtered_doc.is_some() {
+        working_doc = doc;
+        candidates = identify_candidates(working_doc, config, &score_config);
+    }
+
+    let dom_tree = crate::build_dom_tree(&working_doc.as_string()).ok();
     if let Some(tree) = dom_tree.as_ref() {
-        propagate_scores(&mut candidates, doc, tree);
+        propagate_scores(&mut candidates, working_doc, tree);
     }
 
     candidates.sort_by(|a, b| b.score().partial_cmp(&a.score()).unwrap_or(std::cmp::Ordering::Equal));
     candidates.truncate(config.max_top_candidates);
 
     let top_candidate = select_top_candidate(&candidates, config)?;
-    let siblings = select_siblings(doc, top_candidate, &candidates, config, dom_tree.as_ref());
+    let siblings = select_siblings(working_doc, top_candidate, &candidates, config, dom_tree.as_ref());
     let mut leading = Vec::new();
     let mut trailing = Vec::new();
 
@@ -640,6 +808,7 @@ mod tests {
         assert_eq!(config.char_threshold, 500);
         assert_eq!(config.max_elements, 1000);
         assert_eq!(config.sibling_threshold, 0.2);
+        assert!(config.pre_score_selector_removal);
     }
 
     #[test]
@@ -926,5 +1095,61 @@ mod tests {
         let doc = Document::parse(html).unwrap();
         let result = extract_schema_org_article(&doc);
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_extract_content_removes_wikipedia_chrome_and_tail_sections() {
+        let html = r#"
+            <html>
+                <body>
+                    <div class="mw-parser-output">
+                        <table class="infobox"><tr><td>Infobox</td></tr></table>
+                        <h1>Rust</h1>
+                        <span class="mw-editsection">edit</span>
+                        <p>Rust is a systems programming language focused on safety and speed. It uses an ownership model, strong static typing, and explicit lifetimes to enforce memory safety without relying on a garbage collector.<sup class="reference">[1]</sup></p>
+                        <p>The language was designed for predictable performance and fearless concurrency. Its compiler checks borrowing rules at compile time, which helps developers avoid entire classes of memory corruption and data race bugs.</p>
+                        <h2>See also</h2>
+                        <ul>
+                            <li><a href="/wiki/Go_(programming_language)">Go</a></li>
+                        </ul>
+                        <h2>References</h2>
+                        <ol class="references">
+                            <li>Reference entry</li>
+                        </ol>
+                    </div>
+                </body>
+            </html>
+        "#;
+
+        let doc = Document::parse(html).unwrap();
+        let extracted = extract_content(&doc, &ExtractConfig::default()).unwrap();
+
+        assert!(extracted.content.contains("systems programming language"));
+        assert!(!extracted.content.contains("Infobox"));
+        assert!(!extracted.content.contains("mw-editsection"));
+        assert!(!extracted.content.contains("[1]"));
+        assert!(!extracted.content.contains("See also"));
+        assert!(!extracted.content.contains("References"));
+    }
+
+    #[test]
+    fn test_extract_content_removes_selector_matched_clutter_before_scoring() {
+        let html = r#"
+            <html>
+                <body>
+                    <article class="article-body">
+                        <div class="newsletter-signup">Subscribe to our newsletter</div>
+                        <p>This article explains ownership, borrowing, and lifetimes in enough detail to qualify as real article prose.</p>
+                        <p>It also covers references, move semantics, and compile-time guarantees with substantial explanatory text.</p>
+                    </article>
+                </body>
+            </html>
+        "#;
+
+        let doc = Document::parse(html).unwrap();
+        let extracted = extract_content(&doc, &ExtractConfig::default()).unwrap();
+
+        assert!(extracted.content.contains("ownership, borrowing, and lifetimes"));
+        assert!(!extracted.content.contains("Subscribe to our newsletter"));
     }
 }

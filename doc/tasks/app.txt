@@ -16,7 +16,7 @@ MILESTONE A: Algorithm Improvements
     - Pass 4: disable scoring entirely
     - Final fallback: schema.org articleBody/text
 
-[ ] Selector-based removal (pre-scoring)
+[x] Selector-based removal (pre-scoring)
     - Port ~200 exact CSS selectors to a Rust const list
     - Port ~400 partial class/id/data-attr patterns
     - Apply before content scoring
@@ -25,7 +25,7 @@ MILESTONE A: Algorithm Improvements
     - Add toggle flag to ExtractConfig (remove_exact_selectors,
       remove_partial_selectors)
 
-[ ] Content pattern removal (post-scoring)
+[x] Content pattern removal (post-scoring)
     - Detect breadcrumb lists (internal links to shallow paths)
     - Remove promotional banners before h1
     - Remove hero header blocks (h1 + time + little prose)
@@ -63,7 +63,11 @@ MILESTONE A: Algorithm Improvements
 [ ] Site-specific extractor module
     - Define ExtractorRegistry trait + URL pattern matching
     - Extractors return contentSelector or extracted HTML
-    - GitHub extractor (issues, PRs, READMEs)
+    - "Git" extractor (issues, PRs, READMEs)
+        - Github
+        - Tangled.org
+        - Codeberg
+        - Gitlab
     - Reddit extractor (posts + comments)
     - YouTube extractor (transcript via InnerTube API)
     - HackerNews extractor (comment threads)

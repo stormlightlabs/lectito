@@ -1,4 +1,6 @@
+use crate::parse::Document;
 use regex::Regex;
+use std::sync::OnceLock;
 use url::Url;
 
 /// Configuration for HTML post-processing cleanup
@@ -20,6 +22,8 @@ pub struct PostProcessConfig {
     pub strip_images: bool,
     /// Whether to keep class attributes (default: false)
     pub keep_classes: bool,
+    /// Whether to remove content-pattern tails and metadata after scoring
+    pub remove_content_patterns: bool,
     /// Custom strip patterns (class/ID regex)
     pub strip_patterns: Option<String>,
     /// Base URL for converting relative URLs
@@ -37,6 +41,7 @@ impl Default for PostProcessConfig {
             remove_conditional_comments: true,
             strip_images: false,
             keep_classes: false,
+            remove_content_patterns: true,
             strip_patterns: None,
             base_url: None,
         }
@@ -61,6 +66,10 @@ pub fn postprocess_html(html: &str, config: &PostProcessConfig) -> String {
 
     processed = remove_doc_chrome_nodes(&processed);
     processed = remove_doc_chrome_text_blocks(&processed);
+
+    if config.remove_content_patterns {
+        processed = remove_content_patterns(&processed);
+    }
 
     if config.remove_empty_nodes {
         processed = remove_empty_nodes(&processed, config.max_empty_node_passes);
@@ -105,6 +114,211 @@ fn strip_images(html: &str) -> String {
 fn strip_classes(html: &str) -> String {
     let re = Regex::new(r#"\s+class=["'][^"']*["']"#).unwrap();
     re.replace_all(html, "").to_string()
+}
+
+fn content_root_selector() -> &'static str {
+    "#__lectito_content_root__"
+}
+
+fn word_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r"\b[\w'-]+\b").unwrap())
+}
+
+fn boundary_date_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(
+            r"(?i)\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\b",
+        )
+        .unwrap()
+    })
+}
+
+fn read_time_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r"(?i)\b\d+\s*(?:min|minute)s?\s+read\b").unwrap())
+}
+
+fn byline_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r"(?i)^by\s+\S").unwrap())
+}
+
+fn from_wikipedia_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r"(?i)^from wikipedia(?:, the free encyclopedia)?$").unwrap())
+}
+
+fn newsletter_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(
+            r"(?i)\bsubscribe\b[\s\S]{0,40}\bnewsletter\b|\bnewsletter\b[\s\S]{0,40}\bsubscribe\b|\bsign[- ]up\b[\s\S]{0,80}\b(?:newsletter|email alert)\b",
+        )
+        .unwrap()
+    })
+}
+
+fn trailing_heading_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(
+            r"(?i)^(see also|references|notes|external links|further reading|bibliography|sources|citations|related (?:posts?|articles?|content|stories|reads?|reading)|you (?:might|may|could) (?:also )?(?:like|enjoy|be interested in)|read (?:next|more|also)|more (?:from|articles?|posts?|like this)|about (?:the )?author)$",
+        )
+        .unwrap()
+    })
+}
+
+fn boilerplate_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(
+            r"(?i)^(this (?:article|story|piece) (?:appeared|was published|originally appeared) in|a version of this (?:article|story) (?:appeared|was published) in|originally (?:published|appeared) (?:in|on|at)|any re-?use permitted|©\s*(?:copyright\s+)?\d{4}|comments?|leave a (?:comment|reply))",
+        )
+        .unwrap()
+    })
+}
+
+fn count_words(text: &str) -> usize {
+    word_regex().find_iter(text).count()
+}
+
+fn normalize_text(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn remove_snippets(mut html: String, mut snippets: Vec<String>) -> String {
+    snippets.sort_by_key(|b| std::cmp::Reverse(b.len()));
+    for snippet in snippets {
+        if snippet.is_empty() {
+            continue;
+        }
+        if let Some(idx) = html.find(&snippet) {
+            html.replace_range(idx..idx + snippet.len(), "");
+        }
+    }
+    html
+}
+
+fn is_boundary_metadata(text: &str, words: usize, pos: usize, full_len: usize) -> bool {
+    if words == 0 {
+        return false;
+    }
+
+    let near_start = pos <= 700;
+    let near_end = full_len.saturating_sub(pos + text.len()) <= 250;
+
+    (from_wikipedia_regex().is_match(text) && pos <= 200)
+        || (byline_regex().is_match(text) && words <= 12 && near_start)
+        || (boundary_date_regex().is_match(text) && read_time_regex().is_match(text) && words <= 12 && near_start)
+        || (newsletter_regex().is_match(text) && words <= 60 && (near_start || near_end))
+}
+
+fn remove_content_patterns(html: &str) -> String {
+    let wrapped = format!(r#"<div id="__lectito_content_root__">{}</div>"#, html);
+    let Ok(doc) = Document::parse(&wrapped) else {
+        return html.to_string();
+    };
+
+    let root_selector = content_root_selector();
+    let root = doc.select(root_selector).ok().and_then(|els| els.into_iter().next());
+    let Some(root) = root else {
+        return html.to_string();
+    };
+
+    let top_level_selector = format!("{} > *", root_selector);
+    let top_level = doc.select(&top_level_selector).unwrap_or_default();
+    if top_level.is_empty() {
+        return html.to_string();
+    }
+
+    let full_text = normalize_text(&root.text());
+    let mut snippets = Vec::new();
+    let mut words_before = 0usize;
+    let mut truncate_from: Option<String> = None;
+
+    for child in &top_level {
+        let text = normalize_text(&child.text());
+        let words = count_words(&text);
+        let tag = child.tag_name();
+        let pos = full_text.find(&text).unwrap_or(usize::MAX);
+
+        if words_before <= 60 && is_boundary_metadata(&text, words, pos, full_text.len()) {
+            snippets.push(child.outer_html());
+            continue;
+        }
+
+        if matches!(tag.as_str(), "h2" | "h3" | "h4" | "h5" | "h6")
+            && words_before >= 8
+            && trailing_heading_regex().is_match(&text)
+        {
+            truncate_from = Some(child.outer_html());
+            break;
+        }
+
+        if words_before >= 8 && words <= 20 && boilerplate_regex().is_match(&text) {
+            truncate_from = Some(child.outer_html());
+            break;
+        }
+
+        words_before += words;
+    }
+
+    if truncate_from.is_none() {
+        let heading_selector = format!(
+            "{} h2, {} h3, {} h4, {} h5, {} h6",
+            root_selector, root_selector, root_selector, root_selector, root_selector
+        );
+        for heading in doc.select(&heading_selector).unwrap_or_default() {
+            let text = normalize_text(&heading.text());
+            if !trailing_heading_regex().is_match(&text) {
+                continue;
+            }
+            if let Some(pos) = full_text.find(&text)
+                && count_words(&full_text[..pos]) >= 8
+            {
+                truncate_from = Some(heading.outer_html());
+                break;
+            }
+        }
+    }
+
+    let candidate_selector = format!(
+        "{} p, {} div, {} span, {} time",
+        root_selector, root_selector, root_selector, root_selector
+    );
+    for element in doc.select(&candidate_selector).unwrap_or_default() {
+        let text = normalize_text(&element.text());
+        let words = count_words(&text);
+        if words == 0 || words > 15 {
+            continue;
+        }
+        if let Some(pos) = full_text.find(&text)
+            && is_boundary_metadata(&text, words, pos, full_text.len())
+        {
+            snippets.push(element.outer_html());
+        }
+    }
+
+    let mut result = remove_snippets(wrapped, snippets);
+
+    if let Some(marker) = truncate_from
+        && let Some(start_idx) = result.find(&marker)
+        && let Some(end_idx) = result.rfind("</div>")
+        && start_idx < end_idx
+    {
+        result.replace_range(start_idx..end_idx, "");
+    }
+
+    if let Ok(doc) = Document::parse(&result)
+        && let Ok(elements) = doc.select(root_selector)
+        && let Some(root) = elements.into_iter().next()
+    {
+        root.inner_html()
+    } else {
+        html.to_string()
+    }
 }
 
 /// Remove empty nodes from HTML
@@ -573,6 +787,7 @@ mod tests {
         assert!(config.remove_conditional_comments);
         assert!(!config.strip_images);
         assert!(!config.keep_classes);
+        assert!(config.remove_content_patterns);
         assert!(config.strip_patterns.is_none());
     }
 
@@ -616,5 +831,40 @@ mod tests {
         let result = remove_empty_nodes(html, 10);
         assert!(!result.contains("<p></p>"));
         assert!(result.contains("Content"));
+    }
+
+    #[test]
+    fn test_remove_content_patterns_truncates_wikipedia_sections() {
+        let html = r#"
+            <h1>Rust</h1>
+            <p>Rust is a systems programming language.</p>
+            <p>It emphasizes safety and performance.</p>
+            <h2>See also</h2>
+            <ul><li><a href="/wiki/Go_(programming_language)">Go</a></li></ul>
+            <h2>References</h2>
+            <ol><li>Reference</li></ol>
+        "#;
+
+        let result = remove_content_patterns(html);
+        assert!(result.contains("systems programming language"));
+        assert!(!result.contains("See also"));
+        assert!(!result.contains("References"));
+    }
+
+    #[test]
+    fn test_remove_content_patterns_removes_leading_metadata() {
+        let html = r#"
+            <p>From Wikipedia, the free encyclopedia</p>
+            <p>By Jane Doe</p>
+            <p>March 4, 2026 · 3 min read</p>
+            <p>Rust is a systems programming language focused on safety.</p>
+            <p>It prevents memory bugs without a garbage collector.</p>
+        "#;
+
+        let result = remove_content_patterns(html);
+        assert!(result.contains("systems programming language focused on safety"));
+        assert!(!result.contains("From Wikipedia"));
+        assert!(!result.contains("By Jane Doe"));
+        assert!(!result.contains("3 min read"));
     }
 }
