@@ -64,27 +64,35 @@ export function getInitials(name?: string | null) {
 
 export function fileExtensionForFormat(format: ExtractFormat) {
 	switch (format) {
-		case 'html':
+		case 'html': {
 			return 'html';
-		case 'markdown':
+		}
+		case 'markdown': {
 			return 'md';
-		case 'text':
+		}
+		case 'text': {
 			return 'txt';
-		case 'json':
+		}
+		case 'json': {
 			return 'json';
+		}
 	}
 }
 
 export function mimeTypeForFormat(format: ExtractFormat) {
 	switch (format) {
-		case 'html':
+		case 'html': {
 			return 'text/html;charset=utf-8';
-		case 'markdown':
+		}
+		case 'markdown': {
 			return 'text/markdown;charset=utf-8';
-		case 'text':
+		}
+		case 'text': {
 			return 'text/plain;charset=utf-8';
-		case 'json':
+		}
+		case 'json': {
 			return 'application/json;charset=utf-8';
+		}
 	}
 }
 
@@ -101,7 +109,7 @@ export function sanitizeExtractedHtml(html: string) {
 	}
 
 	for (const element of doc.body.querySelectorAll('*')) {
-		for (const attr of [...element.attributes]) {
+		for (const attr of element.attributes) {
 			const name = attr.name.toLowerCase();
 			const value = attr.value.trim().toLowerCase();
 
