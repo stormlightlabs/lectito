@@ -322,13 +322,13 @@ Framework: Axum 0.8+
 Async runtime: Tokio
 
 Dependencies:
-    axum           - HTTP framework
-    tower          - middleware (CORS, compression, rate limiting)
-    tower-http     - static file serving, CORS, compression
-    sqlx           - Postgres driver (async, compile-time checked)
-    serde/json     - serialization
-    tracing        - structured logging
-    lectito-core   - content extraction
+    axum                              - HTTP framework
+    tower                             - middleware (CORS, compression, rate limiting)
+    tower-http                        - static file serving, CORS, compression
+    tokio-postgres/deadpool           - Postgres driver
+    serde/json                        - serialization
+    tracing                           - structured logging
+    lectito-core                      - content extraction
 
 Configuration (env vars):
     DATABASE_URL        Postgres connection string
@@ -345,7 +345,7 @@ Static file serving:
     Serve @web/ build output from /static or / (SPA fallback to index.html).
 
 Startup:
-    1. Connect to Postgres, run migrations (sqlx migrate)
+    1. Connect to Postgres, run migrations
     2. Load domain blocklist
     3. Start background cache cleanup task
     4. Bind HTTP listener

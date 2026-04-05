@@ -8,7 +8,7 @@ and SKILL.md. See doc/specs/app.txt for full specification.
 MILESTONE A: Algorithm Improvements
 ================================================================================
 
-[ ] Multi-pass retry strategy
+[x] Multi-pass retry strategy
     - If extraction yields < 200 words, retry with relaxed settings
     - Pass 1: disable partial selector removal
     - Pass 2: disable hidden element removal
@@ -80,7 +80,7 @@ MILESTONE B: Server Crate Foundation
 ================================================================================
 
 [ ] Create crates/server/ with Cargo.toml
-    - Dependencies: axum 0.8, tower, tower-http, sqlx (postgres), serde,
+    - Dependencies: axum 0.8, tower, tower-http, tokio-postgres, serde,
       serde_json, tracing, tracing-subscriber, tokio, lectito-core
     - Add to workspace members in root Cargo.toml
 
@@ -114,11 +114,6 @@ Acceptance Criteria:
 MILESTONE C: Database & Migrations
 ================================================================================
 
-[ ] SQLx setup
-    - Add sqlx-cli as dev dependency
-    - Create crates/server/migrations/ directory
-    - Configure sqlx to use crates/server/.env for DATABASE_URL
-
 [ ] Migration 001: initial schema
     - extracted_articles table (id, url, url_hash, format, content,
       metadata JSONB, fetched_at, expires_at, hit_count)
@@ -129,7 +124,7 @@ MILESTONE C: Database & Migrations
     - ip_bans table (ip, reason, banned_at, expires_at)
 
 [ ] Database connection pool
-    - sqlx::PgPool as Axum shared state
+    - deadpool
     - Connection pool config (max connections, idle timeout)
     - Health check includes DB ping
 
@@ -382,7 +377,7 @@ MILESTONE L: Testing & Polish
 ================================================================================
 
 [ ] Server integration tests
-    - Test each endpoint with sqlx test database
+    - Test each endpoint with test database
     - Test rate limiting (verify 429 after limit)
     - Test cache hit/miss paths
     - Test spam filter (blocked domain, SSRF, auto-ban)

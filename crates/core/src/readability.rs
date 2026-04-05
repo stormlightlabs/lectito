@@ -5,7 +5,9 @@
 //! like [`parse`] and [`fetch_and_parse`].
 
 use crate::article::Article;
-use crate::extract::{ExtractConfig, extract_content_with_config};
+use crate::extract::{
+    ExtractConfig, extract_content_with_config, extract_largest_hidden_subtree, extract_schema_org_article,
+};
 use crate::fetch::{FetchConfig, fetch_url};
 use crate::parse::Document;
 use crate::preprocess::PreprocessConfig;
@@ -13,6 +15,10 @@ use crate::scoring::{ScoreConfig, calculate_score};
 use crate::siteconfig::ConfigLoader;
 use crate::{LectitoError, Result};
 use url::Url;
+
+/// Minimum word count that satisfies content extraction — below this threshold
+/// the retry strategy kicks in with progressively relaxed settings.
+const RETRY_WORD_THRESHOLD: usize = 200;
 
 /// Configuration for the Readability builder.
 ///
@@ -165,22 +171,19 @@ impl Readability {
     }
 
     /// Parses HTML string and extracts readable content.
+    ///
+    /// Automatically retries with progressively relaxed settings if the initial
+    /// extraction yields fewer than 200 words (see [`RETRY_WORD_THRESHOLD`]).
     pub fn parse(&self, html: &str) -> Result<Article> {
-        let preprocess_config = PreprocessConfig { remove_unlikely: self.config.remove_unlikely, ..Default::default() };
-        let doc = Document::parse_with_preprocessing_config(html, &preprocess_config)?;
-        self.extract_from_document(&doc, None)
+        self.parse_with_retry(html, None)
     }
 
     /// Parses HTML with a known base URL (for relative link resolution).
+    ///
+    /// Applies the same multi-pass retry strategy as [`Readability::parse`].
     pub fn parse_with_url(&self, html: &str, url: &str) -> Result<Article> {
-        let base_url = Url::parse(url).map_err(|e| LectitoError::InvalidUrl(e.to_string()))?;
-        let preprocess_config = PreprocessConfig {
-            base_url: Some(base_url),
-            remove_unlikely: self.config.remove_unlikely,
-            ..Default::default()
-        };
-        let doc = Document::parse_with_preprocessing_config(html, &preprocess_config)?;
-        self.extract_from_document(&doc, Some(url))
+        Url::parse(url).map_err(|e| LectitoError::InvalidUrl(e.to_string()))?;
+        self.parse_with_retry(html, Some(url))
     }
 
     /// Fetch HTML from URL and extract readable content using default fetch config
@@ -201,17 +204,115 @@ impl Readability {
         self.parse_with_url(&html, url)
     }
 
-    /// Extract article from a parsed document
-    fn extract_from_document(&self, doc: &Document, url: Option<&str>) -> Result<Article> {
-        let site_config = if let Some(mut loader) = self.config_loader.clone() {
-            let html = doc.as_string();
-            loader.load_for_html(&html).ok()
-        } else {
-            None
+    /// Multi-pass retry extraction strategy.
+    ///
+    /// Tries up to six extraction passes with progressively relaxed settings,
+    /// returning as soon as a pass yields ≥ [`RETRY_WORD_THRESHOLD`] words.
+    /// If no pass reaches the threshold the best (highest word-count) result is
+    /// returned; if all passes fail with errors a [`LectitoError::NotReadable`]
+    /// is returned.
+    ///
+    /// | Pass | What changes |
+    /// |------|--------------|
+    /// | 0    | Default settings |
+    /// | 1    | Partial-selector removal disabled (`remove_unlikely = false`) |
+    /// | 2    | Hidden-element removal also disabled (`remove_hidden = false`) |
+    /// | 3    | Target the largest hidden subtree directly |
+    /// | 4    | Scoring threshold removed (`min_score = 0.0`) |
+    /// | 5    | schema.org `articleBody` / `text` fallback |
+    fn parse_with_retry(&self, html: &str, url: Option<&str>) -> Result<Article> {
+        let base_url = url
+            .map(|u| Url::parse(u).map_err(|e| LectitoError::InvalidUrl(e.to_string())))
+            .transpose()?;
+
+        let mut best: Option<Article> = None;
+
+        let preprocess0 = PreprocessConfig {
+            base_url: base_url.clone(),
+            remove_unlikely: self.config.remove_unlikely,
+            ..Default::default()
         };
+        match self.try_extract_pass(html, url, &preprocess0, self.config.min_score) {
+            Ok(article) if article.word_count >= RETRY_WORD_THRESHOLD => return Ok(article),
+            Ok(article) => update_best(&mut best, article),
+            Err(_) => {}
+        }
+
+        let preprocess1 = PreprocessConfig { base_url: base_url.clone(), remove_unlikely: false, ..Default::default() };
+        match self.try_extract_pass(html, url, &preprocess1, self.config.min_score) {
+            Ok(article) if article.word_count >= RETRY_WORD_THRESHOLD => return Ok(article),
+            Ok(article) => update_best(&mut best, article),
+            Err(_) => {}
+        }
+
+        let preprocess2 = PreprocessConfig {
+            base_url: base_url.clone(),
+            remove_unlikely: false,
+            remove_hidden: false,
+            ..Default::default()
+        };
+        if let Ok(pass2_doc) = Document::parse_with_preprocessing_config(html, &preprocess2) {
+            match self.extract_from_doc(&pass2_doc, url, self.config.min_score) {
+                Ok(article) if article.word_count >= RETRY_WORD_THRESHOLD => return Ok(article),
+                Ok(article) => update_best(&mut best, article),
+                Err(_) => {}
+            }
+
+            if let Some(extracted) = extract_largest_hidden_subtree(&pass2_doc) {
+                let article = Article::from_document(&pass2_doc, extracted.content, url.map(|u| u.to_string()));
+                if article.word_count >= RETRY_WORD_THRESHOLD {
+                    return Ok(article);
+                }
+                update_best(&mut best, article);
+            }
+
+            match self.extract_from_doc(&pass2_doc, url, 0.0) {
+                Ok(article) if article.word_count >= RETRY_WORD_THRESHOLD => return Ok(article),
+                Ok(article) => update_best(&mut best, article),
+                Err(_) => {}
+            }
+        }
+
+        let schema_preprocess = PreprocessConfig {
+            base_url: base_url.clone(),
+            remove_scripts: false,
+            remove_unlikely: false,
+            remove_hidden: false,
+            ..Default::default()
+        };
+        if let Ok(schema_doc) = Document::parse_with_preprocessing_config(html, &schema_preprocess) {
+            if let Some(extracted) = extract_schema_org_article(&schema_doc) {
+                let article = Article::from_document(&schema_doc, extracted.content, url.map(|u| u.to_string()));
+                if article.word_count >= RETRY_WORD_THRESHOLD {
+                    return Ok(article);
+                }
+                update_best(&mut best, article);
+            }
+        }
+
+        best.ok_or(LectitoError::NotReadable { score: 0.0, threshold: self.config.min_score })
+    }
+
+    /// Run a single extraction pass with explicit preprocessing and scoring settings.
+    fn try_extract_pass(
+        &self, html: &str, url: Option<&str>, preprocess_config: &PreprocessConfig, min_score: f64,
+    ) -> Result<Article> {
+        let doc = Document::parse_with_preprocessing_config(html, preprocess_config)?;
+        self.extract_from_doc(&doc, url, min_score)
+    }
+
+    /// Run content extraction on an already-parsed document with a specific score threshold.
+    ///
+    /// Shared by passes that differ only in `min_score` and reuse the same document,
+    /// avoiding redundant HTML re-parsing.
+    fn extract_from_doc(&self, doc: &Document, url: Option<&str>, min_score: f64) -> Result<Article> {
+        let site_config = self.config_loader.as_ref().and_then(|loader| {
+            let mut l = loader.clone();
+            l.load_for_html(&doc.as_string()).ok()
+        });
 
         let extract_config = ExtractConfig {
-            min_score_threshold: self.config.min_score,
+            min_score_threshold: min_score,
             max_top_candidates: self.config.nb_top_candidates,
             char_threshold: self.config.char_threshold,
             max_elements: self.config.max_elems_to_parse,
@@ -224,7 +325,6 @@ impl Readability {
         };
 
         let extracted = extract_content_with_config(doc, &extract_config, site_config.as_ref())?;
-
         Ok(Article::from_document(
             doc,
             extracted.content,
@@ -274,6 +374,13 @@ impl Readability {
 impl Default for Readability {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Replace `best` with `article` if `article` has a higher word count.
+fn update_best(best: &mut Option<Article>, article: Article) {
+    if best.as_ref().map_or(0, |a| a.word_count) < article.word_count {
+        *best = Some(article);
     }
 }
 
@@ -541,5 +648,114 @@ mod tests {
         .unwrap();
 
         assert!(matches!(result, Err(LectitoError::Timeout { .. })));
+    }
+
+    /// Build a string of `n` distinct words long enough to exceed the threshold.
+    fn words(n: usize) -> String {
+        (0..n).map(|i| format!("word{}", i)).collect::<Vec<_>>().join(" ")
+    }
+
+    #[test]
+    fn test_retry_pass1_content_behind_unlikely_class() {
+        let body = words(250);
+        let html = format!(
+            r#"<!DOCTYPE html><html><head><title>T</title></head><body>
+            <div class="extra-content">{}</div>
+            </body></html>"#,
+            body
+        );
+
+        let reader = Readability::new();
+        let result = reader.parse(&html);
+        assert!(result.is_ok(), "should succeed via retry");
+        let article = result.unwrap();
+        assert!(
+            article.word_count >= RETRY_WORD_THRESHOLD,
+            "word count {} < {}",
+            article.word_count,
+            RETRY_WORD_THRESHOLD
+        );
+    }
+
+    #[test]
+    fn test_retry_pass3_largest_hidden_subtree() {
+        let body = words(250);
+        let html = format!(
+            r##"<!DOCTYPE html><html><head><title>T</title></head><body>
+            <div style="display:none"><article>{}</article></div>
+            <nav><a href="nav">Link</a></nav>
+            </body></html>"##,
+            body
+        );
+
+        let reader = Readability::new();
+        let result = reader.parse(&html);
+        assert!(result.is_ok(), "should succeed via Pass 3");
+        let article = result.unwrap();
+        assert!(
+            article.word_count >= RETRY_WORD_THRESHOLD,
+            "word count {} < {}",
+            article.word_count,
+            RETRY_WORD_THRESHOLD
+        );
+    }
+
+    #[test]
+    fn test_retry_pass5_schema_org_article_body_microdata() {
+        let body = words(250);
+        let html = format!(
+            r##"<!DOCTYPE html><html><head><title>T</title></head><body>
+            <nav><a href="nav">Link 1</a></nav>
+            <div itemprop="articleBody">{}</div>
+            </body></html>"##,
+            body
+        );
+
+        let reader = Readability::new();
+        let result = reader.parse(&html);
+        assert!(result.is_ok(), "should succeed via schema.org microdata fallback");
+        let article = result.unwrap();
+        assert!(
+            article.word_count >= RETRY_WORD_THRESHOLD,
+            "word count {} < {}",
+            article.word_count,
+            RETRY_WORD_THRESHOLD
+        );
+    }
+
+    #[test]
+    fn test_retry_pass5_schema_org_json_ld() {
+        let body = words(250);
+        let html = format!(
+            r##"<!DOCTYPE html>
+            <html><head><title>T</title>
+            <script type="application/ld+json">
+            {{"@context":"https://schema.org","@type":"Article","articleBody":"{}"}}
+            </script>
+            </head><body><nav><a href="nav">x</a></nav></body></html>"##,
+            body
+        );
+
+        let reader = Readability::new();
+        let result = reader.parse(&html);
+        assert!(result.is_ok(), "should succeed via schema.org JSON-LD fallback");
+        let article = result.unwrap();
+        assert!(
+            article.word_count >= RETRY_WORD_THRESHOLD,
+            "word count {} < {}",
+            article.word_count,
+            RETRY_WORD_THRESHOLD
+        );
+    }
+
+    #[test]
+    fn test_retry_returns_best_when_below_threshold() {
+        let html = r#"<!DOCTYPE html><html><head><title>T</title></head><body>
+            <article><p>Short content.</p></article>
+            </body></html>"#;
+
+        let reader = Readability::new();
+        let result = reader.parse(html);
+        assert!(result.is_ok(), "should return best result even when below threshold");
     }
 }
