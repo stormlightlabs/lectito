@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Future of Web Development — Lectito</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Google+Sans:wght@300;400;500;600;700&family=Google+Sans+Code:wght@400;500&display=swap"
+      rel="stylesheet" />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Google Sans", "system-ui", "sans-serif"],
+              serif: ["Lora", "Georgia", "serif"],
+              mono: ["Google Sans Code", "monospace"],
+            },
+            colors: { ink: "#0a0a0a", charcoal: "#1a1a1a", graphite: "#2d2d2d", stone: "#666666", fog: "#999999", mist: "#e5e5e5", paper: "#fafafa" },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        background: #fafafa;
+        color: #0a0a0a;
+      }
+      .masthead {
+        border-bottom: 2px solid #0a0a0a;
+      }
+      .article-body p {
+        margin-bottom: 1.5rem;
+        line-height: 1.8;
+      }
+      .article-body h2 {
+        font-family: "Google Sans", sans-serif;
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+      }
+      .article-body blockquote {
+        border-left: 3px solid #0a0a0a;
+        padding-left: 1.5rem;
+        margin: 2rem 0;
+        font-style: italic;
+        color: #2d2d2d;
+      }
+      .format-btn {
+        transition: all 0.2s ease;
+      }
+      .format-btn:hover {
+        background: #0a0a0a;
+        color: #fafafa;
+      }
+      .format-btn.active {
+        background: #0a0a0a;
+        color: #fafafa;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen font-sans">
+    <!-- Masthead -->
+    <header class="bg-paper">
+      <div class="max-w-6xl mx-auto px-6 py-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-xs font-medium tracking-widest uppercase text-stone">
+            <a href="index.html" class="hover:text-ink transition-colors">← Back to Extract</a>
+          </div>
+          <nav class="flex gap-8 text-sm">
+            <a href="library.html" class="text-ink hover:text-stone transition-colors">Library</a>
+            <a href="about.html" class="text-ink hover:text-stone transition-colors">About</a>
+            <a href="#" class="text-ink hover:text-stone transition-colors">API</a>
+          </nav>
+        </div>
+        <div class="masthead pb-6">
+          <h1 class="font-sans text-5xl font-bold tracking-tight text-ink text-center">LECTITO</h1>
+        </div>
+      </div>
+    </header>
+
+    <!-- Article Header -->
+    <div class="max-w-3xl mx-auto px-6 pt-12 pb-8">
+      <!-- Source Info -->
+      <div class="flex items-center gap-3 mb-6 text-sm">
+        <img src="https://www.google.com/s2/favicons?domain=example.com&sz=64" alt="" class="w-5 h-5" />
+        <span class="font-mono text-stone">example.com</span>
+        <span class="text-mist">•</span>
+        <span class="font-serif text-stone">January 15, 2026</span>
+      </div>
+
+      <!-- Title -->
+      <h1 class="font-serif text-4xl md:text-5xl font-bold text-ink leading-tight mb-6">
+        The Future of Web Development: Trends Shaping 2026 and Beyond
+      </h1>
+
+      <!-- Author & Metadata -->
+      <div class="flex flex-wrap items-center gap-6 pb-8 border-b border-mist mb-8">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-ink rounded-full flex items-center justify-center text-white font-semibold">JD</div>
+          <div>
+            <p class="font-semibold text-ink">Jane Doe</p>
+            <p class="text-xs text-stone">Senior Developer Advocate</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-4 text-sm font-mono text-stone ml-auto">
+          <span>2,450 words</span>
+          <span>•</span>
+          <span>12 min read</span>
+        </div>
+      </div>
+
+      <!-- Format Controls -->
+      <div class="flex items-center justify-between mb-8">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-medium uppercase tracking-wider text-stone mr-2">View as:</span>
+          <button class="format-btn active px-3 py-1.5 text-sm border border-ink font-mono">Rendered</button>
+          <button class="format-btn px-3 py-1.5 text-sm border border-mist font-mono">Markdown</button>
+          <button class="format-btn px-3 py-1.5 text-sm border border-mist font-mono">HTML</button>
+          <button class="format-btn px-3 py-1.5 text-sm border border-mist font-mono">Text</button>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="flex items-center gap-2 px-4 py-2 border border-ink text-sm font-medium hover:bg-ink hover:text-white transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            Copy
+          </button>
+          <button class="flex items-center gap-2 px-4 py-2 bg-ink text-white text-sm font-medium hover:bg-charcoal transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Article Content -->
+    <article class="max-w-3xl mx-auto px-6 pb-16">
+      <div class="article-body font-serif text-lg text-ink">
+        <p class="text-xl leading-relaxed text-charcoal">
+          The landscape of web development continues to evolve at a breakneck pace. As we move deeper into 2026, several key trends are emerging that
+          will fundamentally change how we build and interact with web applications.
+        </p>
+
+        <p>
+          For the past decade, we've witnessed the rise and fall of frameworks, the shift toward component-based architectures, and the
+          ever-increasing importance of performance. But what comes next? In this comprehensive exploration, we'll examine the technologies and
+          methodologies that are shaping the future of our industry.
+        </p>
+
+        <h2>The Rise of Edge Computing</h2>
+
+        <p>
+          Edge computing is no longer just a buzzword—it's becoming the default architecture for modern web applications. By moving computation closer
+          to the user, we're seeing dramatic improvements in latency and user experience. Platforms like Cloudflare Workers, Vercel Edge Functions,
+          and Deno Deploy are making it easier than ever to run code at the edge.
+        </p>
+
+        <blockquote>
+          "The edge isn't just about speed—it's about creating experiences that feel instantaneous, regardless of where your users are located."
+        </blockquote>
+
+        <p>
+          This shift has profound implications for how we think about application architecture. Traditional server-client boundaries are blurring, and
+          developers need to consider data synchronization, state management, and security in entirely new ways.
+        </p>
+
+        <h2>AI-Assisted Development</h2>
+
+        <p>
+          Perhaps no trend is more transformative than the integration of artificial intelligence into the development workflow. From GitHub Copilot
+          to specialized code generation tools, AI is becoming an indispensable pair programmer.
+        </p>
+
+        <p>But this goes beyond simple code completion. We're seeing the emergence of AI systems that can:</p>
+
+        <ul class="list-disc pl-6 mb-6 space-y-2">
+          <li>Generate entire components from natural language descriptions</li>
+          <li>Optimize performance bottlenecks automatically</li>
+          <li>Refactor legacy codebases with minimal human intervention</li>
+          <li>Create comprehensive test suites based on application behavior</li>
+        </ul>
+
+        <h2>The JavaScript Ecosystem Matures</h2>
+
+        <p>
+          After years of framework churn, we're finally seeing signs of consolidation. React, Vue, and Svelte have each carved out distinct niches,
+          and the competition between them is driving innovation rather than fragmentation.
+        </p>
+
+        <p>
+          Perhaps most significantly, we're witnessing the standardization of patterns across frameworks. Concepts like server components, streaming
+          SSR, and fine-grained reactivity are being implemented across the ecosystem, making it easier for developers to switch between tools.
+        </p>
+
+        <h2>Looking Ahead</h2>
+
+        <p>
+          As we look toward the rest of 2026 and beyond, one thing is clear: the web platform is stronger than ever. With continued investment from
+          browser vendors, the emergence of new capabilities like WebGPU, and the maturation of WebAssembly, we're entering a new golden age of web
+          development.
+        </p>
+
+        <p>
+          The challenge for developers will be keeping pace with these changes while maintaining a focus on what matters most: creating fast,
+          accessible, and delightful experiences for users.
+        </p>
+      </div>
+
+      <!-- Article Footer -->
+      <div class="mt-16 pt-8 border-t border-mist">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <a href="index.html" class="text-sm font-medium text-stone hover:text-ink transition-colors border-b border-stone hover:border-ink">
+              ← Extract Another
+            </a>
+            <a href="library.html" class="text-sm font-medium text-stone hover:text-ink transition-colors border-b border-stone hover:border-ink">
+              Browse Library →
+            </a>
+          </div>
+          <div class="flex items-center gap-2 text-xs font-mono text-fog">
+            <span>Extracted:</span>
+            <span>Jan 15, 2026, 3:42 PM</span>
+            <span>•</span>
+            <span class="text-green-600">Cached</span>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- Footer -->
+    <footer class="border-t-2 border-ink bg-white">
+      <div class="max-w-6xl mx-auto px-6 py-8">
+        <div class="flex items-center justify-between">
+          <p class="font-serif text-xs text-fog">© 2026 Lectito. Open source under MIT License.</p>
+          <div class="flex items-center gap-6 text-sm">
+            <a href="index.html" class="text-ink hover:text-stone transition-colors font-serif">Home</a>
+            <a href="library.html" class="text-ink hover:text-stone transition-colors font-serif">Library</a>
+            <a href="about.html" class="text-ink hover:text-stone transition-colors font-serif">About</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

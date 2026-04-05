@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lectito — Extract Readable Content</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Google+Sans:wght@300;400;500;600;700&family=Google+Sans+Code:wght@400;500&display=swap"
+      rel="stylesheet" />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Google Sans", "system-ui", "sans-serif"],
+              serif: ["Lora", "Georgia", "serif"],
+              mono: ["Google Sans Code", "monospace"],
+            },
+            colors: { ink: "#0a0a0a", charcoal: "#1a1a1a", graphite: "#2d2d2d", stone: "#666666", fog: "#999999", mist: "#e5e5e5", paper: "#fafafa" },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        background: #fafafa;
+        color: #0a0a0a;
+      }
+
+      .masthead {
+        border-bottom: 2px solid #0a0a0a;
+      }
+
+      .headline-rule {
+        background: linear-gradient(to right, #0a0a0a 0%, transparent 100%);
+        height: 3px;
+      }
+
+      .subtle-border {
+        border: 1px solid #e5e5e5;
+      }
+
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: #0a0a0a;
+      }
+
+      .btn-primary {
+        background: #0a0a0a;
+        color: #fafafa;
+        transition: all 0.2s ease;
+      }
+
+      .btn-primary:hover {
+        background: #2d2d2d;
+        transform: translateY(-1px);
+      }
+    </style>
+  </head>
+
+  <body class="min-h-screen font-sans">
+    <!-- Masthead -->
+    <header class="bg-paper">
+      <div class="max-w-6xl mx-auto px-6 py-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-xs font-medium tracking-widest uppercase text-stone">A Tool for Curious Readers</div>
+          <nav class="flex gap-8 text-sm">
+            <a href="library.html" class="text-ink hover:text-stone transition-colors">Library</a>
+            <a href="about.html" class="text-ink hover:text-stone transition-colors">About</a>
+            <a href="#" class="text-ink hover:text-stone transition-colors">API</a>
+          </nav>
+        </div>
+        <div class="masthead pb-6">
+          <h1 class="font-sans text-5xl font-bold tracking-tight text-ink text-center">LECTITO</h1>
+          <p class="font-serif text-center text-stone mt-2 text-sm italic">Extract readable content from any web page</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-3xl mx-auto px-6 py-16">
+      <div class="text-center mb-12">
+        <h2 class="font-serif text-3xl font-semibold text-ink mb-4">Paste a URL to extract</h2>
+        <p class="font-serif text-stone text-lg">Clean, readable articles from any web page. No clutter, no tracking, just content.</p>
+      </div>
+
+      <!-- Input Form -->
+      <div class="bg-white border-2 border-ink p-8 shadow-lg">
+        <form
+          class="space-y-6"
+          onsubmit="
+            event.preventDefault();
+            window.location.href = 'reader.html';
+          ">
+          <!-- URL Input -->
+          <div>
+            <label class="block text-xs font-medium uppercase tracking-wider text-stone mb-2"> Article URL </label>
+            <input
+              type="url"
+              placeholder="https://example.com/article"
+              class="w-full px-4 py-4 border-2 border-mist text-lg font-serif bg-paper focus:border-ink transition-colors"
+              required />
+          </div>
+
+          <!-- Options Row -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-medium uppercase tracking-wider text-stone mb-2"> Format </label>
+              <select class="w-full px-3 py-3 border border-mist text-sm bg-paper font-mono">
+                <option value="markdown">Markdown</option>
+                <option value="html">HTML</option>
+                <option value="text">Plain Text</option>
+                <option value="json">JSON</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium uppercase tracking-wider text-stone mb-2"> Options </label>
+              <div class="flex flex-col gap-2 py-1">
+                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked class="accent-ink" />
+                  <span class="font-serif">Include frontmatter</span>
+                </label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" class="accent-ink" />
+                  <span class="font-serif">Strip images</span>
+                </label>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium uppercase tracking-wider text-stone mb-2"> Output </label>
+              <div class="flex flex-col gap-2 py-1">
+                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" class="accent-ink" />
+                  <span class="font-serif">Link references</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn-primary w-full py-4 text-sm font-medium uppercase tracking-widest">Extract Content</button>
+        </form>
+      </div>
+
+      <!-- Features -->
+      <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="text-center">
+          <div class="w-12 h-12 border-2 border-ink mx-auto mb-4 flex items-center justify-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h3 class="font-sans font-semibold text-ink mb-2">Fast</h3>
+          <p class="font-serif text-sm text-stone">Extract content in under 3 seconds with our optimized algorithms.</p>
+        </div>
+        <div class="text-center">
+          <div class="w-12 h-12 border-2 border-ink mx-auto mb-4 flex items-center justify-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+          </div>
+          <h3 class="font-sans font-semibold text-ink mb-2">Clean</h3>
+          <p class="font-serif text-sm text-stone">Removes ads, navigation, and clutter. Just the article text.</p>
+        </div>
+        <div class="text-center">
+          <div class="w-12 h-12 border-2 border-ink mx-auto mb-4 flex items-center justify-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+          </div>
+          <h3 class="font-sans font-semibold text-ink mb-2">Free API</h3>
+          <p class="font-serif text-sm text-stone">60 requests per minute. Perfect for research and automation.</p>
+        </div>
+      </div>
+
+      <!-- Recent Extracts Preview -->
+      <div class="mt-20 pt-12 border-t border-mist">
+        <div class="flex items-center justify-between mb-8">
+          <h3 class="font-serif text-xl font-semibold text-ink">Recently Extracted</h3>
+          <a href="library.html" class="text-sm font-medium text-stone hover:text-ink transition-colors border-b border-stone hover:border-ink">
+            View Library →
+          </a>
+        </div>
+
+        <div class="space-y-4">
+          <article class="flex gap-4 py-4 border-b border-mist">
+            <div class="w-12 h-12 bg-mist flex items-center justify-center shrink-0">
+              <img src="https://www.google.com/s2/favicons?domain=example.com&sz=64" alt="" class="w-6 h-6" />
+            </div>
+            <div class="flex-1">
+              <h4 class="font-serif font-semibold text-ink mb-1">The Future of Web Development</h4>
+              <p class="font-serif text-sm text-stone line-clamp-2">
+                An in-depth exploration of modern web technologies and their impact on developer productivity...
+              </p>
+              <div class="flex items-center gap-4 mt-2 text-xs text-fog font-mono">
+                <span>example.com</span>
+                <span>2,450 words</span>
+                <span>12 min read</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="flex gap-4 py-4 border-b border-mist">
+            <div class="w-12 h-12 bg-mist flex items-center justify-center shrink-0">
+              <img src="https://www.google.com/s2/favicons?domain=blog.mozilla.org&sz=64" alt="" class="w-6 h-6" />
+            </div>
+            <div class="flex-1">
+              <h4 class="font-serif font-semibold text-ink mb-1">Understanding Privacy in Modern Browsers</h4>
+              <p class="font-serif text-sm text-stone line-clamp-2">
+                How browser fingerprinting works and what you can do to protect your privacy online...
+              </p>
+              <div class="flex items-center gap-4 mt-2 text-xs text-fog font-mono">
+                <span>blog.mozilla.org</span>
+                <span>3,120 words</span>
+                <span>15 min read</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="flex gap-4 py-4">
+            <div class="w-12 h-12 bg-mist flex items-center justify-center shrink-0">
+              <img src="https://www.google.com/s2/favicons?domain=www.nytimes.com&sz=64" alt="" class="w-6 h-6" />
+            </div>
+            <div class="flex-1">
+              <h4 class="font-serif font-semibold text-ink mb-1">The Art of Long-Form Journalism</h4>
+              <p class="font-serif text-sm text-stone line-clamp-2">
+                Why deeply reported stories matter more than ever in the age of social media...
+              </p>
+              <div class="flex items-center gap-4 mt-2 text-xs text-fog font-mono">
+                <span>www.nytimes.com</span>
+                <span>4,800 words</span>
+                <span>24 min read</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t-2 border-ink mt-20 bg-white">
+      <div class="max-w-6xl mx-auto px-6 py-12">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div>
+            <h5 class="font-sans font-bold text-lg mb-4">LECTITO</h5>
+            <p class="font-serif text-sm text-stone">A free tool for extracting readable content from the web.</p>
+          </div>
+          <div>
+            <h6 class="font-sans font-semibold text-xs uppercase tracking-wider mb-4 text-stone">Product</h6>
+            <ul class="space-y-2 text-sm">
+              <li><a href="#" class="text-ink hover:text-stone transition-colors font-serif">Extract</a></li>
+              <li><a href="library.html" class="text-ink hover:text-stone transition-colors font-serif">Library</a></li>
+              <li><a href="#" class="text-ink hover:text-stone transition-colors font-serif">Browser Extension</a></li>
+            </ul>
+          </div>
+          <div>
+            <h6 class="font-sans font-semibold text-xs uppercase tracking-wider mb-4 text-stone">Developers</h6>
+            <ul class="space-y-2 text-sm">
+              <li><a href="about.html" class="text-ink hover:text-stone transition-colors font-serif">API Documentation</a></li>
+              <li><a href="#" class="text-ink hover:text-stone transition-colors font-serif">Rate Limits</a></li>
+              <li><a href="#" class="text-ink hover:text-stone transition-colors font-serif">GitHub</a></li>
+            </ul>
+          </div>
+          <div>
+            <h6 class="font-sans font-semibold text-xs uppercase tracking-wider mb-4 text-stone">Legal</h6>
+            <ul class="space-y-2 text-sm">
+              <li><a href="#" class="text-ink hover:text-stone transition-colors font-serif">Privacy Policy</a></li>
+              <li><a href="#" class="text-ink hover:text-stone transition-colors font-serif">Terms of Service</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="mt-12 pt-8 border-t border-mist flex items-center justify-between">
+          <p class="font-serif text-xs text-fog">© 2026 Lectito. Open source under MIT License.</p>
+          <div class="flex items-center gap-2 text-xs font-mono text-fog">
+            <span class="w-2 h-2 bg-green-600 rounded-full"></span>
+            <span>API Status: Operational</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
