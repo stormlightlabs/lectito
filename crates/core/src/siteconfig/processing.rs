@@ -123,22 +123,52 @@ impl StripProcessor {
 
     /// Strip elements by ID attribute
     fn strip_element_by_attribute(&self, html: &str, attr: &str, value: &str) -> Result<String> {
-        let pattern = if attr == "id" {
-            format!(r#"(?s)<[^>]*id="{}"[^>]*>.*?</[^>]*>"#, regex::escape(value))
+        let mut result = html.to_string();
+        let mut changed = false;
+        for tag in [
+            "header", "footer", "nav", "aside", "section", "article", "div", "ul", "ol", "form",
+        ] {
+            let pattern = if attr == "id" {
+                format!(r#"(?s)<{tag}[^>]*id="{}"[^>]*>.*?</{tag}>"#, regex::escape(value))
+            } else if attr == "class" {
+                format!(
+                    r#"(?s)<{tag}[^>]*class="[^"]*{}[^"]*"[^>]*>.*?</{tag}>"#,
+                    regex::escape(value)
+                )
+            } else {
+                format!(
+                    r#"(?s)<{tag}[^>]*{}="{}"[^>]*>.*?</{tag}>"#,
+                    regex::escape(attr),
+                    regex::escape(value)
+                )
+            };
+
+            let re = Regex::new(&pattern).map_err(|e| LectitoError::SiteConfigError(format!("Regex error: {}", e)))?;
+            let next = re.replace_all(&result, "").to_string();
+            if next != result {
+                changed = true;
+                result = next;
+            }
+        }
+
+        if changed {
+            return Ok(result);
+        }
+
+        let self_closing_pattern = if attr == "id" {
+            format!(r#"(?s)<[^>]*id="{}"[^>]*/?>"#, regex::escape(value))
         } else if attr == "class" {
-            format!(
-                r#"(?s)<[^>]*class="[^"]*{}[^"]*"[^>]*>.*?</[^>]*>"#,
-                regex::escape(value)
-            )
+            format!(r#"(?s)<[^>]*class="[^"]*{}[^"]*"[^>]*/?>"#, regex::escape(value))
         } else {
             format!(
-                r#"(?s)<[^>]*{}="{}"[^>]*>.*?</[^>]*>"#,
+                r#"(?s)<[^>]*{}="{}"[^>]*/?>"#,
                 regex::escape(attr),
                 regex::escape(value)
             )
         };
 
-        let re = Regex::new(&pattern).map_err(|e| LectitoError::SiteConfigError(format!("Regex error: {}", e)))?;
+        let re = Regex::new(&self_closing_pattern)
+            .map_err(|e| LectitoError::SiteConfigError(format!("Regex error: {}", e)))?;
         Ok(re.replace_all(html, "").to_string())
     }
 
@@ -339,6 +369,24 @@ mod tests {
 
         assert!(!result.contains("Ad content"));
         assert!(result.contains("Main content"));
+    }
+
+    #[test]
+    fn test_strip_class_contains_preserves_nested_markup_outside_match() {
+        let mut config = SiteConfig::new();
+        config.add_directive(Directive::StripIdOrClass("header".to_string()));
+
+        let html = r#"
+            <article>
+                <header class="entry-header"><div><time>December 6, 2023</time></div><h1>Title</h1></header>
+                <p>Body stays intact.</p>
+            </article>
+        "#;
+        let result = config.apply_strip_directives(html).unwrap();
+
+        assert!(!result.contains("entry-header"));
+        assert!(!result.contains("December 6, 2023"));
+        assert!(result.contains("Body stays intact."));
     }
 
     #[test]

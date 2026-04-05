@@ -1,0 +1,17 @@
+{
+  "url": "https://codeberg.org/ziglang/zig/issues/30677",
+  "mode": "html_override",
+  "title": "std: minimal CLI parsing driven by struct fields #30677",
+  "author": "andrewrk",
+  "date": null,
+  "min_words": 10000,
+  "must_contain": [
+    "Migrated from https://github.com/ziglang/zig/issues/24601",
+    "I'd be interested in taking this on",
+    "my PR is now open for review"
+  ],
+  "must_not_contain": [
+    "New issue",
+    "Subscribe"
+  ]
+}

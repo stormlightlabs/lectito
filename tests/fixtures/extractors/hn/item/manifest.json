@@ -1,0 +1,14 @@
+{
+  "url": "https://news.ycombinator.com/item?id=38646892",
+  "mode": "html_override",
+  "title": "Magic: The Gathering Is Turing Complete (2019)",
+  "author": null,
+  "date": null,
+  "min_words": 3000,
+  "must_contain": [
+    "Here's a demo",
+    "infinite loops are draws",
+    "the game state / actions are deterministic"
+  ],
+  "must_not_contain": []
+}

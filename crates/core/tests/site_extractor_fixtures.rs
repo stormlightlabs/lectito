@@ -10,6 +10,10 @@ fn fixture_root() -> PathBuf {
     PathBuf::from("../../tests/fixtures/extractors")
 }
 
+fn site_config_root() -> PathBuf {
+    PathBuf::from("../../site_configs")
+}
+
 #[derive(Debug, Deserialize)]
 struct FixtureManifest {
     url: String,
@@ -96,7 +100,10 @@ fn fetch_flow_applies_site_config_headers() {
         .unwrap();
 
     assert!(article.content.contains("Header OK"));
-    assert!(*seen_header.lock().unwrap(), "expected custom site_config header to be applied");
+    assert!(
+        *seen_header.lock().unwrap(),
+        "expected custom site_config header to be applied"
+    );
 }
 
 fn run_case(case_dir: &Path) {
@@ -111,7 +118,12 @@ fn run_case(case_dir: &Path) {
         assert_eq!(article.metadata.title.as_deref(), Some(title), "{}", case_dir.display());
     }
     if let Some(author) = manifest.author.as_deref() {
-        assert_eq!(article.metadata.author.as_deref(), Some(author), "{}", case_dir.display());
+        assert_eq!(
+            article.metadata.author.as_deref(),
+            Some(author),
+            "{}",
+            case_dir.display()
+        );
     }
     if let Some(date) = manifest.date.as_deref() {
         assert_eq!(article.metadata.date.as_deref(), Some(date), "{}", case_dir.display());
@@ -127,7 +139,11 @@ fn run_case(case_dir: &Path) {
 
     let text = normalize_ws(&article.to_text());
     for needle in manifest.must_contain {
-        assert!(text.contains(&normalize_ws(&needle)), "{} missing {needle}", case_dir.display());
+        assert!(
+            text.contains(&normalize_ws(&needle)),
+            "{} missing {needle}",
+            case_dir.display()
+        );
     }
     for needle in manifest.must_not_contain {
         assert!(
@@ -160,6 +176,11 @@ fn load_article(case_dir: &Path, manifest: &FixtureManifest, input_html: &str) -
             let reader = Readability::with_config_and_loader(ReadabilityConfig::default(), loader);
             reader.parse_with_url(input_html, &manifest.url).unwrap()
         }
+        "site_config" => {
+            let loader = ConfigLoaderBuilder::new().custom_dir(site_config_root()).build();
+            let reader = Readability::with_config_and_loader(ReadabilityConfig::default(), loader);
+            reader.parse_with_url(input_html, &manifest.url).unwrap()
+        }
         "async_override" => {
             let url = Url::parse(&manifest.url).unwrap();
             let doc = Document::parse_with_base_url(input_html, Some(url.clone())).unwrap();
@@ -187,10 +208,11 @@ fn outcome_to_article(doc: &Document, url: &Url, outcome: ExtractorOutcome) -> A
                 .join("\n");
             Article::from_document(doc, html, Some(url.to_string()))
         }
-        ExtractorOutcome::Html {
-            content_html,
-            metadata_patch,
-        } => Article::from_document_with_metadata(doc, content_html, Some(url.to_string()), &metadata_patch),
+        ExtractorOutcome::Html(outcome) => {
+            let content_html = outcome.content_html;
+            let metadata_patch = outcome.metadata_patch;
+            Article::from_document_with_metadata(doc, content_html, Some(url.to_string()), &metadata_patch)
+        }
     }
 }
 
@@ -206,10 +228,7 @@ fn normalize_html(value: &str) -> String {
 }
 
 fn normalize_markdown_body(value: &str) -> String {
-    let value = value
-        .replace("\\_", "_")
-        .replace("\\[", "[")
-        .replace("\\]", "]");
+    let value = value.replace("\\_", "_").replace("\\[", "[").replace("\\]", "]");
     let mut lines = value.lines();
     if matches!(lines.next(), Some("+++")) {
         for line in &mut lines {

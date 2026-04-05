@@ -1,0 +1,14 @@
+{
+  "url": "https://wordpress.org/news/2023/12/wordpress-6-4-2/",
+  "mode": "site_config",
+  "title": "WordPress 6.4.2 Maintenance & Security Release",
+  "author": "Aaron Jorbin",
+  "date": "2023-12-06T17:03:48+00:00",
+  "min_words": 300,
+  "must_contain": [
+    "WordPress 6.4.2 is now available",
+    "it is recommended that you update your sites immediately",
+    "A Remote Code Execution vulnerability"
+  ],
+  "must_not_contain": []
+}

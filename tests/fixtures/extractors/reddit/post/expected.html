@@ -1,0 +1,65 @@
+<article class="site-extractor reddit-thread"><h1>This Week in Rust #645</h1><p><strong>seino_chan</strong></p><time datetime="2026-04-02T01:41:06+00:00">2026-04-02T01:41:06+00:00</time><section><h2>Comments</h2><article class="comment"><h3>duongdominhchau</h3><time datetime="2026-04-02T04:38:50+00:00">2026-04-02T04:38:50+00:00</time><div class="comment-body"><p><a href="https://github.com/bahdotsh/blogr/releases/tag/v0.5.0">blogr v0.5.0 - blog without from your terminal</a></p>
+
+<p>Feels like a word is missing</p></div></article>
+<article class="comment"><h3>seino_chan</h3><time datetime="2026-04-02T04:47:29+00:00">2026-04-02T04:47:29+00:00</time><div class="comment-body"><p>Fixed! (Thanks to the fantastic community member who opened the pull request!)</p></div></article>
+<article class="comment"><h3>p32blo</h3><time datetime="2026-04-02T07:13:14+00:00">2026-04-02T07:13:14+00:00</time><div class="comment-body"><h1>TWIR @ Reddit</h1>
+
+<p>Hey everyone, here you can follow the <a href="/r/rust">r/rust</a> comment threads of articles featured in TWIR (This Week in Rust).
+I've always found it helpful to search for additional insights in the comment section here
+and I hope you can find it helpful too.</p>
+
+<p>If you are curious how this comment is generated you can check <a href="https://github.com/p32blo/twir-reddit">https://github.com/p32blo/twir-reddit</a></p>
+
+<p>Enjoy !</p>
+
+<hr>
+
+<h2>Official</h2>
+
+<ul>
+<li><a href="http://www.reddit.com/r/rust/comments/1s470b7/rust_1941_is_out/">Rust 1.94.1 is out</a> <code>↑383 | 8 comments</code></li>
+</ul>
+
+<h2>Project/Tooling Updates</h2>
+
+<ul>
+<li><a href="http://www.reddit.com/r/rust/comments/1s43bn4/next_target_of_ubuntus_oxidization_plan_will_be/">Next target of Ubuntu's oxidization plan will be ntpd-rs</a> <code>↑207 | 38 comments</code></li>
+<li><a href="http://www.reddit.com/r/rust/comments/1s3gvdf/octopos_xv6_based_operating_system_for_riscv_in/">octopos: xv6 based operating system for risc-v in rust</a> <code>↑23 | 1 comment</code></li>
+<li><a href="http://www.reddit.com/r/rust/comments/1s5vs2w/building_a_guitar_trainer_with_embedded_rust/">Building a guitar trainer with embedded Rust</a> <code>↑74 | 2 comments</code></li>
+<li><a href="http://www.reddit.com/r/rust/comments/1rzxjv3/jsongrep_is_faster_than_jq_jmespath_jsonpathrust/">jsongrep is faster than {jq, jmespath, jsonpath-rust, jql}</a> <code>↑106 | 33 comments</code></li>
+</ul>
+
+<h2>Observations/Thoughts</h2>
+
+<ul>
+<li><a href="http://www.reddit.com/r/rust/comments/1s935kk/breaking_the_ai_infra_monopoly_with_rust_tracel_ai/">Breaking The AI Infra Monopoly With Rust- Tracel AI</a> <code>↑3 | 10 comments</code></li>
+<li><a href="http://www.reddit.com/r/rust/comments/1s8hc6h/rust_memory_safety_in_kernel_space_osdev/">Rust memory safety in kernel space (osdev)</a> <code>↑46 | 6 comments</code></li>
+<li><a href="http://www.reddit.com/r/rust/comments/1s7pvpg/fixing_our_own_problems_in_the_rust_compiler/">Fixing our own problems in the Rust compiler</a> <code>↑363 | 10 comments</code></li>
+<li><a href="http://www.reddit.com/r/rust/comments/1s2pf1z/how_c_finally_beats_rust_at_json_serialization/">How C++ Finally Beats Rust at JSON Serialization - Daniel Lemire &amp; Francisco Geiman Thiesen</a> <code>↑191 | 46 comments</code></li>
+</ul>
+
+<h2>Rust Walkthroughs</h2>
+
+<ul>
+<li><a href="http://www.reddit.com/r/rust/comments/1s9tuad/adding_wasm_plugins_to_your_app_using_wasmi_as_a/">Adding WASM Plugins to Your App - Using Wasmi as a runtime and Zola as an example.</a> <code>↑1 | 0 comment</code></li>
+</ul></div></article>
+<article class="comment"><h3>matthieum</h3><time datetime="2026-04-02T16:49:48+00:00">2026-04-02T16:49:48+00:00</time><div class="comment-body"><blockquote>
+<p>but one solid step everyone agrees on is making it (a) more obvious when you are sharing two handles to the same object vs doing a deep clone, via the Share trait, and (b) more ergonomic to capture clones into closures and async blocks with <code>move($expr)</code> expressions</p>
+</blockquote>
+
+<p>I agree with <code>Share</code>, but I'm surprised to see an inline <code>move($expr)</code> in there.</p>
+
+<p>All the discussions I've seen were of the <code>async move(t = $expr) { ...; foo(t); }</code> variety, not with <code>move($expr)</code> within the block/closure itself.</p></div></article>
+<article class="comment"><h3>danilo-developer</h3><time datetime="2026-04-05T15:12:09+00:00">2026-04-05T15:12:09+00:00</time><div class="comment-body"><p>I want to share that I'm working on the development of an Authentication service that I plan to open source, but I'm still designing many things. The core idea is implement something similar to Keycloak, but you minimum memory footprint, designed for High throughput , using crypto staff , PostgreSQL and Valkey!</p>
+
+<p>For now I've published two crates extracted from the main project.</p>
+
+<p>A secrets rotator and syncer, designed to allow aggressive secret rotation mainly for my PASETO and ALTCHA(PoW) secrets</p>
+
+<p><a href="https://crates.io/crates/secret-manager">https://crates.io/crates/secret-manager</a></p>
+
+<p>And also a helper crate for simplify test containers with reuse by name usage for  Postgresql(with migrations applied) and Valkey/Redis (clean state per test within a single container)</p>
+
+<p><a href="https://crates.io/crates/test-containers-util">https://crates.io/crates/test-containers-util</a></p>
+
+<p>(I'm currently open to work and seeking Rust positions)</p></div></article></section></article>

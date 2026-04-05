@@ -1,0 +1,16 @@
+{
+  "url": "https://gitlab.com/fdroid/fdroidclient/-/merge_requests/1350",
+  "mode": "html_override",
+  "title": "Migrate to Material Design 3",
+  "author": "proletarius101",
+  "date": "2024-02-16T05:48:59Z",
+  "min_words": 100,
+  "must_contain": [
+    "upgrade the color system without using dynamic color",
+    "minimal changes",
+    "Fixes #1962"
+  ],
+  "must_not_contain": [
+    "Markdown is supported"
+  ]
+}

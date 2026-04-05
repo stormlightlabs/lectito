@@ -3,8 +3,8 @@
 //! This module provides functions for retrieving HTML content from
 //! various sources: HTTP/HTTPS URLs, local files, and standard input.
 
-use std::fs;
 use std::collections::HashMap;
+use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 

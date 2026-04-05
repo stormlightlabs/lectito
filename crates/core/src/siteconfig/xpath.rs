@@ -116,16 +116,12 @@ pub(crate) fn xpath_to_css_selector(xpath: &str) -> Option<String> {
         return Some(if tag == "*" { format!(".{class}") } else { format!("{tag}.{class}") });
     }
 
-    let class_contains_re = CLASS_CONTAINS_RE
-        .get_or_init(|| Regex::new(r#"^//(\w+|\*)\[contains\(@class, '([^']+)'\)\]$"#).unwrap());
+    let class_contains_re =
+        CLASS_CONTAINS_RE.get_or_init(|| Regex::new(r#"^//(\w+|\*)\[contains\(@class, '([^']+)'\)\]$"#).unwrap());
     if let Some(captures) = class_contains_re.captures(trimmed) {
         let tag = captures.get(1).map(|m| m.as_str()).unwrap_or("*");
         let class = captures.get(2)?.as_str();
-        return Some(if tag == "*" {
-            format!(r#"[class*="{class}"]"#)
-        } else {
-            format!(r#"{tag}[class*="{class}"]"#)
-        });
+        return Some(if tag == "*" { format!(r#"[class*="{class}"]"#) } else { format!(r#"{tag}[class*="{class}"]"#) });
     }
 
     let attr_re = ATTR_RE.get_or_init(|| Regex::new(r#"^//(\w+|\*)\[@([^=]+)='([^']+)'\]$"#).unwrap());
@@ -133,11 +129,7 @@ pub(crate) fn xpath_to_css_selector(xpath: &str) -> Option<String> {
         let tag = captures.get(1).map(|m| m.as_str()).unwrap_or("*");
         let attr = captures.get(2)?.as_str();
         let value = captures.get(3)?.as_str();
-        return Some(if tag == "*" {
-            format!(r#"[{attr}="{value}"]"#)
-        } else {
-            format!(r#"{tag}[{attr}="{value}"]"#)
-        });
+        return Some(if tag == "*" { format!(r#"[{attr}="{value}"]"#) } else { format!(r#"{tag}[{attr}="{value}"]"#) });
     }
 
     None

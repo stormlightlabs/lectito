@@ -1,0 +1,16 @@
+{
+  "url": "https://old.reddit.com/r/rust/comments/1sa402r/this_week_in_rust_645/",
+  "mode": "html_override",
+  "title": "This Week in Rust #645",
+  "author": "seino_chan",
+  "date": "2026-04-02T01:41:06+00:00",
+  "min_words": 400,
+  "must_contain": [
+    "Feels like a word is missing",
+    "Fixed! (Thanks to the fantastic community member who opened the pull request!)",
+    "TWIR @ Reddit"
+  ],
+  "must_not_contain": [
+    "reddit premium"
+  ]
+}

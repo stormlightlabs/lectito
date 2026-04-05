@@ -21,13 +21,8 @@ strip_id_or_class: widget
 strip_id_or_class: footer
 strip_id_or_class: header
 strip_id_or_class: related-posts
-strip_id_or_class: tags
-strip_id_or_class: categories
-strip_id_or_class: meta
-strip_id_or_class: post-meta
 
 # WordPress-specific classes
-strip: //div[contains(@class, 'wp-block')]
 strip: //div[contains(@class, 'sharedaddy')]
 strip: //div[contains(@class, 'jetpack')]
 strip: //div[contains(@class, 'share')]
