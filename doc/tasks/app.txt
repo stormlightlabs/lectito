@@ -142,24 +142,24 @@ Acceptance Criteria:
 MILESTONE D: Content Cache
 ================================================================================
 
-[ ] URL normalization module
+[x] URL normalization module
     - Lowercase scheme and host
     - Sort query params alphabetically
     - Strip fragment
     - Strip tracking params (utm_*, fbclid, gclid, etc.)
     - SHA-256 hash of normalized URL + format = cache key
 
-[ ] Cache read path
+[x] Cache read path
     - Before extraction: query extracted_articles by url_hash + format
     - If found and not expired: increment hit_count, return cached
     - Set response.cached = true
 
-[ ] Cache write path
+[x] Cache write path
     - After extraction: INSERT into extracted_articles
     - ON CONFLICT (url_hash, format) DO UPDATE (refresh content + expires_at)
     - Default TTL from CACHE_TTL_SECS env var (default 86400)
 
-[ ] Cache bypass
+[x] Cache bypass
     - Respect Cache-Control: no-cache header -> skip cache read, force extract
     - Still write result to cache (refresh)
 
@@ -172,20 +172,20 @@ Acceptance Criteria:
 MILESTONE E: Rate Limiting
 ================================================================================
 
-[ ] Rate limit middleware (Axum layer)
+[x] Rate limit middleware (Axum layer)
     - Extract client IP (X-Forwarded-For with trusted proxy, or peer addr)
     - Check rate_limits table for current window counts
     - Three windows: per-minute (60), per-hour (600), per-day (5000)
     - If any window exceeded: return 429 with Retry-After header
 
-[ ] Rate limit headers
+[x] Rate limit headers
     - X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
     - Set on every response (including 429)
 
-[ ] GET /api/v1/limits endpoint
+[x] GET /api/v1/limits endpoint
     - Return current rate limit status for calling IP
 
-[ ] In-memory fallback
+[x] In-memory fallback
     - If Postgres is temporarily unreachable, use in-memory HashMap
     - Degrade gracefully: allow requests but log warning
 
@@ -216,7 +216,7 @@ MILESTONE F: Spam Filter
     - Ban duration: 1 hour (configurable)
     - Check ip_bans before rate limit check
 
-[ ] Admin API (optional, auth-gated)
+[ ] Admin API (auth-gated)
     - POST /api/v1/admin/block-domain { domain, reason }
     - DELETE /api/v1/admin/block-domain/:domain
     - POST /api/v1/admin/ban-ip { ip, reason, duration_hours }

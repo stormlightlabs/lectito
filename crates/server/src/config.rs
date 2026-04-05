@@ -21,6 +21,7 @@ pub struct Config {
     pub db_recycle_timeout_secs: u64,
     pub db_idle_timeout_secs: u64,
     pub cleanup_interval_secs: u64,
+    pub trust_proxy_headers: bool,
 }
 
 impl Config {
@@ -70,6 +71,7 @@ impl Config {
             db_recycle_timeout_secs: parse_u64(vars, "DB_RECYCLE_TIMEOUT_SECS", 5)?,
             db_idle_timeout_secs: parse_u64(vars, "DB_IDLE_TIMEOUT_SECS", 600)?,
             cleanup_interval_secs: parse_u64(vars, "CLEANUP_INTERVAL_SECS", 900)?,
+            trust_proxy_headers: parse_bool(vars, "TRUST_PROXY_HEADERS", false)?,
         })
     }
 }
@@ -119,6 +121,17 @@ where
     Ok(parsed)
 }
 
+fn parse_bool(vars: &HashMap<String, String>, key: &str, default: bool) -> Result<bool, String> {
+    match vars.get(key) {
+        Some(value) => match value.to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => Ok(true),
+            "0" | "false" | "no" | "off" => Ok(false),
+            _ => Err(format!("{key} must be a boolean, got '{value}'")),
+        },
+        None => Ok(default),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -138,6 +151,7 @@ mod tests {
         assert_eq!(config.cache_ttl_secs, 86_400);
         assert_eq!(config.db_max_connections, 16);
         assert_eq!(config.cleanup_interval_secs, 900);
+        assert!(!config.trust_proxy_headers);
     }
 
     #[test]
@@ -165,5 +179,14 @@ mod tests {
 
         let err = Config::from_map(&vars).unwrap_err();
         assert!(err.contains("DB_MAX_CONNECTIONS must be greater than zero"));
+    }
+
+    #[test]
+    fn parses_boolean_values() {
+        let mut vars = config_map();
+        vars.insert("TRUST_PROXY_HEADERS".to_string(), "true".to_string());
+
+        let config = Config::from_map(&vars).unwrap();
+        assert!(config.trust_proxy_headers);
     }
 }
