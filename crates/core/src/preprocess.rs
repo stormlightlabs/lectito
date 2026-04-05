@@ -2,6 +2,7 @@ use crate::{LectitoError, Result};
 use regex::Regex;
 use std::borrow::Cow;
 use std::io::Read;
+use std::sync::OnceLock;
 use url::Url;
 
 /// Configuration for HTML preprocessing
@@ -196,10 +197,12 @@ fn streaming_handlers(
     }
 
     if config.remove_hidden {
-        let hidden_pattern = Regex::new(r"(?i)(display\s*:\s*none|visibility\s*:\s*hidden)").unwrap();
         handlers.push(lol_html::element!("*", move |el| {
-            if let Some(style) = el.get_attribute("style")
-                && hidden_pattern.is_match(&style)
+            if hidden_reason(
+                el.get_attribute("style").as_deref(),
+                el.get_attribute("class").as_deref(),
+            )
+            .is_some()
             {
                 el.remove();
             }
@@ -436,14 +439,15 @@ pub fn convert_relative_urls(html: &str, base_url: &Url) -> String {
 
 /// Remove elements with display:none or visibility:hidden styles
 fn remove_hidden_elements(html: &str) -> String {
-    let hidden_pattern = Regex::new(r"(?i)(display\s*:\s*none|visibility\s*:\s*hidden)").unwrap();
-
     let mut output = String::new();
     let mut rewriter = lol_html::HtmlRewriter::new(
         lol_html::Settings {
             element_content_handlers: vec![lol_html::element!("*", |el| {
-                if let Some(style) = el.get_attribute("style")
-                    && hidden_pattern.is_match(&style)
+                if hidden_reason(
+                    el.get_attribute("style").as_deref(),
+                    el.get_attribute("class").as_deref(),
+                )
+                .is_some()
                 {
                     el.remove();
                     return Ok(());
@@ -468,6 +472,90 @@ fn remove_hidden_elements(html: &str) -> String {
     }
 
     if output.is_empty() { html.to_string() } else { output }
+}
+
+pub(crate) fn hidden_reason(style: Option<&str>, class_name: Option<&str>) -> Option<String> {
+    if let Some(style) = style
+        && let Some(reason) = hidden_style_reason(style)
+    {
+        return Some(reason.to_string());
+    }
+
+    if let Some(class_name) = class_name
+        && let Some(reason) = hidden_class_reason(class_name)
+    {
+        return Some(reason);
+    }
+
+    None
+}
+
+fn hidden_style_reason(style: &str) -> Option<&'static str> {
+    static DISPLAY_NONE: OnceLock<Regex> = OnceLock::new();
+    static VISIBILITY_HIDDEN: OnceLock<Regex> = OnceLock::new();
+    static OPACITY_ZERO: OnceLock<Regex> = OnceLock::new();
+
+    let display_none = DISPLAY_NONE
+        .get_or_init(|| Regex::new(r"(?i)(?:^|;)\s*display\s*:\s*none(?:\s*!important)?\s*(?:;|$)").unwrap());
+    if display_none.is_match(style) {
+        return Some("display:none");
+    }
+
+    let visibility_hidden = VISIBILITY_HIDDEN
+        .get_or_init(|| Regex::new(r"(?i)(?:^|;)\s*visibility\s*:\s*hidden(?:\s*!important)?\s*(?:;|$)").unwrap());
+    if visibility_hidden.is_match(style) {
+        return Some("visibility:hidden");
+    }
+
+    let opacity_zero = OPACITY_ZERO
+        .get_or_init(|| Regex::new(r"(?i)(?:^|;)\s*opacity\s*:\s*0(?:\.0+)?(?:\s*!important)?\s*(?:;|$)").unwrap());
+    if opacity_zero.is_match(style) {
+        return Some("opacity:0");
+    }
+
+    None
+}
+
+fn hidden_class_reason(class_name: &str) -> Option<String> {
+    static RESPONSIVE_HIDDEN: OnceLock<Regex> = OnceLock::new();
+
+    let responsive_hidden = RESPONSIVE_HIDDEN.get_or_init(|| {
+        Regex::new(
+            r"(?ix)
+            ^
+            (?:
+                (?:[a-z0-9_-]+:)+(?:hidden|invisible) |
+                d-(?:xs|sm|md|lg|xl|xxl)-none |
+                hidden-(?:xs|sm|md|lg|xl|xxl)(?:-(?:up|down))? |
+                hide-for-[a-z-]+
+            )
+            $
+            ",
+        )
+        .unwrap()
+    });
+
+    for token in class_name.split_whitespace() {
+        let token_lower = token.to_ascii_lowercase();
+        let is_hidden = matches!(
+            token_lower.as_str(),
+            "hidden"
+                | "invisible"
+                | "visually-hidden"
+                | "visuallyhidden"
+                | "screen-reader-only"
+                | "sr-only"
+                | "u-hidden"
+                | "is-hidden"
+                | "d-none"
+        ) || responsive_hidden.is_match(&token_lower);
+
+        if is_hidden {
+            return Some(format!("class:{token}"));
+        }
+    }
+
+    None
 }
 
 /// Normalize whitespace in HTML
@@ -589,6 +677,10 @@ mod tests {
                 <body>
                     <div style="display:none">Hidden content</div>
                     <div style="visibility:hidden">Invisible content</div>
+                    <div style="opacity:0">Transparent content</div>
+                    <div class="hidden">Tailwind hidden</div>
+                    <div class="lg:hidden">Responsive hidden</div>
+                    <div class="d-none">Bootstrap hidden</div>
                     <div>Visible content</div>
                 </body>
             </html>
@@ -597,6 +689,10 @@ mod tests {
         let result = remove_hidden_elements(html);
         assert!(!result.contains("Hidden content"));
         assert!(!result.contains("Invisible content"));
+        assert!(!result.contains("Transparent content"));
+        assert!(!result.contains("Tailwind hidden"));
+        assert!(!result.contains("Responsive hidden"));
+        assert!(!result.contains("Bootstrap hidden"));
         assert!(result.contains("Visible content"));
     }
 

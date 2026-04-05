@@ -572,12 +572,7 @@ async fn fetch_and_extract_article(
         reader.parse_with_url(&html, parsed_url.as_str())?
     };
 
-    let metadata_doc = Document::parse_with_base_url(&html, Some(parsed_url.clone())).map_err(AppError::from)?;
-    let metadata = CachedMetadata::from_article(
-        &article,
-        extract_image(&metadata_doc, parsed_url),
-        extract_favicon(&metadata_doc, parsed_url),
-    );
+    let metadata = CachedMetadata::from_article(&article);
 
     Ok(ExtractedArticle { article, metadata })
 }
@@ -944,7 +939,7 @@ fn output_html(article: &Article, input: &ExtractRequest) -> String {
 }
 
 impl CachedMetadata {
-    fn from_article(article: &Article, image: Option<String>, favicon: Option<String>) -> Self {
+    fn from_article(article: &Article) -> Self {
         Self {
             title: article.metadata.title.clone(),
             author: article.metadata.author.clone(),
@@ -954,82 +949,10 @@ impl CachedMetadata {
             language: article.metadata.language.clone(),
             word_count: article.metadata.word_count.or(Some(article.word_count)),
             reading_time_minutes: article.metadata.reading_time_minutes.or(Some(article.reading_time)),
-            image,
-            favicon,
+            image: article.metadata.image.clone(),
+            favicon: article.metadata.favicon.clone(),
         }
     }
-}
-
-fn extract_image(document: &Document, parsed_url: &url::Url) -> Option<String> {
-    meta_content(document, "property", "og:image")
-        .or_else(|| meta_content(document, "name", "twitter:image"))
-        .or_else(|| extract_json_ld_image(document))
-        .and_then(|value| absolutize_url(parsed_url, &value))
-}
-
-fn extract_favicon(document: &Document, parsed_url: &url::Url) -> Option<String> {
-    if let Ok(elements) = document.select("link[rel~=\"icon\" i], link[rel=\"shortcut icon\" i]") {
-        for element in elements {
-            if let Some(href) = element.attr("href")
-                && let Some(url) = absolutize_url(parsed_url, href)
-            {
-                return Some(url);
-            }
-        }
-    }
-
-    parsed_url.join("/favicon.ico").ok().map(|url| url.to_string())
-}
-
-fn meta_content(document: &Document, attr_name: &str, attr_value: &str) -> Option<String> {
-    let selector = format!("meta[{attr_name}=\"{attr_value}\"]");
-    document
-        .select(&selector)
-        .ok()?
-        .into_iter()
-        .find_map(|element| element.attr("content").map(ToOwned::to_owned))
-}
-
-fn extract_json_ld_image(document: &Document) -> Option<String> {
-    let elements = document.select("script[type=\"application/ld+json\"]").ok()?;
-    for element in elements {
-        let text = element.text();
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(text.trim())
-            && let Some(url) = image_value_to_string(&json)
-        {
-            return Some(url);
-        }
-    }
-    None
-}
-
-fn image_value_to_string(value: &serde_json::Value) -> Option<String> {
-    if let Some(text) = value.as_str() {
-        return Some(text.to_string());
-    }
-
-    if let Some(obj) = value.as_object()
-        && let Some(url) = obj.get("url").and_then(serde_json::Value::as_str)
-    {
-        return Some(url.to_string());
-    }
-
-    if let Some(items) = value.as_array() {
-        for item in items {
-            if let Some(url) = image_value_to_string(item) {
-                return Some(url);
-            }
-        }
-    }
-
-    None
-}
-
-fn absolutize_url(base_url: &url::Url, value: &str) -> Option<String> {
-    url::Url::parse(value)
-        .ok()
-        .or_else(|| base_url.join(value).ok())
-        .map(|url| url.to_string())
 }
 
 #[cfg(test)]

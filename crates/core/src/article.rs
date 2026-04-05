@@ -6,6 +6,7 @@
 
 use crate::formatters::markdown::MarkdownConfig;
 use crate::formatters::markdown::convert_to_markdown;
+use crate::metadata::count_words;
 use crate::{Document, Metadata};
 use crate::{LectitoError, Result};
 use serde::Serialize;
@@ -119,13 +120,6 @@ fn html_to_text(html: &str) -> String {
     doc.text_content()
 }
 
-/// Count words in text using a simple regex pattern
-fn count_words(text: &str) -> usize {
-    use regex::Regex;
-    let word_regex = Regex::new(r"\b[\w'-]+\b").unwrap();
-    word_regex.find_iter(text).count()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -139,6 +133,8 @@ mod tests {
             date: None,
             excerpt: None,
             site_name: None,
+            image: None,
+            favicon: None,
             word_count: None,
             reading_time_minutes: None,
             language: None,
@@ -217,6 +213,8 @@ mod tests {
             date: Some("2024-01-01".to_string()),
             excerpt: Some("Excerpt".to_string()),
             site_name: Some("Site".to_string()),
+            image: Some("https://example.com/cover.png".to_string()),
+            favicon: Some("https://example.com/favicon.ico".to_string()),
             word_count: Some(2),
             reading_time_minutes: Some(0.01),
             language: Some("en".to_string()),
