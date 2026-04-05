@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
+@plugin '@egoist/tailwindcss-icons';
 
 @theme {
 	--color-paper: #fafafa;

@@ -148,10 +148,9 @@
 		<section class="mt-16 grid gap-8 md:grid-cols-3">
 			<div class="text-center">
 				<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center border-2 border-ink">
-					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-						></path>
-					</svg>
+					<span class="flex items-center">
+						<i class="i-tabler-bolt ml-1 h-6 w-6 text-yellow-500"></i>
+					</span>
 				</div>
 				<h2 class="mb-2 font-semibold text-ink">Fast</h2>
 				<p class="font-serif text-sm text-stone">
@@ -160,13 +159,9 @@
 			</div>
 			<div class="text-center">
 				<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center border-2 border-ink">
-					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="1.5"></path>
-					</svg>
+					<span class="flex items-center">
+						<i class="i-tabler-book ml-1 h-6 w-6 text-blue-500"></i>
+					</span>
 				</div>
 				<h2 class="mb-2 font-semibold text-ink">Clean</h2>
 				<p class="font-serif text-sm text-stone">
@@ -175,13 +170,9 @@
 			</div>
 			<div class="text-center">
 				<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center border-2 border-ink">
-					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="1.5"></path>
-					</svg>
+					<span class="flex items-center">
+						<i class="i-tabler-api ml-1 h-6 w-6 text-green-500"></i>
+					</span>
 				</div>
 				<h2 class="mb-2 font-semibold text-ink">Public API</h2>
 				<p class="font-serif text-sm text-stone">
