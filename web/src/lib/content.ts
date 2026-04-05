@@ -2,11 +2,17 @@ export const SITE = {
   name: 'LECTITO',
   tagline: 'Extract readable content from any web page',
   footerTagline: 'A free reading utility for extracting the signal from cluttered pages.',
-  copyright: '© 2026 Lectito. Open source under MIT.',
-  status: 'API status: operational'
+  copyright: '© 2026 Stormlight Labs. Open source under MIT.'
 };
 
-export const NAV = { extract: 'Extract', library: 'Library', about: 'About', api: 'API Docs' };
+export const NAV = {
+  extract: 'Extract',
+  library: 'Library',
+  about: 'About',
+  api: 'API Docs',
+  crate: 'Rust Crate',
+  book: 'Book'
+};
 
 export const HOME = {
   meta: {

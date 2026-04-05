@@ -8,7 +8,7 @@
 
   let url = $state('');
   let format = $state<ExtractFormat>('markdown');
-  let includeFrontmatter = $state(true);
+  let includeFrontmatter = $state(false);
   let includeReferences = $state(false);
   let stripImages = $state(false);
   let loading = $state(false);
@@ -76,7 +76,14 @@
         return;
       }
 
-      await goto(resolve(`/r/${result.data.id}`));
+      const params = new URLSearchParams();
+      params.set('format', format);
+      if (includeFrontmatter) params.set('include_frontmatter', 'true');
+      if (includeReferences) params.set('include_references', 'true');
+      if (stripImages) params.set('strip_images', 'true');
+
+      const search = params.toString();
+      await goto(resolve(`/r/${result.data.id}${search ? `?${search}` : ''}`));
     } catch (error) {
       errorMessage = getApiErrorMessage(error);
     } finally {

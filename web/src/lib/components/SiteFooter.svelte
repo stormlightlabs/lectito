@@ -1,5 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
+  import ApiStatus from '$lib/components/ApiStatus.svelte';
   import { SITE } from '$lib/content';
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -31,10 +32,7 @@
       </div>
       <div>
         <p class="muted-label mb-4">Status</p>
-        <div class="flex items-center gap-3 font-mono text-xs text-fog">
-          <span class="site-status-dot h-2.5 w-2.5 rounded-full"></span>
-          <span>{SITE.status}</span>
-        </div>
+        <ApiStatus />
       </div>
     </div>
     <div

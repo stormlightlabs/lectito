@@ -43,6 +43,12 @@
           href={resolve('/docs')}>
           {NAV.api}
         </a>
+        <!-- TODO: Crate -->
+        <a
+          href="https://stormlightlabs.github.io/lectito/"
+          class="border-b border-transparent pb-0.5 hover:border-ink hover:text-ink">
+          {NAV.crate}
+        </a>
       </nav>
     </div>
     <div class="border-b-2 border-ink pb-6">
