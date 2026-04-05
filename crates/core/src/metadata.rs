@@ -1,6 +1,7 @@
 use crate::Document;
 use regex::Regex;
 use serde::Serialize;
+use url::Url;
 
 /// Represents all extracted metadata from a document
 #[derive(Debug, Clone, Default, Serialize)]
@@ -10,6 +11,8 @@ pub struct Metadata {
     pub date: Option<String>,
     pub excerpt: Option<String>,
     pub site_name: Option<String>,
+    pub image: Option<String>,
+    pub favicon: Option<String>,
     pub word_count: Option<usize>,
     pub reading_time_minutes: Option<f64>,
     /// Detected language code (e.g., "en", "es", "fr")
@@ -25,36 +28,9 @@ impl Document {
     /// 5. JSON-LD `headline`
     /// 6. First `<h1>` element
     pub fn extract_title(&self) -> Option<String> {
-        if let Some(title) = self.title() {
-            return Some(title);
-        }
-
-        if let Some(title) = self.get_meta_content("og:title") {
-            return Some(title);
-        }
-
-        if let Some(title) = self.get_meta_content("twitter:title") {
-            return Some(title);
-        }
-
-        if let Some(title) = self.get_meta_content("title") {
-            return Some(title);
-        }
-        if let Some(title) = self.get_meta_content("DC.title") {
-            return Some(title);
-        }
-
-        if let Ok(elements) = self.select("h1")
-            && let Some(first) = elements.first()
-        {
-            let text = first.text();
-            let text = text.trim();
-            if !text.is_empty() {
-                return Some(text.to_string());
-            }
-        }
-
-        None
+        let raw_title = self.extract_title_raw()?;
+        let (title, _) = clean_title(&raw_title, self.extract_site_name_raw().as_deref());
+        Some(title)
     }
 
     /// Extract author with priority fallback:
@@ -64,11 +40,12 @@ impl Document {
     /// 4. `[itemprop="author"]` content
     /// 5. Class/ID containing "author", "byline"
     pub fn extract_author(&self) -> Option<String> {
-        if let Some(json_ld) = self.extract_json_ld()
-            && let Some(author) = json_ld.get("author")
-            && let Some(name) = Self::extract_author_from_json_ld(author)
-        {
-            return Some(name);
+        for json_ld in self.extract_json_ld_values() {
+            if let Some(author) = find_json_ld_field(&json_ld, &["author"])
+                && let Some(name) = Self::extract_author_from_json_ld(author)
+            {
+                return Some(name);
+            }
         }
 
         if let Some(author) = self.get_meta_content("author") {
@@ -132,14 +109,19 @@ impl Document {
     /// 3. `<time datetime="">` element
     /// 4. Meta `date` / `DC.date`
     pub fn extract_date(&self) -> Option<String> {
-        if let Some(json_ld) = self.extract_json_ld()
-            && let Some(date) = json_ld.get("datePublished")
-            && let Some(value) = date.as_str()
-        {
-            return Some(value.to_string());
+        if let Some(value) = self.first_json_ld_string(&["datePublished"]) {
+            return Some(value);
+        }
+
+        if let Some(value) = self.first_json_ld_string(&["dateCreated"]) {
+            return Some(value);
         }
 
         if let Some(date) = self.get_meta_content("article:published_time") {
+            return Some(date);
+        }
+
+        if let Some(date) = self.get_meta_content("publishDate") {
             return Some(date);
         }
 
@@ -167,11 +149,8 @@ impl Document {
     /// 3. Meta `description`
     /// 4. First paragraph of content
     pub fn extract_excerpt(&self) -> Option<String> {
-        if let Some(json_ld) = self.extract_json_ld()
-            && let Some(desc) = json_ld.get("description")
-            && let Some(value) = desc.as_str()
-        {
-            return Some(value.to_string());
+        if let Some(value) = self.first_json_ld_string(&["description"]) {
+            return Some(value);
         }
 
         if let Some(desc) = self.get_meta_content("og:description") {
@@ -201,26 +180,47 @@ impl Document {
     /// 2. Open Graph `og:site_name`
     /// 3. Domain from URL
     pub fn extract_site_name(&self) -> Option<String> {
-        if let Some(json_ld) = self.extract_json_ld()
-            && let Some(publisher) = json_ld.get("publisher")
-            && let Some(publisher_obj) = publisher.as_object()
-            && let Some(name) = publisher_obj.get("name")
-            && let Some(value) = name.as_str()
-        {
-            return Some(value.to_string());
+        let raw_site_name = self.extract_site_name_raw();
+        let detected_site_name = self
+            .extract_title_raw()
+            .and_then(|title| clean_title(&title, raw_site_name.as_deref()).1);
+
+        raw_site_name.or(detected_site_name)
+    }
+
+    /// Extract representative image with priority fallback:
+    /// 1. Open Graph `og:image`
+    /// 2. Twitter `twitter:image`
+    /// 3. JSON-LD `image.url` / `image`
+    pub fn extract_image(&self) -> Option<String> {
+        self.get_meta_content("og:image")
+            .or_else(|| self.get_meta_content("twitter:image"))
+            .or_else(|| self.first_json_ld_string(&["image", "url"]))
+            .or_else(|| self.first_json_ld_string(&["image"]))
+            .and_then(|value| self.resolve_url(&value))
+    }
+
+    /// Extract favicon URL from `<link rel=icon>` tags with `/favicon.ico` fallback.
+    pub fn extract_favicon(&self) -> Option<String> {
+        if let Ok(elements) = self.select("link[href]") {
+            for element in elements {
+                let rel = element.attr("rel").unwrap_or("").to_ascii_lowercase();
+                let is_icon = rel == "shortcut icon"
+                    || rel == "apple-touch-icon"
+                    || rel.split_whitespace().any(|token| token == "icon");
+
+                if is_icon
+                    && let Some(href) = element.attr("href")
+                    && let Some(url) = self.resolve_url(href)
+                {
+                    return Some(url);
+                }
+            }
         }
 
-        if let Some(site) = self.get_meta_content("og:site_name") {
-            return Some(site);
-        }
-
-        if let Some(base_url) = &self.base_url()
-            && let Some(domain) = base_url.domain()
-        {
-            return Some(domain.to_string());
-        }
-
-        None
+        self.base_url()
+            .and_then(|base_url| base_url.join("/favicon.ico").ok())
+            .map(|url| url.to_string())
     }
 
     /// Calculate word count from text content
@@ -266,11 +266,8 @@ impl Document {
             }
         }
 
-        if let Some(json_ld) = self.extract_json_ld()
-            && let Some(lang) = json_ld.get("inLanguage")
-            && let Some(lang_str) = lang.as_str()
-        {
-            let lang_code = lang_str.split('-').next().unwrap_or(lang_str);
+        if let Some(lang_str) = self.first_json_ld_string(&["inLanguage"]) {
+            let lang_code = lang_str.split('-').next().unwrap_or(lang_str.as_str());
             if !lang_code.is_empty() {
                 return Some(lang_code.to_lowercase());
             }
@@ -327,12 +324,21 @@ impl Document {
 
     /// Extract all metadata at once
     pub fn extract_metadata(&self) -> Metadata {
+        let raw_site_name = self.extract_site_name_raw();
+        let raw_title = self.extract_title_raw();
+        let (title, detected_site_name) = raw_title
+            .as_deref()
+            .map(|value| clean_title(value, raw_site_name.as_deref()))
+            .unwrap_or_else(|| (String::new(), None));
+
         Metadata {
-            title: self.extract_title(),
+            title: (!title.is_empty()).then_some(title),
             author: self.extract_author(),
             date: self.extract_date(),
             excerpt: self.extract_excerpt(),
-            site_name: self.extract_site_name(),
+            site_name: raw_site_name.or(detected_site_name),
+            image: self.extract_image(),
+            favicon: self.extract_favicon(),
             word_count: Some(self.calculate_word_count()),
             reading_time_minutes: Some(self.calculate_reading_time()),
             language: self.extract_language().or_else(|| self.detect_language_from_content()),
@@ -360,18 +366,81 @@ impl Document {
         None
     }
 
+    fn extract_title_raw(&self) -> Option<String> {
+        if let Some(title) = self.title() {
+            let trimmed = title.trim();
+            if !trimmed.is_empty() {
+                return Some(trimmed.to_string());
+            }
+        }
+
+        for key in ["og:title", "twitter:title", "title", "DC.title"] {
+            if let Some(title) = self.get_meta_content(key) {
+                let trimmed = title.trim();
+                if !trimmed.is_empty() {
+                    return Some(trimmed.to_string());
+                }
+            }
+        }
+
+        if let Some(title) = self.first_json_ld_string(&["headline"]) {
+            return Some(title);
+        }
+
+        if let Ok(elements) = self.select("h1")
+            && let Some(first) = elements.first()
+        {
+            let text = first.text();
+            let text = text.trim();
+            if !text.is_empty() {
+                return Some(text.to_string());
+            }
+        }
+
+        None
+    }
+
+    fn extract_site_name_raw(&self) -> Option<String> {
+        let candidate = self
+            .first_json_ld_string(&["publisher", "name"])
+            .or_else(|| self.get_meta_content("og:site_name"))
+            .or_else(|| self.get_meta_content("application-name"))
+            .or_else(|| {
+                self.base_url()
+                    .and_then(|base_url| base_url.domain().map(|domain| domain.to_string()))
+            });
+
+        candidate.filter(|value| count_words(value) <= 6)
+    }
+
     /// Extract and parse JSON-LD from script tags
-    fn extract_json_ld(&self) -> Option<serde_json::Value> {
+    fn extract_json_ld_values(&self) -> Vec<serde_json::Value> {
+        let mut values = Vec::new();
         if let Ok(elements) = self.select("script[type=\"application/ld+json\"]") {
             for el in elements.iter() {
                 let text = el.text();
                 let json_str = text.trim();
                 if let Ok(value) = serde_json::from_str::<serde_json::Value>(json_str) {
-                    return Some(value);
+                    values.push(value);
                 }
             }
         }
+        values
+    }
+
+    fn first_json_ld_string(&self, path: &[&str]) -> Option<String> {
+        for value in self.extract_json_ld_values() {
+            if let Some(field) = find_json_ld_field(&value, path)
+                && let Some(text) = json_ld_value_as_string(field)
+            {
+                return Some(text);
+            }
+        }
         None
+    }
+
+    fn resolve_url(&self, value: &str) -> Option<String> {
+        normalize_url_value(self.base_url(), value)
     }
 
     /// Extract author name from JSON-LD author field
@@ -398,10 +467,227 @@ impl Document {
     }
 }
 
-/// Count words in text, handling various whitespace and punctuation patterns
-fn count_words(text: &str) -> usize {
-    let word_regex = Regex::new(r"\b[\w'-]+\b").unwrap();
-    word_regex.find_iter(text).count()
+fn clean_title(title: &str, site_name: Option<&str>) -> (String, Option<String>) {
+    let trimmed_title = title.trim();
+    if trimmed_title.is_empty() {
+        return (String::new(), None);
+    }
+
+    let separators = r"\s*(?:[|\-–—/·])\s*";
+
+    if let Some(site_name) = site_name
+        .map(str::trim)
+        .filter(|value| !value.is_empty() && !value.eq_ignore_ascii_case(trimmed_title) && count_words(value) <= 6)
+    {
+        let site_name_escaped = regex::escape(site_name);
+        for pattern in [
+            format!(r"{separators}{site_name_escaped}$"),
+            format!(r"^{site_name_escaped}{separators}"),
+        ] {
+            let regex = Regex::new(&pattern).unwrap();
+            if regex.is_match(trimmed_title) {
+                let cleaned = regex.replace(trimmed_title, "").trim().to_string();
+                if !cleaned.is_empty() {
+                    return (cleaned, Some(site_name.to_string()));
+                }
+            }
+        }
+
+        let positions = separator_positions(trimmed_title, &Regex::new(r"\s+[|\-–—/·]\s+").unwrap());
+        if !positions.is_empty() {
+            let site_name_lower = site_name.to_lowercase();
+
+            let (last_start, last_end) = positions[positions.len() - 1];
+            let last_segment = trimmed_title[last_end..].trim().to_lowercase();
+            if !last_segment.is_empty() && site_name_lower.contains(&last_segment) {
+                let mut cut_index = last_start;
+                for (start, end) in positions.iter().rev().skip(1) {
+                    let segment = trimmed_title[*end..cut_index].trim();
+                    if count_words(segment) > 3 {
+                        break;
+                    }
+                    cut_index = *start;
+                }
+                let cleaned = trimmed_title[..cut_index].trim().to_string();
+                if !cleaned.is_empty() {
+                    return (cleaned, Some(site_name.to_string()));
+                }
+            }
+
+            let (first_start, first_end) = positions[0];
+            let first_segment = trimmed_title[..first_start].trim().to_lowercase();
+            if !first_segment.is_empty() && site_name_lower.contains(&first_segment) {
+                let mut cut_index = first_end;
+                for (start, end) in positions.iter().skip(1) {
+                    let segment = trimmed_title[cut_index..*start].trim();
+                    if count_words(segment) > 3 {
+                        break;
+                    }
+                    cut_index = *end;
+                }
+                let cleaned = trimmed_title[cut_index..].trim().to_string();
+                if !cleaned.is_empty() {
+                    return (cleaned, Some(site_name.to_string()));
+                }
+            }
+        }
+    }
+
+    if let Some((cleaned, detected_site_name)) = try_separator_split(
+        trimmed_title,
+        &Regex::new(r"\s+[|/·]\s+").unwrap(),
+        false,
+        |title_words, site_words| site_words <= 3 && title_words >= 2 && title_words >= site_words.saturating_mul(2),
+    ) {
+        return (cleaned, Some(detected_site_name));
+    }
+
+    if let Some((cleaned, detected_site_name)) = try_separator_split(
+        trimmed_title,
+        &Regex::new(r"\s+[-–—]\s+").unwrap(),
+        true,
+        |title_words, site_words| site_words <= 2 && title_words >= 2 && title_words > site_words,
+    ) {
+        return (cleaned, Some(detected_site_name));
+    }
+
+    (trimmed_title.to_string(), None)
+}
+
+fn separator_positions(title: &str, pattern: &Regex) -> Vec<(usize, usize)> {
+    pattern
+        .find_iter(title)
+        .map(|match_| (match_.start(), match_.end()))
+        .collect()
+}
+
+fn try_separator_split<F>(title: &str, pattern: &Regex, suffix_only: bool, guard: F) -> Option<(String, String)>
+where
+    F: Fn(usize, usize) -> bool,
+{
+    let positions = separator_positions(title, pattern);
+    if positions.is_empty() {
+        return None;
+    }
+
+    let (last_start, last_end) = positions[positions.len() - 1];
+    let suffix_title = title[..last_start].trim();
+    let suffix_site = title[last_end..].trim();
+    if !suffix_title.is_empty() && !suffix_site.is_empty() && guard(count_words(suffix_title), count_words(suffix_site))
+    {
+        return Some((suffix_title.to_string(), suffix_site.to_string()));
+    }
+
+    if suffix_only {
+        return None;
+    }
+
+    let (first_start, first_end) = positions[0];
+    let prefix_site = title[..first_start].trim();
+    let prefix_title = title[first_end..].trim();
+    if !prefix_title.is_empty() && !prefix_site.is_empty() && guard(count_words(prefix_title), count_words(prefix_site))
+    {
+        return Some((prefix_title.to_string(), prefix_site.to_string()));
+    }
+
+    None
+}
+
+fn find_json_ld_field<'a>(value: &'a serde_json::Value, path: &[&str]) -> Option<&'a serde_json::Value> {
+    if path.is_empty() {
+        return Some(value);
+    }
+
+    match value {
+        serde_json::Value::Object(map) => {
+            if let Some(next) = map.get(path[0])
+                && let Some(found) = find_json_ld_field(next, &path[1..])
+            {
+                return Some(found);
+            }
+
+            for nested in map.values() {
+                if let Some(found) = find_json_ld_field(nested, path) {
+                    return Some(found);
+                }
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                if let Some(found) = find_json_ld_field(item, path) {
+                    return Some(found);
+                }
+            }
+        }
+        _ => {}
+    }
+
+    None
+}
+
+fn json_ld_value_as_string(value: &serde_json::Value) -> Option<String> {
+    match value {
+        serde_json::Value::String(text) => {
+            let trimmed = text.trim();
+            (!trimmed.is_empty()).then(|| trimmed.to_string())
+        }
+        serde_json::Value::Object(map) => map
+            .get("url")
+            .or_else(|| map.get("name"))
+            .and_then(json_ld_value_as_string),
+        serde_json::Value::Array(items) => items.iter().find_map(json_ld_value_as_string),
+        _ => None,
+    }
+}
+
+fn normalize_url_value(base_url: Option<&Url>, value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    Url::parse(trimmed)
+        .ok()
+        .or_else(|| base_url.and_then(|base| base.join(trimmed).ok()))
+        .map(|url| url.to_string())
+        .or_else(|| Some(trimmed.to_string()))
+}
+
+fn is_cjk_character(ch: char) -> bool {
+    matches!(
+        ch,
+        '\u{3040}'..='\u{309F}'
+            | '\u{30A0}'..='\u{30FF}'
+            | '\u{3400}'..='\u{4DBF}'
+            | '\u{4E00}'..='\u{9FFF}'
+            | '\u{F900}'..='\u{FAFF}'
+            | '\u{AC00}'..='\u{D7AF}'
+    )
+}
+
+/// Count words in text, handling CJK scripts that do not use spaces between words.
+pub(crate) fn count_words(text: &str) -> usize {
+    let mut cjk_count = 0usize;
+    let mut word_count = 0usize;
+    let mut in_word = false;
+
+    for ch in text.chars() {
+        if is_cjk_character(ch) {
+            cjk_count += 1;
+            in_word = false;
+        } else if ch.is_alphanumeric() {
+            if !in_word {
+                word_count += 1;
+                in_word = true;
+            }
+        } else if matches!(ch, '\'' | '’' | '-') && in_word {
+            continue;
+        } else {
+            in_word = false;
+        }
+    }
+
+    cjk_count + word_count
 }
 
 #[cfg(test)]
@@ -419,7 +705,9 @@ mod tests {
             <meta property="og:title" content="OG Title">
             <meta property="og:description" content="OG Description">
             <meta property="og:site_name" content="Example Site">
+            <meta property="og:image" content="/images/cover.png">
             <meta property="article:published_time" content="2024-01-15T10:30:00Z">
+            <link rel="icon" href="/favicon.ico">
             <script type="application/ld+json">
             {
                 "@context": "https://schema.org",
@@ -473,6 +761,39 @@ mod tests {
         let doc = Document::parse(HTML_WITHOUT_META).unwrap();
         let title = doc.extract_title();
         assert_eq!(title, Some("Simple Page".to_string()));
+    }
+
+    #[test]
+    fn test_extract_title_strips_site_suffix() {
+        let html = r#"
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Rust ownership explained | Example Docs</title>
+                <meta property="og:site_name" content="Example Docs">
+            </head>
+            <body></body>
+            </html>
+        "#;
+        let doc = Document::parse(html).unwrap();
+        assert_eq!(doc.extract_title(), Some("Rust ownership explained".to_string()));
+        assert_eq!(doc.extract_site_name(), Some("Example Docs".to_string()));
+    }
+
+    #[test]
+    fn test_extract_title_detects_site_name_from_separator_heuristics() {
+        let html = r#"
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Understanding borrow checking | MDN</title>
+            </head>
+            <body></body>
+            </html>
+        "#;
+        let doc = Document::parse(html).unwrap();
+        assert_eq!(doc.extract_title(), Some("Understanding borrow checking".to_string()));
+        assert_eq!(doc.extract_site_name(), Some("MDN".to_string()));
     }
 
     #[test]
@@ -567,6 +888,31 @@ mod tests {
     }
 
     #[test]
+    fn test_extract_image_and_favicon_with_base_url() {
+        let html = r#"
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta property="og:image" content="/images/article.png">
+                <link rel="shortcut icon" href="/assets/favicon.png">
+            </head>
+            <body></body>
+            </html>
+        "#;
+        let base_url = Url::parse("https://example.com/posts/test").unwrap();
+        let doc = Document::parse_with_base_url(html, Some(base_url)).unwrap();
+
+        assert_eq!(
+            doc.extract_image(),
+            Some("https://example.com/images/article.png".to_string())
+        );
+        assert_eq!(
+            doc.extract_favicon(),
+            Some("https://example.com/assets/favicon.png".to_string())
+        );
+    }
+
+    #[test]
     fn test_calculate_word_count() {
         let doc = Document::parse(HTML_WITH_META).unwrap();
         let count = doc.calculate_word_count();
@@ -590,6 +936,8 @@ mod tests {
         assert!(metadata.date.is_some());
         assert!(metadata.excerpt.is_some());
         assert!(metadata.site_name.is_some());
+        assert!(metadata.image.is_some());
+        assert!(metadata.favicon.is_some());
         assert!(metadata.word_count.is_some());
         assert!(metadata.reading_time_minutes.is_some());
 
@@ -604,6 +952,8 @@ mod tests {
         assert_eq!(count_words(""), 0);
         assert_eq!(count_words("a b c d e"), 5);
         assert_eq!(count_words("word's with-apostrophe"), 2);
+        assert_eq!(count_words("日本語abc"), 4);
+        assert_eq!(count_words("漢字かなカナ"), 6);
     }
 
     #[test]
@@ -756,6 +1106,8 @@ mod tests {
             date: Some("2024-01-15".to_string()),
             excerpt: Some("Test excerpt".to_string()),
             site_name: Some("Test Site".to_string()),
+            image: Some("https://example.com/image.png".to_string()),
+            favicon: Some("https://example.com/favicon.ico".to_string()),
             word_count: Some(500),
             reading_time_minutes: Some(2.5),
             language: Some("en".to_string()),
@@ -763,6 +1115,7 @@ mod tests {
 
         let json = serde_json::to_string(&metadata).unwrap();
         assert!(json.contains(r#""title":"Test Title""#));
+        assert!(json.contains(r#""image":"https://example.com/image.png""#));
         assert!(json.contains(r#""language":"en""#));
     }
 }

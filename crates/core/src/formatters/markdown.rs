@@ -76,6 +76,14 @@ fn generate_frontmatter(metadata: &Metadata) -> Result<String> {
         frontmatter.push_str(&format!("\nsite = {}", toml_escape_string(site)));
     }
 
+    if let Some(image) = &metadata.image {
+        frontmatter.push_str(&format!("\nimage = {}", toml_escape_string(image)));
+    }
+
+    if let Some(favicon) = &metadata.favicon {
+        frontmatter.push_str(&format!("\nfavicon = {}", toml_escape_string(favicon)));
+    }
+
     if let Some(excerpt) = &metadata.excerpt {
         frontmatter.push_str(&format!("\nexcerpt = {}", toml_escape_string(excerpt)));
     }
@@ -271,6 +279,8 @@ mod tests {
             author: Some("Test Author".to_string()),
             date: Some("2024-01-15".to_string()),
             site_name: Some("Test Site".to_string()),
+            image: Some("https://example.com/cover.png".to_string()),
+            favicon: Some("https://example.com/favicon.ico".to_string()),
             excerpt: Some("Test excerpt".to_string()),
             word_count: Some(500),
             reading_time_minutes: Some(2.5),
@@ -282,6 +292,8 @@ mod tests {
         assert!(frontmatter.contains("author = \"Test Author\""));
         assert!(frontmatter.contains("date = \"2024-01-15\""));
         assert!(frontmatter.contains("site = \"Test Site\""));
+        assert!(frontmatter.contains("image = \"https://example.com/cover.png\""));
+        assert!(frontmatter.contains("favicon = \"https://example.com/favicon.ico\""));
         assert!(frontmatter.contains("word_count = 500"));
         assert!(frontmatter.contains("reading_time_minutes = 2.5"));
     }

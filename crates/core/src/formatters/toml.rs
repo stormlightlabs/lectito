@@ -23,6 +23,14 @@ pub fn metadata_to_toml(metadata: &Metadata) -> Result<String> {
         toml.push_str(&format!("site_name = {}\n", toml_escape_string(site)));
     }
 
+    if let Some(image) = &metadata.image {
+        toml.push_str(&format!("image = {}\n", toml_escape_string(image)));
+    }
+
+    if let Some(favicon) = &metadata.favicon {
+        toml.push_str(&format!("favicon = {}\n", toml_escape_string(favicon)));
+    }
+
     if let Some(excerpt) = &metadata.excerpt {
         toml.push_str(&format!("excerpt = {}\n", toml_escape_string(excerpt)));
     }
@@ -98,6 +106,8 @@ mod tests {
             author: Some("Test Author".to_string()),
             date: Some("2024-01-15".to_string()),
             site_name: Some("Test Site".to_string()),
+            image: Some("https://example.com/cover.png".to_string()),
+            favicon: Some("https://example.com/favicon.ico".to_string()),
             excerpt: Some("Test excerpt".to_string()),
             word_count: Some(500),
             reading_time_minutes: Some(2.5),
@@ -109,6 +119,8 @@ mod tests {
         assert!(toml.contains("author = \"Test Author\""));
         assert!(toml.contains("date = \"2024-01-15\""));
         assert!(toml.contains("site_name = \"Test Site\""));
+        assert!(toml.contains("image = \"https://example.com/cover.png\""));
+        assert!(toml.contains("favicon = \"https://example.com/favicon.ico\""));
         assert!(toml.contains("excerpt = \"Test excerpt\""));
         assert!(toml.contains("word_count = 500"));
         assert!(toml.contains("reading_time_minutes = 2.5"));

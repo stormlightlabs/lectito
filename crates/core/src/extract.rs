@@ -1,6 +1,8 @@
 use crate::dom_tree::DomTree;
+use crate::metadata::count_words;
 use crate::parse::{Document, Element};
 use crate::postprocess::{PostProcessConfig, postprocess_html};
+use crate::preprocess::hidden_reason;
 use crate::scoring::{ScoreConfig, ScoreResult, calculate_score};
 use crate::siteconfig::{SiteConfig, SiteConfigProcessing, SiteConfigXPath};
 use crate::{LectitoError, Result, preprocess};
@@ -262,10 +264,6 @@ fn prepare_scoring_document(doc: &Document, config: &ExtractConfig) -> Option<Do
     }
 
     Document::parse_with_base_url(&filtered_html, doc.base_url().cloned()).ok()
-}
-
-fn count_words(text: &str) -> usize {
-    text.split_whitespace().count()
 }
 
 /// Identify all candidate elements from the document
@@ -907,12 +905,10 @@ fn candidate_priority(tag_name: &str) -> u8 {
 
 /// Extract content from the largest hidden element subtree (Pass 3 of multi-pass retry).
 ///
-/// Scans for elements hidden via inline `display:none` or `visibility:hidden` styles
-/// and returns the subtree with the most text content. This targets pages that hide
-/// their main content until JavaScript runs.
+/// Scans for elements hidden via inline styles or CSS utility classes and returns
+/// the subtree with the most text content. This targets pages that hide their main
+/// content until JavaScript runs.
 pub(crate) fn extract_largest_hidden_subtree(doc: &Document) -> Option<ExtractedContent> {
-    let hidden_pattern = regex::Regex::new(r"(?i)(display\s*:\s*none|visibility\s*:\s*hidden)").unwrap();
-
     let mut best_html = String::new();
     let mut best_word_count = 0usize;
 
@@ -921,12 +917,20 @@ pub(crate) fn extract_largest_hidden_subtree(doc: &Document) -> Option<Extracted
             continue;
         };
         for el in elements {
-            let style = el.attr("style").unwrap_or("");
-            if !hidden_pattern.is_match(style) {
+            if hidden_reason(el.attr("style"), el.attr("class")).is_none() {
+                continue;
+            }
+
+            if el
+                .select("math, [data-mathml], .katex-mathml")
+                .ok()
+                .is_some_and(|matches| !matches.is_empty())
+                || el.tag_name() == "math"
+            {
                 continue;
             }
             let text = el.text();
-            let word_count = text.split_whitespace().count();
+            let word_count = count_words(&text);
             if word_count > best_word_count {
                 best_word_count = word_count;
                 best_html = el.outer_html();
@@ -1292,6 +1296,24 @@ mod tests {
         assert!(result.is_some());
         let extracted = result.unwrap();
         assert!(extracted.content.contains("longer hidden section"));
+    }
+
+    #[test]
+    fn test_extract_largest_hidden_subtree_detects_framework_hidden_classes() {
+        let html = r#"<html><body>
+            <div class="hidden">Short hidden text</div>
+            <article class="lg:hidden">
+                This hidden article contains enough words to win the fallback selection
+                once framework hidden utilities are considered alongside inline styles.
+            </article>
+        </body></html>"#;
+
+        let doc = Document::parse(html).unwrap();
+        let result = extract_largest_hidden_subtree(&doc);
+
+        assert!(result.is_some());
+        let extracted = result.unwrap();
+        assert!(extracted.content.contains("framework hidden utilities"));
     }
 
     #[test]
