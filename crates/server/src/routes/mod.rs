@@ -392,7 +392,7 @@ async fn library_list(
         .collect();
 
     Ok(Json(LibraryResponse {
-        items: rows.into_iter().map(library_item_from_row).collect(),
+        items: rows.into_iter().map(|row| library_item_from_row(&row)).collect(),
         total,
         page: query.page,
         per_page: query.per_page,
@@ -713,9 +713,7 @@ async fn read_cached_article(
 }
 
 async fn write_cached_article(state: &AppState, article: CachedExtractedArticle, cache_key: Vec<u8>) -> Option<Uuid> {
-    let Some(client) = acquire_cache_client(state).await else {
-        return None;
-    };
+    let client = (acquire_cache_client(state).await)?;
 
     log_cache_write_result(
         execute_cache_upsert(&client, state, &article, &cache_key).await,
@@ -823,7 +821,7 @@ fn trim_optional(value: Option<String>) -> Option<String> {
     })
 }
 
-fn library_item_from_row(row: tokio_postgres::Row) -> LibraryItemResponse {
+fn library_item_from_row(row: &tokio_postgres::Row) -> LibraryItemResponse {
     let url = row.get::<_, String>("url");
     let format = parse_cached_format(row.get::<_, String>("format").as_str()).unwrap_or(CachedFormat::Markdown);
     let metadata: CachedMetadata = serde_json::from_value(row.get("metadata")).unwrap_or_default();

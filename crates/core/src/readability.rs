@@ -317,6 +317,7 @@ impl Readability {
             char_threshold: self.config.char_threshold,
             max_elements: self.config.max_elems_to_parse,
             sibling_threshold: 0.2,
+            pre_score_selector_removal: true,
             postprocess: crate::postprocess::PostProcessConfig {
                 strip_images: !self.config.preserve_images,
                 keep_classes: self.config.keep_classes,
