@@ -16,8 +16,8 @@ use lectito_core::formatters::{
 use lectito_core::parse::Document;
 use lectito_core::{FetchConfig, PostProcessConfig, Readability, ReadabilityConfig, fetch_url, postprocess_html};
 use serde::{Deserialize, Serialize};
-use time::OffsetDateTime;
-use time::format_description::well_known::Rfc3339;
+use time::format_description::{self, well_known::Rfc3339};
+use time::{Date, OffsetDateTime};
 use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{Any, CorsLayer};
@@ -40,12 +40,15 @@ const CACHE_UPSERT_SQL: &str = "INSERT INTO extracted_articles
     content = EXCLUDED.content,
     metadata = EXCLUDED.metadata,
     fetched_at = EXCLUDED.fetched_at,
-    expires_at = EXCLUDED.expires_at";
+    expires_at = EXCLUDED.expires_at
+ RETURNING id";
 
 pub fn build_app(state: AppState) -> Router {
     let api = Router::new()
         .route("/health", get(health))
         .route("/extract", get(extract_get).post(extract_post))
+        .route("/library", get(library_list))
+        .route("/library/{id}", get(library_detail))
         .route("/limits", get(limits))
         .route("/admin/block-domain", post(admin_block_domain))
         .route("/admin/block-domain/{domain}", delete(admin_delete_block_domain))
@@ -104,10 +107,103 @@ struct ExtractRequest {
 
 #[derive(Debug, Clone, Serialize)]
 struct ExtractResponse {
+    id: Option<Uuid>,
+    url: String,
+    format: CachedFormat,
     content: String,
     metadata: CachedMetadata,
     cached: bool,
     extracted_at: String,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum LibrarySort {
+    #[default]
+    Recent,
+    Popular,
+    Alpha,
+}
+
+impl LibrarySort {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Recent => "recent",
+            Self::Popular => "popular",
+            Self::Alpha => "alpha",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct LibraryQuery {
+    #[serde(default)]
+    page: Option<u32>,
+    #[serde(default)]
+    per_page: Option<u32>,
+    #[serde(default)]
+    sort: Option<LibrarySort>,
+    #[serde(default)]
+    q: Option<String>,
+    #[serde(default)]
+    domain: Option<String>,
+    #[serde(default)]
+    date_from: Option<String>,
+    #[serde(default)]
+    date_to: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct NormalizedLibraryQuery {
+    page: u32,
+    per_page: u32,
+    sort: LibrarySort,
+    q: Option<String>,
+    domain: Option<String>,
+    date_from: Option<Date>,
+    date_to: Option<Date>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct LibraryItemResponse {
+    id: Uuid,
+    url: String,
+    domain: String,
+    format: CachedFormat,
+    title: Option<String>,
+    author: Option<String>,
+    site_name: Option<String>,
+    favicon: Option<String>,
+    excerpt: Option<String>,
+    date: Option<String>,
+    word_count: Option<usize>,
+    reading_time_minutes: Option<f64>,
+    hit_count: u64,
+    fetched_at: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct TopDomainResponse {
+    domain: String,
+    count: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct LibraryStatsResponse {
+    total_articles: u64,
+    total_reads: u64,
+    unique_domains: u64,
+    total_reading_time_minutes: f64,
+    top_domains: Vec<TopDomainResponse>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct LibraryResponse {
+    items: Vec<LibraryItemResponse>,
+    total: u64,
+    page: u32,
+    per_page: u32,
+    stats: LibraryStatsResponse,
 }
 
 #[derive(Debug, Deserialize)]
@@ -168,6 +264,175 @@ async fn extract_post(
 
 async fn limits(Extension(context): Extension<ClientRateLimitContext>) -> Json<LimitsResponse> {
     Json(context.snapshot.as_limits_response())
+}
+
+async fn library_list(
+    State(state): State<AppState>, Query(query): Query<LibraryQuery>,
+) -> Result<Json<LibraryResponse>, AppError> {
+    let query = normalize_library_query(query)?;
+    let client = state.pool.get().await?;
+    let params: [&(dyn tokio_postgres::types::ToSql + Sync); 7] = [
+        &query.q,
+        &query.domain,
+        &query.date_from,
+        &query.date_to,
+        &query.sort.as_str(),
+        &(query.per_page as i64),
+        &(((query.page - 1) * query.per_page) as i64),
+    ];
+
+    let rows = client
+        .query(
+            "WITH latest_entries AS (
+                SELECT DISTINCT ON (url)
+                    id, url, format, metadata, fetched_at, hit_count
+                FROM extracted_articles
+                WHERE expires_at > now()
+                ORDER BY url, fetched_at DESC
+             ),
+             filtered AS (
+                SELECT *
+                FROM latest_entries
+                WHERE ($1::text IS NULL
+                       OR COALESCE(metadata->>'title', '') ILIKE '%' || $1 || '%'
+                       OR lower(split_part(regexp_replace(url, '^https?://', ''), '/', 1)) ILIKE '%' || $1 || '%'
+                       OR url ILIKE '%' || $1 || '%')
+                  AND ($2::text IS NULL
+                       OR lower(split_part(regexp_replace(url, '^https?://', ''), '/', 1)) = lower($2)
+                       OR url ILIKE '%' || $2 || '%')
+                  AND ($3::date IS NULL OR fetched_at::date >= $3)
+                  AND ($4::date IS NULL OR fetched_at::date <= $4)
+             )
+             SELECT id, url, format, metadata, fetched_at, hit_count
+             FROM filtered
+             ORDER BY
+                CASE WHEN $5 = 'popular' THEN hit_count END DESC NULLS LAST,
+                CASE WHEN $5 = 'alpha' THEN lower(COALESCE(metadata->>'title', url)) END ASC NULLS LAST,
+                CASE WHEN $5 = 'recent' THEN fetched_at END DESC NULLS LAST,
+                fetched_at DESC,
+                lower(url) ASC
+             LIMIT $6
+             OFFSET $7",
+            &params,
+        )
+        .await?;
+
+    let total = client
+        .query_one(
+            "WITH latest_entries AS (
+                SELECT DISTINCT ON (url)
+                    id, url, format, metadata, fetched_at, hit_count
+                FROM extracted_articles
+                WHERE expires_at > now()
+                ORDER BY url, fetched_at DESC
+             ),
+             filtered AS (
+                SELECT *
+                FROM latest_entries
+                WHERE ($1::text IS NULL
+                       OR COALESCE(metadata->>'title', '') ILIKE '%' || $1 || '%'
+                       OR lower(split_part(regexp_replace(url, '^https?://', ''), '/', 1)) ILIKE '%' || $1 || '%'
+                       OR url ILIKE '%' || $1 || '%')
+                  AND ($2::text IS NULL
+                       OR lower(split_part(regexp_replace(url, '^https?://', ''), '/', 1)) = lower($2)
+                       OR url ILIKE '%' || $2 || '%')
+                  AND ($3::date IS NULL OR fetched_at::date >= $3)
+                  AND ($4::date IS NULL OR fetched_at::date <= $4)
+             )
+             SELECT COUNT(*) AS total
+             FROM filtered",
+            &[&query.q, &query.domain, &query.date_from, &query.date_to],
+        )
+        .await?
+        .get::<_, i64>("total") as u64;
+
+    let stats_row = client
+        .query_one(
+            "WITH latest_entries AS (
+                SELECT DISTINCT ON (url)
+                    url, metadata, hit_count
+                FROM extracted_articles
+                WHERE expires_at > now()
+                ORDER BY url, fetched_at DESC
+             )
+             SELECT
+                COUNT(*) AS total_articles,
+                COALESCE(SUM(hit_count), 0) AS total_reads,
+                COUNT(DISTINCT lower(split_part(regexp_replace(url, '^https?://', ''), '/', 1))) AS unique_domains,
+                COALESCE(SUM(COALESCE(NULLIF(metadata->>'reading_time_minutes', ''), '0')::double precision), 0) AS total_reading_time_minutes
+             FROM latest_entries",
+            &[],
+        )
+        .await?;
+
+    let top_domains = client
+        .query(
+            "WITH latest_entries AS (
+                SELECT DISTINCT ON (url)
+                    url
+                FROM extracted_articles
+                WHERE expires_at > now()
+                ORDER BY url, fetched_at DESC
+             )
+             SELECT
+                lower(split_part(regexp_replace(url, '^https?://', ''), '/', 1)) AS domain,
+                COUNT(*) AS count
+             FROM latest_entries
+             GROUP BY domain
+             ORDER BY count DESC, domain ASC
+             LIMIT 5",
+            &[],
+        )
+        .await?
+        .into_iter()
+        .map(|row| TopDomainResponse {
+            domain: row.get::<_, String>("domain"),
+            count: row.get::<_, i64>("count") as u64,
+        })
+        .collect();
+
+    Ok(Json(LibraryResponse {
+        items: rows.into_iter().map(library_item_from_row).collect(),
+        total,
+        page: query.page,
+        per_page: query.per_page,
+        stats: LibraryStatsResponse {
+            total_articles: stats_row.get::<_, i64>("total_articles") as u64,
+            total_reads: stats_row.get::<_, i64>("total_reads") as u64,
+            unique_domains: stats_row.get::<_, i64>("unique_domains") as u64,
+            total_reading_time_minutes: stats_row.get::<_, f64>("total_reading_time_minutes"),
+            top_domains,
+        },
+    }))
+}
+
+async fn library_detail(
+    State(state): State<AppState>, AxumPath(id): AxumPath<Uuid>,
+) -> Result<Json<ExtractResponse>, AppError> {
+    let client = state.pool.get().await?;
+    let row = client
+        .query_opt(
+            "SELECT id, url, format, content, metadata, fetched_at
+             FROM extracted_articles
+             WHERE id = $1 AND expires_at > now()",
+            &[&id],
+        )
+        .await?
+        .ok_or_else(|| AppError::NotFound("Cached article not found".to_string()))?;
+
+    let format = parse_cached_format(row.get::<_, String>("format").as_str())
+        .ok_or_else(|| AppError::Internal("Stored article format is invalid".to_string()))?;
+    let fetched_at = row.get::<_, OffsetDateTime>("fetched_at");
+
+    Ok(Json(ExtractResponse {
+        id: Some(row.get("id")),
+        url: row.get("url"),
+        format,
+        content: row.get("content"),
+        metadata: serde_json::from_value(row.get("metadata")).unwrap_or_default(),
+        cached: true,
+        extracted_at: fetched_at.format(&Rfc3339).unwrap_or_else(|_| fetched_at.to_string()),
+    }))
 }
 
 async fn admin_block_domain(
@@ -244,6 +509,9 @@ async fn handle_extract(
 
     if !bypass_cache && let Some(cached) = read_cached_article(&state, &cache_key, format).await {
         return Ok(ExtractResponse {
+            id: Some(cached.id),
+            url: cached.url,
+            format: cached.format,
             content: cached.content,
             metadata: cached.metadata,
             cached: true,
@@ -257,29 +525,33 @@ async fn handle_extract(
     let extracted = fetch_and_extract_article(&parsed_url, &input, state.config.fetch_timeout_secs).await?;
     let fetched_at = OffsetDateTime::now_utc();
     let content = render_article(&extracted.article, format, &input)?;
+    let cached_id = if is_cacheable_request(&input) {
+        write_cached_article(
+            &state,
+            CachedExtractedArticle {
+                id: Uuid::new_v4(),
+                url: normalized_url.clone(),
+                format,
+                content: content.clone(),
+                metadata: extracted.metadata.clone(),
+                fetched_at,
+            },
+            cache_key,
+        )
+        .await
+    } else {
+        None
+    };
 
     let response = ExtractResponse {
+        id: cached_id,
+        url: normalized_url,
+        format,
         content: content.clone(),
         metadata: extracted.metadata.clone(),
         cached: false,
         extracted_at: fetched_at.format(&Rfc3339).unwrap_or_else(|_| fetched_at.to_string()),
     };
-
-    if is_cacheable_request(&input) {
-        write_cached_article(
-            &state,
-            CachedExtractedArticle {
-                id: Uuid::new_v4(),
-                url: normalized_url,
-                format,
-                content,
-                metadata: extracted.metadata,
-                fetched_at,
-            },
-            cache_key,
-        )
-        .await;
-    }
 
     Ok(response)
 }
@@ -440,15 +712,15 @@ async fn read_cached_article(
     }
 }
 
-async fn write_cached_article(state: &AppState, article: CachedExtractedArticle, cache_key: Vec<u8>) {
+async fn write_cached_article(state: &AppState, article: CachedExtractedArticle, cache_key: Vec<u8>) -> Option<Uuid> {
     let Some(client) = acquire_cache_client(state).await else {
-        return;
+        return None;
     };
 
     log_cache_write_result(
         execute_cache_upsert(&client, state, &article, &cache_key).await,
         &article.url,
-    );
+    )
 }
 
 async fn acquire_cache_client(state: &AppState) -> Option<deadpool_postgres::Client> {
@@ -463,7 +735,7 @@ async fn acquire_cache_client(state: &AppState) -> Option<deadpool_postgres::Cli
 
 async fn execute_cache_upsert(
     client: &deadpool_postgres::Client, state: &AppState, article: &CachedExtractedArticle, cache_key: &[u8],
-) -> Result<u64, tokio_postgres::Error> {
+) -> Result<Uuid, tokio_postgres::Error> {
     let expires_at = article.fetched_at + time::Duration::seconds(state.config.cache_ttl_secs as i64);
     let metadata_json = serde_json::to_value(&article.metadata).unwrap_or_default();
     let params: [&(dyn tokio_postgres::types::ToSql + Sync); 8] = [
@@ -477,14 +749,109 @@ async fn execute_cache_upsert(
         &expires_at,
     ];
 
-    client.execute(CACHE_UPSERT_SQL, &params).await
+    client
+        .query_one(CACHE_UPSERT_SQL, &params)
+        .await
+        .map(|row| row.get("id"))
 }
 
-fn log_cache_write_result(result: Result<u64, tokio_postgres::Error>, url: &str) {
+fn log_cache_write_result(result: Result<Uuid, tokio_postgres::Error>, url: &str) -> Option<Uuid> {
     match result {
-        Ok(_) => info!("cached extracted article for {url}"),
-        Err(err) => warn!("cache write failed: {err}"),
+        Ok(id) => {
+            info!("cached extracted article for {url}");
+            Some(id)
+        }
+        Err(err) => {
+            warn!("cache write failed: {err}");
+            None
+        }
     }
+}
+
+fn normalize_library_query(query: LibraryQuery) -> Result<NormalizedLibraryQuery, AppError> {
+    let page = query.page.unwrap_or(1);
+    if page == 0 {
+        return Err(AppError::BadRequest("page must be greater than zero".to_string()));
+    }
+
+    let per_page = query.per_page.unwrap_or(20);
+    if per_page == 0 || per_page > 100 {
+        return Err(AppError::BadRequest("per_page must be between 1 and 100".to_string()));
+    }
+
+    let date_from = query
+        .date_from
+        .as_deref()
+        .map(|value| parse_query_date(value, "date_from"))
+        .transpose()?;
+    let date_to = query
+        .date_to
+        .as_deref()
+        .map(|value| parse_query_date(value, "date_to"))
+        .transpose()?;
+
+    if let (Some(from), Some(to)) = (date_from, date_to)
+        && from > to
+    {
+        return Err(AppError::BadRequest(
+            "date_from must be earlier than or equal to date_to".to_string(),
+        ));
+    }
+
+    Ok(NormalizedLibraryQuery {
+        page,
+        per_page,
+        sort: query.sort.unwrap_or_default(),
+        q: trim_optional(query.q),
+        domain: trim_optional(query.domain),
+        date_from,
+        date_to,
+    })
+}
+
+fn parse_query_date(value: &str, key: &str) -> Result<Date, AppError> {
+    let format = format_description::parse("[year]-[month]-[day]")
+        .map_err(|err| AppError::Internal(format!("failed to parse date format description: {err}")))?;
+
+    Date::parse(value, &format).map_err(|_| AppError::BadRequest(format!("{key} must be in YYYY-MM-DD format")))
+}
+
+fn trim_optional(value: Option<String>) -> Option<String> {
+    value.and_then(|value| {
+        let trimmed = value.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    })
+}
+
+fn library_item_from_row(row: tokio_postgres::Row) -> LibraryItemResponse {
+    let url = row.get::<_, String>("url");
+    let format = parse_cached_format(row.get::<_, String>("format").as_str()).unwrap_or(CachedFormat::Markdown);
+    let metadata: CachedMetadata = serde_json::from_value(row.get("metadata")).unwrap_or_default();
+    let fetched_at = row.get::<_, OffsetDateTime>("fetched_at");
+
+    LibraryItemResponse {
+        id: row.get("id"),
+        domain: domain_from_url(&url).unwrap_or_else(|| url.clone()),
+        url,
+        format,
+        title: metadata.title,
+        author: metadata.author,
+        site_name: metadata.site_name,
+        favicon: metadata.favicon,
+        excerpt: metadata.excerpt,
+        date: metadata.date,
+        word_count: metadata.word_count,
+        reading_time_minutes: metadata.reading_time_minutes,
+        hit_count: row.get::<_, i32>("hit_count") as u64,
+        fetched_at: fetched_at.format(&Rfc3339).unwrap_or_else(|_| fetched_at.to_string()),
+    }
+}
+
+fn domain_from_url(url: &str) -> Option<String> {
+    url::Url::parse(url)
+        .ok()?
+        .host_str()
+        .map(|host| host.trim_start_matches("www.").to_string())
 }
 
 fn parse_cached_format(value: &str) -> Option<CachedFormat> {
