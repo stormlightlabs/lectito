@@ -3,7 +3,7 @@
   import { page } from '$app/state';
   import { NAV, SITE } from '$lib/content';
 
-  type NavKey = 'home' | 'library' | 'about';
+  type NavKey = 'home' | 'library' | 'about' | 'docs';
 
   const links: { href: `/${'' | 'library' | 'about'}`; label: string; key: NavKey }[] = [
     { href: '/', label: NAV.extract, key: 'home' },
@@ -16,6 +16,7 @@
     if (path === '/') return 'home';
     if (path.startsWith('/library')) return 'library';
     if (path.startsWith('/about')) return 'about';
+    if (path.startsWith('/docs')) return 'docs';
     return undefined;
   });
 </script>
@@ -34,7 +35,12 @@
             {link.label}
           </a>
         {/each}
-        <a class="border-b border-transparent pb-0.5 hover:border-ink hover:text-ink" href="/api-docs">
+        <a
+          aria-current={active === 'docs' ? 'page' : undefined}
+          class={`border-b pb-0.5 ${
+            active === 'docs' ? 'border-ink text-ink' : 'border-transparent hover:border-ink hover:text-ink'
+          }`}
+          href={resolve('/docs')}>
           {NAV.api}
         </a>
       </nav>

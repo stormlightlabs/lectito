@@ -1,4 +1,11 @@
-import type { ExtractRequest, ExtractResponse, LibraryResponse, LimitsResponse, RateLimitHeaders } from '$lib/types';
+import type {
+  ExtractRequest,
+  ExtractResponse,
+  LibraryResponse,
+  LimitsResponse,
+  OpenApiDocument,
+  RateLimitHeaders
+} from '$lib/types';
 
 type FetchLike = typeof fetch;
 
@@ -54,8 +61,8 @@ async function request<T>(fetcher: FetchLike, path: string, init?: RequestInit):
       if (payload.error) {
         message = payload.error;
       }
-    } catch {
-      // Ignore JSON parsing failures for non-JSON error bodies.
+    } catch (error) {
+      console.warn('Failed to parse error response as JSON:', response, error);
     }
 
     throw new ApiError(response.status, message);
@@ -106,6 +113,10 @@ export function extractArticleByUrl(
 
 export function getLimits(fetcher: FetchLike) {
   return request<LimitsResponse>(fetcher, '/api/v1/limits');
+}
+
+export function getOpenApiSpec(fetcher: FetchLike) {
+  return request<OpenApiDocument>(fetcher, '/api-docs/openapi.json');
 }
 
 export function getApiErrorMessage(error: unknown) {
