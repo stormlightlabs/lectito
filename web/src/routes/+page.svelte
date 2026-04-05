@@ -183,11 +183,18 @@
           <span>{HOME.form.rateLimitFallback}</span>
         {/if}
       </div>
-      <a
-        class="border-b border-stone font-medium text-stone hover:border-ink hover:text-ink"
-        href={resolve('/about#rate-limits')}>
-        View rate limits
-      </a>
+      <div class="flex flex-wrap items-center gap-4">
+        <a
+          class="border-b border-stone font-medium text-stone hover:border-ink hover:text-ink"
+          href="/api-docs">
+          View API docs
+        </a>
+        <a
+          class="border-b border-stone font-medium text-stone hover:border-ink hover:text-ink"
+          href={resolve('/about#rate-limits')}>
+          View rate limits
+        </a>
+      </div>
     </div>
   </section>
 

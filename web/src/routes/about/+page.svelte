@@ -33,6 +33,7 @@
         <div>
           <p class="muted-label mb-3">Resources</p>
           <div class="space-y-2 text-sm">
+            <a class="block font-serif text-stone hover:text-ink" href="/api-docs">OpenAPI / Swagger</a>
             <a class="block font-serif text-stone hover:text-ink" href={resolve('/library')}>Library</a>
             <a class="block font-serif text-stone hover:text-ink" href={resolve('/')}>Extract</a>
           </div>
@@ -100,6 +101,22 @@
       <section id="api-reference" class="space-y-12">
         <div>
           <h2 class="mb-6 font-serif text-3xl font-semibold text-ink">{ABOUT.apiReference.heading}</h2>
+          <div class="editorial-panel max-w-3xl p-6">
+            <p class="font-serif text-stone">
+              The live API reference is exposed as an OpenAPI document with Swagger UI, so requests, schemas, and
+              response payloads stay browsable from the running server.
+            </p>
+            <div class="mt-4 flex flex-wrap items-center gap-4 text-sm">
+              <a class="btn-ink px-4 py-2 font-semibold tracking-[0.16em] uppercase" href="/api-docs">
+                Open Swagger UI
+              </a>
+              <a
+                class="border-b border-stone font-medium text-stone hover:border-ink hover:text-ink"
+                href="/api-docs/openapi.json">
+                View OpenAPI JSON
+              </a>
+            </div>
+          </div>
         </div>
 
         <div class="border-l-[3px] border-ink pl-6">

@@ -7,7 +7,7 @@ use axum::extract::{Extension, Json, Path as AxumPath, Query, Request, State};
 use axum::http::header::{CACHE_CONTROL, CONTENT_TYPE};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri};
 use axum::middleware::{self, Next};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{any, delete, get, post};
 use lectito_core::article::Article;
 use lectito_core::formatters::{
@@ -16,6 +16,7 @@ use lectito_core::formatters::{
 use lectito_core::parse::Document;
 use lectito_core::{FetchConfig, PostProcessConfig, Readability, ReadabilityConfig, fetch_url, postprocess_html};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use time::format_description::{self, well_known::Rfc3339};
 use time::{Date, OffsetDateTime};
 use tower::ServiceBuilder;
@@ -31,6 +32,7 @@ use crate::db;
 use crate::error::AppError;
 use crate::rate_limit::{self, ClientRateLimitContext, LimitsResponse};
 
+const OPENAPI_TEMPLATE: &str = include_str!("openapi.json");
 const CACHE_UPSERT_SQL: &str = "INSERT INTO extracted_articles
     (id, url, url_hash, format, content, metadata, fetched_at, expires_at, hit_count)
  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0)
@@ -68,6 +70,8 @@ pub fn build_app(state: AppState) -> Router {
 
     Router::new()
         .nest("/api/v1", api)
+        .route("/api-docs", get(swagger_ui))
+        .route("/api-docs/openapi.json", get(openapi_json))
         .route("/api/{*path}", any(api_not_found))
         .fallback(get(serve_spa))
         .layer(middleware::from_fn(set_static_cache_headers))
@@ -248,6 +252,14 @@ async fn health(State(state): State<AppState>) -> impl IntoResponse {
 
 async fn api_not_found() -> AppError {
     AppError::NotFound("API route not found".to_string())
+}
+
+async fn swagger_ui() -> Html<String> {
+    Html(swagger_ui_html())
+}
+
+async fn openapi_json(State(state): State<AppState>) -> Json<Value> {
+    Json(openapi_spec(state.version))
 }
 
 async fn extract_get(
@@ -670,6 +682,53 @@ fn content_type_for_path(path: &Path) -> &'static str {
     }
 }
 
+fn swagger_ui_html() -> String {
+    r#"<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lectito API Docs</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+    <style>
+      body {
+        margin: 0;
+        background: #f4f0e8;
+      }
+
+      .topbar {
+        display: none;
+      }
+
+      #swagger-ui {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+    <script>
+      window.ui = SwaggerUIBundle({
+        url: '/api-docs/openapi.json',
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [SwaggerUIBundle.presets.apis],
+        layout: 'BaseLayout'
+      });
+    </script>
+  </body>
+</html>
+"#
+    .to_string()
+}
+
+fn openapi_spec(version: &str) -> Value {
+    let json = OPENAPI_TEMPLATE.replace("__LECTITO_VERSION__", version);
+    serde_json::from_str(&json).expect("embedded OpenAPI spec must be valid JSON")
+}
+
 async fn read_cached_article(
     state: &AppState, cache_key: &[u8], format: CachedFormat,
 ) -> Option<CachedExtractedArticle> {
@@ -1018,5 +1077,23 @@ mod tests {
         };
 
         assert!(!is_cacheable_request(&request));
+    }
+
+    #[test]
+    fn swagger_ui_points_at_openapi_document() {
+        let html = swagger_ui_html();
+
+        assert!(html.contains("/api-docs/openapi.json"));
+        assert!(html.contains("SwaggerUIBundle"));
+    }
+
+    #[test]
+    fn openapi_spec_includes_library_detail_path() {
+        let spec = openapi_spec("0.1.0");
+        let paths = spec.get("paths").and_then(Value::as_object).unwrap();
+
+        assert!(paths.contains_key("/api/v1/library"));
+        assert!(paths.contains_key("/api/v1/library/{id}"));
+        assert!(paths.contains_key("/api/v1/extract"));
     }
 }

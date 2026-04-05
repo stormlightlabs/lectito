@@ -34,9 +34,7 @@
             {link.label}
           </a>
         {/each}
-        <a
-          class="border-b border-transparent pb-0.5 hover:border-ink hover:text-ink"
-          href={resolve('/about#api-reference')}>
+        <a class="border-b border-transparent pb-0.5 hover:border-ink hover:text-ink" href="/api-docs">
           {NAV.api}
         </a>
       </nav>

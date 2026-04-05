@@ -60,7 +60,7 @@ MILESTONE A: Algorithm Improvements
     - CJK-aware word counting
     - Title cleaning: strip site-name suffix via separator heuristics
 
-[ ] Site-specific extractor module
+[x] Site-specific extractor module
     - Define ExtractorRegistry trait + URL pattern matching
     - Extractors return contentSelector or extracted HTML
     - "Git" extractor (issues, PRs, READMEs)
@@ -266,19 +266,19 @@ Acceptance Criteria:
 MILESTONE H: Svelte SPA - Foundation
 ================================================================================
 
-[ ] Project setup
+[x] Project setup
     - SvelteKit SPA mode (adapter-static or adapter-auto)
     - Tailwind CSS 4 configured
     - TypeScript strict mode
     - API client module (fetch wrapper with error handling)
     - Types for API request/response
 
-[ ] Layout
+[x] Layout
     - Root layout with header (logo, nav), main, footer
     - Dark mode toggle (system preference + manual)
     - Responsive design (mobile-first)
 
-[ ] Home page (/)
+[x] Home page (/)
     - URL input with paste detection and validation
     - Format selector dropdown (markdown/html/text)
     - Options toggles (frontmatter, references, strip images)
@@ -296,22 +296,22 @@ Acceptance Criteria:
 MILESTONE I: Svelte SPA - Reader View
 ================================================================================
 
-[ ] Reader page (/r/:id)
+[x] Reader page (/r/:id)
     - Receive extraction result (via store or route param + cache)
     - Clean article layout: serif body, max-width ~680px, optimized spacing
     - Metadata header: title, author, date, site favicon, reading time
     - Article content rendered as HTML (sanitized)
 
-[ ] Format controls
+[x] Format controls
     - Toggle between rendered / raw markdown / HTML source / plain text
     - Syntax highlighting for raw formats (code blocks)
 
-[ ] Actions
+[x] Actions
     - Copy to clipboard (copies current format)
     - Download as file (.md / .html / .txt)
     - "Extract another" link back to /
 
-[ ] Accessibility
+[x] Accessibility
     - ARIA landmarks and labels
     - Keyboard navigation
     - Focus management on route change
@@ -327,22 +327,22 @@ Acceptance Criteria:
 MILESTONE J: Svelte SPA - Library View
 ================================================================================
 
-[ ] Library page (/library)
+[x] Library page (/library)
     - Displays cached/previously-extracted articles from Postgres
     - Card grid layout: title, site favicon, excerpt, date, reading time
     - Sort by: most recent, most read (hit_count), alphabetical
     - Search/filter by title, domain, date range
 
-[ ] Library API endpoint
+[x] Library API endpoint
     GET /api/v1/library?page=1&per_page=20&sort=recent&q=search
     - Returns paginated list of cached articles (metadata only, no content)
     - Response: { items: [...], total: 500, page: 1, per_page: 20 }
 
-[ ] Article detail from library
+[x] Article detail from library
     - Click card -> navigate to /r/:id (load content from cache by ID)
     - GET /api/v1/library/:id -> returns full cached article
 
-[ ] Library stats
+[x] Library stats
     - Total articles cached
     - Top domains
     - Display somewhere on library page (sidebar or header)
@@ -399,7 +399,7 @@ MILESTONE L: Testing & Polish
 [ ] Documentation
     - README section for server setup
     - .env.example with all config vars documented
-    - API docs (OpenAPI/Swagger or hosted docs page)
+    - [x] API docs (OpenAPI/Swagger or hosted docs page)
 
 Acceptance Criteria:
 - All tests pass in CI
