@@ -1,14 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import SiteHeader from '$lib/components/SiteHeader.svelte';
+	import { ABOUT } from '$lib/content';
 </script>
 
 <svelte:head>
-	<title>About · Lectito</title>
-	<meta name="description" content="About Lectito, its API surface, rate limits, and example extraction workflows." />
+	<title>{ABOUT.meta.title}</title>
+	<meta name="description" content={ABOUT.meta.description} />
 </svelte:head>
-
-<SiteHeader active="about" />
 
 <div class="mx-auto max-w-6xl px-6 py-12">
 	<div class="grid gap-12 lg:grid-cols-[240px_minmax(0,1fr)]">
@@ -44,62 +42,30 @@
 
 		<main class="space-y-16">
 			<section id="about">
-				<h1 class="mb-6 font-serif text-4xl font-semibold text-ink">About Lectito</h1>
+				<h1 class="mb-6 font-serif text-4xl font-semibold text-ink">{ABOUT.about.heading}</h1>
 				<div class="max-w-none space-y-5 font-serif text-lg leading-relaxed text-charcoal">
-					<p>
-						Lectito is a free, open-source service for extracting readable content from web pages. It removes clutter,
-						isolates the main article, and returns clean output as Markdown, HTML, plain text, or JSON.
-					</p>
-					<p class="text-stone">
-						The stack pairs a Rust extraction engine with an Axum API and a Svelte client. Cached results back the
-						library view, keeping frequent reads fast and making earlier extractions easy to revisit.
-					</p>
-					<p class="text-stone">
-						The current public API is designed for research workflows, reading queues, and lightweight automation where
-						consistent output matters more than scraping raw page chrome.
-					</p>
+					<p>{ABOUT.about.paragraphs[0]}</p>
+					<p class="text-stone">{ABOUT.about.paragraphs[1]}</p>
+					<p class="text-stone">{ABOUT.about.paragraphs[2]}</p>
 				</div>
 			</section>
 
 			<section id="features">
-				<h2 class="mb-6 font-serif text-3xl font-semibold text-ink">Features</h2>
+				<h2 class="mb-6 font-serif text-3xl font-semibold text-ink">{ABOUT.features.heading}</h2>
 				<div class="grid gap-6 md:grid-cols-2">
-					<div class="editorial-card p-6">
-						<h3 class="mb-2 font-semibold text-ink">Smart Content Extraction</h3>
-						<p class="font-serif text-sm text-stone">
-							Removes ads, sidebars, navigation, and other low-value blocks so the article body is easier to read or
-							reprocess.
-						</p>
-					</div>
-					<div class="editorial-card p-6">
-						<h3 class="mb-2 font-semibold text-ink">Multiple Output Formats</h3>
-						<p class="font-serif text-sm text-stone">
-							Request HTML, Markdown, text, or JSON depending on whether you need reader mode, export, or structured
-							ingestion.
-						</p>
-					</div>
-					<div class="editorial-card p-6">
-						<h3 class="mb-2 font-semibold text-ink">Cached Library</h3>
-						<p class="font-serif text-sm text-stone">
-							Previously extracted articles are kept in Postgres, powering pagination, search, popularity sorting, and
-							revisit flows.
-						</p>
-					</div>
-					<div class="editorial-card p-6">
-						<h3 class="mb-2 font-semibold text-ink">Operational Controls</h3>
-						<p class="font-serif text-sm text-stone">
-							Rate limiting, blocklists, and admin endpoints give the server enough leverage to stay public-facing
-							without being reckless.
-						</p>
-					</div>
+					{#each ABOUT.features.items as item (item.heading)}
+						<div class="editorial-card p-6">
+							<h3 class="mb-2 font-semibold text-ink">{item.heading}</h3>
+							<p class="font-serif text-sm text-stone">{item.body}</p>
+						</div>
+					{/each}
 				</div>
 			</section>
 
 			<section id="rate-limits">
-				<h2 class="mb-6 font-serif text-3xl font-semibold text-ink">Rate Limits</h2>
+				<h2 class="mb-6 font-serif text-3xl font-semibold text-ink">{ABOUT.rateLimits.heading}</h2>
 				<p class="mb-6 font-serif text-stone">
-					The API enforces per-IP limits across three windows so the public service stays stable under mixed interactive
-					and scripted traffic.
+					{ABOUT.rateLimits.intro}
 				</p>
 				<div class="overflow-x-auto">
 					<table class="w-full text-left text-sm">
@@ -133,7 +99,7 @@
 
 			<section id="api-reference" class="space-y-12">
 				<div>
-					<h2 class="mb-6 font-serif text-3xl font-semibold text-ink">API Reference</h2>
+					<h2 class="mb-6 font-serif text-3xl font-semibold text-ink">{ABOUT.apiReference.heading}</h2>
 				</div>
 
 				<div class="border-l-[3px] border-ink pl-6">
@@ -227,8 +193,8 @@
 						<p class="muted-label mb-3">cURL</p>
 						<div class="raw-view">
 							<code
-								>{`curl -X POST http://localhost:3000/api/v1/extract \\
-  -H "Content-Type: application/json" \\
+								>{String.raw`curl -X POST http://localhost:3000/api/v1/extract \
+  -H "Content-Type: application/json" \
   -d '{"url":"https://example.com/article","format":"markdown"}'`}</code>
 						</div>
 					</div>

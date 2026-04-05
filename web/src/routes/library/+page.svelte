@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { getApiErrorMessage, getLibrary } from '$lib/api';
-	import SiteHeader from '$lib/components/SiteHeader.svelte';
+	import { LIBRARY } from '$lib/content';
 	import type { LibraryResponse, LibrarySort } from '$lib/types';
 	import { formatDate, formatHoursFromMinutes, formatNumber, formatReadingTime, formatWordCount } from '$lib/utils';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
@@ -38,9 +38,9 @@
 
 	const topDomains = $derived.by(() => library?.stats.top_domains ?? []);
 	const domainOptions = $derived.by(() =>
-		Array.from(
-			new Set([...topDomains.map((entry) => entry.domain), ...(library?.items ?? []).map((item) => item.domain)])
-		).sort()
+		[
+			...new Set([...topDomains.map((entry) => entry.domain), ...(library?.items ?? []).map((item) => item.domain)])
+		].toSorted()
 	);
 	const totalPages = $derived.by(() => (library ? Math.max(1, Math.ceil(library.total / library.per_page)) : 1));
 	const hasResults = $derived.by(() => Boolean(library?.items?.length));
@@ -91,17 +91,15 @@
 </script>
 
 <svelte:head>
-	<title>Library · Lectito</title>
-	<meta name="description" content="Browse cached Lectito extractions by recency, popularity, or title." />
+	<title>{LIBRARY.meta.title}</title>
+	<meta name="description" content={LIBRARY.meta.description} />
 </svelte:head>
-
-<SiteHeader active="library" />
 
 <div class="mx-auto max-w-6xl px-6 pt-12 pb-16">
 	<section class="mb-8 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
 		<div>
-			<p class="muted-label mb-3">Cached articles from the extraction service</p>
-			<h1 class="mb-2 font-serif text-4xl font-semibold text-ink">Library</h1>
+			<p class="muted-label mb-3">{LIBRARY.hero.label}</p>
+			<h1 class="mb-2 font-serif text-4xl font-semibold text-ink">{LIBRARY.hero.heading}</h1>
 			<p class="font-serif text-stone">
 				{#if library}
 					Browse previously extracted articles.
@@ -133,7 +131,7 @@
 				placeholder="Search by title or domain..."
 				type="text"
 				value={currentQuery.q} />
-			<i class="i-tabler-search pointer-events-none absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-fog"> </i>
+			<i class="pointer-events-none absolute top-1/2 left-3 i-tabler-search h-5 w-5 -translate-y-1/2 text-fog"> </i>
 		</div>
 
 		<select class="border border-mist bg-white px-4 py-3 font-mono text-sm" name="domain">
@@ -208,7 +206,7 @@
 								{item.title || item.url}
 							</h2>
 							<p class="mb-4 line-clamp-3 font-serif text-sm text-stone">
-								{item.excerpt || 'No excerpt was stored for this cached article.'}
+								{item.excerpt || LIBRARY.excerptFallback}
 							</p>
 
 							<div
@@ -248,7 +246,7 @@
 			{:else}
 				<div class="editorial-panel p-10 text-center">
 					<p class="muted-label mb-3">No matches</p>
-					<p class="font-serif text-lg text-stone">Adjust the filters or extract a fresh article to seed the archive.</p>
+					<p class="font-serif text-lg text-stone">{LIBRARY.empty}</p>
 				</div>
 			{/if}
 		</section>
@@ -265,7 +263,7 @@
 							<span class="font-mono text-xs text-fog">{formatNumber(entry.count)}</span>
 						</a>
 					{:else}
-						<p class="font-serif text-sm text-stone">No domain stats yet.</p>
+						<p class="font-serif text-sm text-stone">{LIBRARY.domainStatsFallback}</p>
 					{/each}
 				</div>
 			</div>
@@ -289,7 +287,7 @@
 
 	{#if error}
 		<div class="mt-8 rounded-2xl border border-red-200 bg-white px-5 py-4 shadow-sm">
-			<p class="muted-label mb-2 text-red-700">Library Error</p>
+			<p class="muted-label mb-2 text-red-700">{LIBRARY.error}</p>
 			<p class="font-serif text-sm text-graphite">{error}</p>
 		</div>
 	{/if}

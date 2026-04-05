@@ -1,15 +1,23 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
+	import { NAV, SITE } from '$lib/content';
 
 	type NavKey = 'home' | 'library' | 'about';
 
-	let { active = 'home' }: { active?: NavKey } = $props();
-
 	const links: { href: `/${'' | 'library' | 'about'}`; label: string; key: NavKey }[] = [
-		{ href: '/', label: 'Extract', key: 'home' },
-		{ href: '/library', label: 'Library', key: 'library' },
-		{ href: '/about', label: 'About', key: 'about' }
+		{ href: '/', label: NAV.extract, key: 'home' },
+		{ href: '/library', label: NAV.library, key: 'library' },
+		{ href: '/about', label: NAV.about, key: 'about' }
 	];
+
+	const active = $derived.by((): NavKey | undefined => {
+		const path = page.url.pathname;
+		if (path === '/') return 'home';
+		if (path.startsWith('/library')) return 'library';
+		if (path.startsWith('/about')) return 'about';
+		return undefined;
+	});
 </script>
 
 <header class="bg-[rgba(250,250,250,0.84)] backdrop-blur-sm">
@@ -29,14 +37,14 @@
 				<a
 					class="border-b border-transparent pb-0.5 hover:border-ink hover:text-ink"
 					href={resolve('/about#api-reference')}>
-					API
+					{NAV.api}
 				</a>
 			</nav>
 		</div>
 		<div class="border-b-2 border-ink pb-6">
 			<a class="block text-center" href={resolve('/')}>
-				<span class="block text-5xl font-bold tracking-tight text-ink md:text-6xl">LECTITO</span>
-				<span class="mt-2 block font-serif text-sm text-stone italic"> Extract readable content from any web page </span>
+				<span class="block text-5xl font-bold tracking-tight text-ink md:text-6xl">{SITE.name}</span>
+				<span class="mt-2 block font-serif text-sm text-stone italic"> {SITE.tagline} </span>
 			</a>
 		</div>
 	</div>

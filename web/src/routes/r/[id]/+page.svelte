@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { extractArticleByUrl, getApiErrorMessage, getLibraryArticle } from '$lib/api';
+	import { READER } from '$lib/content';
 	import type { ExtractFormat, ExtractResponse } from '$lib/types';
 	import {
 		fileExtensionForFormat,
@@ -172,7 +173,7 @@
 				</div>
 				<div>
 					<p class="font-semibold text-ink">
-						{article.metadata.author || 'Unknown author'}
+						{article.metadata.author || READER.authorFallback}
 					</p>
 					<p class="text-xs text-stone">{article.metadata.site_name || article.url}</p>
 				</div>
@@ -236,12 +237,12 @@
 				<a
 					class="border-b border-stone text-sm font-medium text-stone hover:border-ink hover:text-ink"
 					href={resolve('/')}>
-					← Extract Another
+					{READER.nav.extractAnother}
 				</a>
 				<a
 					class="border-b border-stone text-sm font-medium text-stone hover:border-ink hover:text-ink"
 					href={resolve('/library')}>
-					Browse Library →
+					{READER.nav.browseLibrary}
 				</a>
 			</div>
 
@@ -260,15 +261,15 @@
 {:else}
 	<div class="mx-auto max-w-3xl px-6 py-20">
 		<div class="editorial-panel p-10 text-center">
-			<p class="muted-label mb-3">Reader unavailable</p>
+			<p class="muted-label mb-3">{READER.unavailable.label}</p>
 			<p class="font-serif text-lg text-stone">
-				{errorMessage || 'That cached article could not be loaded.'}
+				{errorMessage || READER.unavailable.body}
 			</p>
 			<div class="mt-6">
 				<a
 					class="btn-ink inline-flex px-5 py-3 text-sm font-semibold tracking-[0.18em] uppercase"
 					href={resolve('/library')}>
-					Back to Library
+					{READER.unavailable.back}
 				</a>
 			</div>
 		</div>

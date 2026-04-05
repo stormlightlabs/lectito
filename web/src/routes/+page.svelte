@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { extractArticle, getApiErrorMessage, getLibrary, getLimits } from '$lib/api';
-	import SiteHeader from '$lib/components/SiteHeader.svelte';
+	import { HOME } from '$lib/content';
 	import type { ExtractFormat, LibraryResponse, LimitsResponse, RateLimitHeaders } from '$lib/types';
 	import { formatDate, formatNumber, formatReadingTime, formatWordCount } from '$lib/utils';
 
@@ -54,7 +54,7 @@
 		try {
 			new URL(url);
 		} catch {
-			errorMessage = 'Enter a valid URL, including the protocol.';
+			errorMessage = HOME.errors.invalidUrl;
 			return;
 		}
 
@@ -72,7 +72,7 @@
 			rateLimit = result.rateLimit;
 
 			if (!result.data.id) {
-				errorMessage = 'The article was extracted, but no cache id was returned for the reader route.';
+				errorMessage = HOME.errors.noCacheId;
 				return;
 			}
 
@@ -86,19 +86,17 @@
 </script>
 
 <svelte:head>
-	<title>Lectito</title>
-	<meta name="description" content="Extract clean, readable articles from any URL and browse cached reads in Lectito." />
+	<title>{HOME.meta.title}</title>
+	<meta name="description" content={HOME.meta.description} />
 </svelte:head>
-
-<SiteHeader active="home" />
 
 <main class="mx-auto max-w-6xl px-6 py-16">
 	<section class="mx-auto max-w-3xl">
 		<div class="mb-12 text-center">
-			<p class="muted-label mb-4">Fast Rust extraction for research, archives, and reading queues</p>
-			<h1 class="mb-4 font-serif text-4xl font-semibold tracking-tight text-ink md:text-5xl">Paste a URL to extract</h1>
+			<p class="muted-label mb-4">{HOME.hero.label}</p>
+			<h1 class="mb-4 font-serif text-4xl font-semibold tracking-tight text-ink md:text-5xl">{HOME.hero.heading}</h1>
 			<p class="mx-auto max-w-2xl font-serif text-lg text-stone">
-				Clean, readable articles from any web page. No clutter, no tracking detours, just the content you came for.
+				{HOME.hero.body}
 			</p>
 		</div>
 
@@ -110,7 +108,7 @@
 					void submitExtraction();
 				}}>
 				<div>
-					<label class="muted-label mb-2 block" for="article-url">Article URL</label>
+					<label class="muted-label mb-2 block" for="article-url">{HOME.form.urlLabel}</label>
 					<input
 						id="article-url"
 						bind:value={url}
@@ -155,7 +153,7 @@
 							</label>
 							<div
 								class="rounded-xl border border-dashed border-mist bg-[rgba(255,255,255,0.72)] px-3 py-3 text-xs text-stone">
-								Reader view opens after extraction and keeps the cached article on hand for later.
+								{HOME.form.readerHint}
 							</div>
 						</div>
 					</div>
@@ -168,10 +166,10 @@
 					{#if loading}
 						<span class="inline-flex items-center gap-3">
 							<span class="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white"></span>
-							<span>Extracting</span>
+							<span>{HOME.form.submitLoading}</span>
 						</span>
 					{:else}
-						Extract Content
+						{HOME.form.submitIdle}
 					{/if}
 				</button>
 			</form>
@@ -182,7 +180,7 @@
 				{#if rateLimit?.remaining !== undefined}
 					<span>{formatNumber(rateLimit.remaining)} requests left in the current window.</span>
 				{:else}
-					<span>Free public API with request limits surfaced on every response.</span>
+					<span>{HOME.form.rateLimitFallback}</span>
 				{/if}
 			</div>
 			<a
@@ -194,51 +192,35 @@
 	</section>
 
 	<section class="mt-16 grid gap-8 md:grid-cols-3">
-		<div class="text-center">
-			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center border-2 border-ink">
-				<span class="flex items-center">
-					<i class="i-tabler-bolt ml-1 h-6 w-6 text-yellow-500"></i>
-				</span>
+		{#each HOME.features as feature, i (feature.heading)}
+			<div class="text-center">
+				<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center border-2 border-ink">
+					<span class="flex items-center">
+						{#if i === 0}
+							<i class="ml-1 i-tabler-bolt h-6 w-6 text-yellow-500"></i>
+						{:else if i === 1}
+							<i class="ml-1 i-tabler-book h-6 w-6 text-blue-500"></i>
+						{:else}
+							<i class="ml-1 i-tabler-api h-6 w-6 text-green-500"></i>
+						{/if}
+					</span>
+				</div>
+				<h2 class="mb-2 font-semibold text-ink">{feature.heading}</h2>
+				<p class="font-serif text-sm text-stone">{feature.body}</p>
 			</div>
-			<h2 class="mb-2 font-semibold text-ink">Fast</h2>
-			<p class="font-serif text-sm text-stone">
-				Server-side caching and Rust extraction keep repeat reads responsive without sacrificing detail.
-			</p>
-		</div>
-		<div class="text-center">
-			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center border-2 border-ink">
-				<span class="flex items-center">
-					<i class="i-tabler-book ml-1 h-6 w-6 text-blue-500"></i>
-				</span>
-			</div>
-			<h2 class="mb-2 font-semibold text-ink">Clean</h2>
-			<p class="font-serif text-sm text-stone">
-				Focused reader layouts, metadata capture, and multiple export formats make the result immediately usable.
-			</p>
-		</div>
-		<div class="text-center">
-			<div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center border-2 border-ink">
-				<span class="flex items-center">
-					<i class="i-tabler-api ml-1 h-6 w-6 text-green-500"></i>
-				</span>
-			</div>
-			<h2 class="mb-2 font-semibold text-ink">Public API</h2>
-			<p class="font-serif text-sm text-stone">
-				POST and GET extraction endpoints, a cached library, and rate-limit headers for predictable integrations.
-			</p>
-		</div>
+		{/each}
 	</section>
 
 	<section class="mt-20 border-t border-mist pt-12">
 		<div class="mb-8 flex items-center justify-between gap-4">
 			<div>
-				<p class="muted-label mb-2">Archive Preview</p>
-				<h2 class="font-serif text-2xl font-semibold text-ink">Recently Extracted</h2>
+				<p class="muted-label mb-2">{HOME.recent.label}</p>
+				<h2 class="font-serif text-2xl font-semibold text-ink">{HOME.recent.heading}</h2>
 			</div>
 			<a
 				class="border-b border-stone text-sm font-medium text-stone hover:border-ink hover:text-ink"
 				href={resolve('/library')}>
-				View Library →
+				{HOME.recent.viewAll}
 			</a>
 		</div>
 
@@ -259,7 +241,7 @@
 									{item.title || item.url}
 								</h3>
 								<p class="line-clamp-2 font-serif text-sm text-stone">
-									{item.excerpt || 'No excerpt was captured for this cached article yet.'}
+									{item.excerpt || HOME.recent.excerptFallback}
 								</p>
 								<div class="mt-3 flex flex-wrap items-center gap-4 font-mono text-xs text-fog">
 									<span>{item.domain}</span>
@@ -275,7 +257,7 @@
 		{:else}
 			<div class="editorial-panel p-8 text-center">
 				<p class="font-serif text-stone">
-					{recentError || 'No cached articles yet. Extract one above to seed the library.'}
+					{recentError || HOME.recent.empty}
 				</p>
 			</div>
 		{/if}
@@ -285,7 +267,7 @@
 {#if errorMessage}
 	<div class="fixed inset-x-0 bottom-6 z-50 mx-auto max-w-xl px-6">
 		<div class="rounded-2xl border border-red-200 bg-white px-5 py-4 shadow-xl">
-			<p class="muted-label mb-2 text-red-700">Extraction Error</p>
+			<p class="muted-label mb-2 text-red-700">{HOME.errors.label}</p>
 			<p class="font-serif text-sm text-graphite">{errorMessage}</p>
 		</div>
 	</div>
