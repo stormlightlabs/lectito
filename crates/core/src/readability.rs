@@ -210,8 +210,9 @@ impl Readability {
 
         let doc = Document::parse_with_base_url(&html, Some(parsed_url.clone()))?;
 
-        if let Some(article) =
-            self.try_site_extractor_async(&doc, &parsed_url, &request_config, merged_site_config.as_ref()).await?
+        if let Some(article) = self
+            .try_site_extractor_async(&doc, &parsed_url, &request_config, merged_site_config.as_ref())
+            .await?
         {
             return Ok(article);
         }
@@ -409,7 +410,10 @@ impl Readability {
     }
 
     fn resolve_site_config(&self, url: Option<&str>, html: Option<&str>) -> Option<SiteConfig> {
-        let mut loader = self.config_loader.clone().or_else(|| url.map(|_| ConfigLoader::default()))?;
+        let mut loader = self
+            .config_loader
+            .clone()
+            .or_else(|| url.map(|_| ConfigLoader::default()))?;
         match (url, html) {
             (Some(url), html) => loader.load_merged_for_url(url, html).ok(),
             (None, _) => None,
@@ -443,7 +447,8 @@ impl Readability {
             return Ok(None);
         };
 
-        self.article_from_extractor_outcome(doc, url, outcome, site_config).map(Some)
+        self.article_from_extractor_outcome(doc, url, outcome, site_config)
+            .map(Some)
     }
 
     async fn try_site_extractor_async(
@@ -454,7 +459,8 @@ impl Readability {
             return Ok(None);
         };
 
-        self.article_from_extractor_outcome(doc, url, outcome, site_config).map(Some)
+        self.article_from_extractor_outcome(doc, url, outcome, site_config)
+            .map(Some)
     }
 
     fn article_from_extractor_outcome(
@@ -482,10 +488,9 @@ impl Readability {
                     &site_config_patch,
                 ))
             }
-            ExtractorOutcome::Html {
-                content_html,
-                metadata_patch,
-            } => {
+            ExtractorOutcome::Html(outcome) => {
+                let content_html = outcome.content_html;
+                let metadata_patch = outcome.metadata_patch;
                 let merged_patch = site_config_patch.with_patch(&metadata_patch);
                 Ok(Article::from_document_with_metadata(
                     doc,

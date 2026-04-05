@@ -1,0 +1,16 @@
+{
+  "url": "https://patternmatched.substack.com/p/software-as-fan-art",
+  "mode": "html_override",
+  "title": "Software as Fan Art",
+  "author": "Owais",
+  "date": "2026-03-07T15:07:31+00:00",
+  "min_words": 1100,
+  "must_contain": [
+    "Software as Fan Art",
+    "Writer",
+    "Thunderus is an AI agent and harness"
+  ],
+  "must_not_contain": [
+    "Subscribe to get my thoughts straight to your inbox."
+  ]
+}

@@ -1,0 +1,682 @@
+
+
+
+
+
+<!DOCTYPE html>
+<html class="gl-system ui-neutral with-top-bar with-header application-chrome page-with-panels with-gl-container-queries  user-logged-out" lang="en">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta content="IE=edge" http-equiv="X-UA-Compatible">
+<meta content="width=device-width, initial-scale=1" name="viewport">
+<title>Migrate to Material Design 3 (!1350) · Merge requests · F-Droid / Client · GitLab</title>
+<script nonce="NweAXtqSIVamtfETqsr9sA==">
+//<![CDATA[
+window.gon={};gon.math_rendering_limits_enabled=true;gon.features={"allowIframesInMarkdown":false,"glqlLoadOnClick":false,"showMergeRequestStatusDraft":false,"mrPipelinesGraphql":false,"pipelineMiniGraphSubscription":true,"rapidDiffsOnMrShow":false,"enableInputsForMrPipelines":true,"mrRelatedWorkItems":false,"mrWidgetPipelineSubscription":false,"mergeWidgetStopPolling":false,"mergeTrainsSkipTrain":true,"mrReportsTab":false};gon.abilities={"resolveVulnerabilityWithAi":false,"measureCommentTemperature":false};
+//]]>
+</script>
+
+<script nonce="NweAXtqSIVamtfETqsr9sA==">
+//<![CDATA[
+const root = document.documentElement;
+if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  root.classList.add('gl-dark');
+}
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  if (e.matches) {
+    root.classList.add('gl-dark');
+  } else {
+    root.classList.remove('gl-dark');
+  }
+});
+
+//]]>
+</script>
+<script nonce="NweAXtqSIVamtfETqsr9sA==">
+//<![CDATA[
+var gl = window.gl || {};
+gl.startup_calls = {"/fdroid/fdroidclient/-/merge_requests/1350/diffs_metadata.json?diff_head=true\u0026view=inline\u0026w=1":{},"/fdroid/fdroidclient/-/merge_requests/1350/discussions.json?notes_filter=0\u0026per_page=20\u0026persist_filter=false":{},"/fdroid/fdroidclient/-/merge_requests/1350/widget.json":{},"/fdroid/fdroidclient/-/merge_requests/1350/cached_widget.json":{},"/fdroid/fdroidclient/-/merge_requests/1350.json?serializer=sidebar_extras":{}};
+gl.startup_graphql_calls = null;
+
+if (gl.startup_calls && window.fetch) {
+  Object.keys(gl.startup_calls).forEach(apiCall => {
+   gl.startup_calls[apiCall] = {
+      fetchCall: fetch(apiCall, {
+        // Emulate XHR for Rails AJAX request checks
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        // fetch won’t send cookies in older browsers, unless you set the credentials init option.
+        // We set to `same-origin` which is default value in modern browsers.
+        // See https://github.com/whatwg/fetch/pull/585 for more information.
+        credentials: 'same-origin'
+      })
+    };
+  });
+}
+if (gl.startup_graphql_calls && window.fetch) {
+  const headers = {"X-CSRF-Token":"AhuPCsGt7RmivEsuk26p1tUGqwsD4EnFTeTh4VqoEk7_weybH2tc2Lvt14uW83Cj0uKYttBNGhtp12cZqNqLTg","x-gitlab-feature-category":"code_review_workflow"};
+  const url = `https://gitlab.com/api/graphql`
+
+  const opts = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    }
+  };
+
+  gl.startup_graphql_calls = gl.startup_graphql_calls.map(call => ({
+    ...call,
+    fetchCall: fetch(url, {
+      ...opts,
+      credentials: 'same-origin',
+      body: JSON.stringify(call)
+    })
+  }))
+}
+
+
+//]]>
+</script>
+
+
+
+<meta content="light dark" name="color-scheme">
+<link rel="stylesheet" href="/assets/application-662d91a38dd06a2df4b8985027c71b8c5df8946c3e42ea382e19efc3fca0942b.css" media="(prefers-color-scheme: light)" />
+<link rel="stylesheet" href="/assets/application_dark-31e81a6a564d7cc3f615a7ddae375e2a0fd883729ff4f70d98f58349ef4dce10.css" media="(prefers-color-scheme: dark)" />
+<link rel="stylesheet" href="/assets/page_bundles/merge_request-805835e08423aebb4c04a12c1fb1d29a355ea18afc54d1e2f0838a7b23dc9a84.css" /><link rel="stylesheet" href="/assets/page_bundles/issuable-a1426ec32621b16dfde0bb759644dde9c2420a266b82578555e8cf4478d95dca.css" /><link rel="stylesheet" href="/assets/page_bundles/notes_shared-e58f07f39b2c4557134baf9f32b68c875fffb37fe1c5d8808fb7607d19f5690b.css" /><link rel="stylesheet" href="/assets/page_bundles/design_management-714c36aa7869317006d0fdf3fa26fe925dcbcda6a0c71a93a3e54f3fc27ca849.css" /><link rel="stylesheet" href="/assets/page_bundles/merge_requests-cf87d362d837e9488b2d3bc77ced534d45b3be1ad9275bb383acf2aa73ef419f.css" /><link rel="stylesheet" href="/assets/page_bundles/pipelines-73aa3826d1ff6db534ba4e57bcc5d791bd6058b88c0caeaa5c16d7857acb5ac2.css" /><link rel="stylesheet" href="/assets/page_bundles/reports-29e64d01ce221f24f5d01336bdfebb32405c7ed6bd1ca434396aacedb72dd3e3.css" /><link rel="stylesheet" href="/assets/page_bundles/ci_status-a8a0940e57bbda1e5773df806e02e1d49d605920f355620790dff8de65c19ff4.css" /><link rel="stylesheet" href="/assets/page_bundles/labels-b23cc06813aa6fbbc608e40531a9a2c605d4b464b1a2b1bd22360ba37986127f.css" /><link rel="stylesheet" href="/assets/page_bundles/commit_description-9e7efe20f0cef17d0606edabfad0418e9eb224aaeaa2dae32c817060fa60abcc.css" /><link rel="stylesheet" href="/assets/page_bundles/work_items-1ef547dbb03dd091b7ebddfe3a98841d7122e85b5c55bc62757746a2ba42e9c6.css" />
+<link rel="stylesheet" href="/assets/tailwind_cqs-f84c14f978471e903458db1024cb088bd6c8b45accb5fd1f8a12ffa0d9a0383b.css" />
+
+
+<link rel="stylesheet" href="/assets/fonts-deb7ad1d55ca77c0172d8538d53442af63604ff490c74acc2859db295c125bdb.css" />
+<link rel="stylesheet" href="/assets/highlight/themes/white-d436882f650831f756a6394bdaa66486d5ef99218601d4839f4d640558a4f307.css" media="(prefers-color-scheme: light)" />
+<link rel="stylesheet" href="/assets/highlight/themes/dark-9afe7e06099105c59ea8fe5379843ddf5c5dfcb3cc523eed3a9d4147f6ba7c5b.css" media="(prefers-color-scheme: dark)" />
+
+<script src="/assets/webpack/runtime.f74982a6.bundle.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/main.df9151cf.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/tracker.1eb446cb.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script nonce="NweAXtqSIVamtfETqsr9sA==">
+//<![CDATA[
+window.snowplowOptions = {"namespace":"gl","hostname":"snowplowprd.trx.gitlab.net","cookieDomain":".gitlab.com","appId":"gitlab","formTracking":true,"linkClickTracking":true};
+gl = window.gl || {};
+gl.snowplowStandardContext = {"schema":"iglu:com.gitlab/gitlab_standard/jsonschema/1-1-8","data":{"environment":"production","source":"gitlab-rails","correlation_id":"9e7bc3728f9569fe-DFW","extra":{},"user_id":null,"global_user_id":null,"user_type":null,"is_gitlab_team_member":null,"namespace_id":28397,"ultimate_parent_namespace_id":28397,"project_id":36189,"feature_enabled_by_namespace_ids":null,"realm":"saas","deployment_type":".com","context_generated_at":"2026-04-05T21:49:35.079Z","organization_id":1}};
+gl.snowplowPseudonymizedPageUrl = "https://gitlab.com/namespace28397/project36189/-/merge_requests/1350";
+gl.maskedDefaultReferrerUrl = null;
+gl.ga4MeasurementId = 'G-ENFH3X7M5Y';
+gl.duoEvents = ["ai_question_category","perform_completion_worker","process_gitlab_duo_question","agent_platform_session_created","agent_platform_session_dropped","agent_platform_session_finished","agent_platform_session_resumed","agent_platform_session_started","agent_platform_session_stopped","ai_response_time","ci_repository_xray_artifact_created","cleanup_stuck_agent_platform_session","click_dap_trial_or_paid_empty_state_agent","click_dap_trial_or_paid_empty_state_explore_agents_link","click_dap_trial_or_paid_empty_state_prompt","click_delete_ai_catalog_item_button","click_disable_ai_catalog_item_button","click_duo_agentic_not_available_empty_state_learn_more","click_duo_agentic_not_available_empty_state_start_trial","click_duo_agentic_trial_expired_learn_more","click_duo_agentic_trial_expired_upgrade","click_duplicate_ai_catalog_item_button","click_enable_ai_catalog_item_button","click_purchase_seats_button_group_duo_pro_home_page","close_vulnerability_resolution_merge_request","code_suggestion_accepted_in_ide","code_suggestion_rejected_in_ide","code_suggestion_shown_in_ide","code_suggestions_connection_details_rate_limit_exceeded","code_suggestions_direct_access_rate_limit_exceeded","code_suggestions_rate_limit_exceeded","create_ai_catalog_item","create_ai_catalog_item_consumer","create_ai_self_hosted_model","create_vulnerability_resolution_merge_request","default_answer","delete_ai_catalog_item","delete_ai_catalog_item_consumer","delete_ai_self_hosted_model","detected_high_comment_temperature","detected_repeated_high_comment_temperature","dismiss_sast_vulnerability_false_positive_analysis","dismiss_secret_detection_vulnerability_false_positive_analysis","encounter_duo_code_review_error_during_review","error_answer","excluded_files_from_duo_code_review","execute_llm_method","filter_ai_fp","find_no_issues_duo_code_review_after_review","find_nothing_to_review_duo_code_review_on_mr","finish_duo_workflow_execution","finish_mcp_tool_call","forced_high_temperature_commenting","i_quickactions_q","include_repository_xray_data_into_code_generation_prompt","mention_gitlabduo_in_mr_comment","merge_vulnerability_resolution_merge_request","post_comment_duo_code_review_on_diff","process_gitlab_duo_slash_command","react_thumbs_down_on_duo_code_review_comment","react_thumbs_up_on_duo_code_review_comment","reported_sast_vulnerability_false_positive_analysis","reported_secret_detection_vulnerability_false_positive_analysis","request_ask_help","request_duo_chat_response","request_review_duo_code_review_on_mr_by_author","request_review_duo_code_review_on_mr_by_non_author","requested_comment_temperature","retry_duo_workflow_execution","start_duo_workflow_execution","start_mcp_tool_call","submit_dap_trial_or_paid_empty_state_message","submit_gitlab_duo_question","tokens_per_embedding","tokens_per_user_request_prompt","tokens_per_user_request_response","trigger_ai_catalog_item","trigger_sast_vulnerability_fp_detection_workflow","trigger_sast_vulnerability_resolution_workflow","trigger_secret_detection_vulnerability_fp_detection_workflow","troubleshoot_job","update_ai_catalog_item","update_ai_catalog_item_consumer","update_ai_self_hosted_model","update_model_selection_feature","update_self_hosted_ai_feature_to_vendored_model","view_ai_catalog_item","view_ai_catalog_item_index","view_ai_catalog_project_catalog","view_ai_catalog_project_managed","view_dap_trial_or_paid_empty_state","view_duo_agentic_not_available_empty_state","view_duo_agentic_trial_expired_empty_state"];
+gl.onlySendDuoEvents = false;
+
+
+//]]>
+</script>
+<link rel="preload" href="/assets/application-662d91a38dd06a2df4b8985027c71b8c5df8946c3e42ea382e19efc3fca0942b.css" as="style" type="text/css" nonce="kR4P4yFPxvTmDgq6uF7iVQ==">
+<link rel="preload" href="/assets/highlight/themes/white-d436882f650831f756a6394bdaa66486d5ef99218601d4839f4d640558a4f307.css" as="style" type="text/css" nonce="kR4P4yFPxvTmDgq6uF7iVQ==">
+<link crossorigin="" href="https://snowplowprd.trx.gitlab.net" rel="preconnect">
+<link as="font" crossorigin="" href="/assets/gitlab-sans/GitLabSans-9892dc17af892e03de41625c0ee325117a3b8ee4ba6005f3a3eac68510030aed.woff2" rel="preload">
+<link as="font" crossorigin="" href="/assets/gitlab-sans/GitLabSans-Italic-f96f17332d67b21ada2dfba5f0c0e1d5801eab99330472057bf18edd93d4ccf7.woff2" rel="preload">
+<link as="font" crossorigin="" href="/assets/gitlab-mono/GitLabMono-29c2152dac8739499dd0fe5cd37a486ebcc7d4798c9b6d3aeab65b3172375b05.woff2" rel="preload">
+<link as="font" crossorigin="" href="/assets/gitlab-mono/GitLabMono-Italic-af36701a2188df32a9dcea12e0424c380019698d4f76da9ad8ea2fd59432cf83.woff2" rel="preload">
+<link rel="preload" href="/assets/fonts-deb7ad1d55ca77c0172d8538d53442af63604ff490c74acc2859db295c125bdb.css" as="style" type="text/css" nonce="kR4P4yFPxvTmDgq6uF7iVQ==">
+
+
+
+<script src="/assets/webpack/sentry.914a2c3f.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+
+<script src="/assets/webpack/super_sidebar.404c77d3.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/prosemirror.18b146ef.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/commons-pages.groups-pages.groups.achievements-pages.groups.activity-pages.groups.analytics.ci_cd_an-722b1be5.6d5b3047.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/586e3272.ec921d46.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/commons-pages.admin.topics.edit-pages.admin.topics.new-pages.groups.comment_templates-pages.groups.e-62d8c87c.093ae80e.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/540c13ba.80332b3e.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/commons-pages.admin.topics.edit-pages.admin.topics.new-pages.groups.comment_templates-pages.groups.e-27598f61.1501d618.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/commons-pages.admin.topics.edit-pages.admin.topics.new-pages.groups.comment_templates-pages.groups.e-39fd14c8.3f96e7d5.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/commons-pages.admin.topics.edit-pages.admin.topics.new-pages.groups.comment_templates-pages.groups.e-9ce223ed.479b4428.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/e3fb5bcf.18665003.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/fd4cb541.9c25e270.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/commons-pages.dashboard.milestones.show-pages.groups.epics.index-pages.groups.epics.new-pages.groups-aee4cc0c.f8d34384.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/commons-pages.groups.boards-pages.groups.epic_boards-pages.groups.epics.index-pages.groups.epics.new-c0074f9f.65d36ce4.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/d9f824d7.9bafa7cc.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/commons-pages.groups.epics.index-pages.groups.epics.new-pages.groups.epics.show-pages.groups.issues--3e0d22fb.f4baa395.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/1f5b0d56.7d3aadfa.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/commons-pages.dashboard.milestones.show-pages.groups.merge_requests-pages.groups.milestones.edit-pag-863b7fdd.faca2097.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/commons-pages.groups.merge_requests-pages.groups.settings.repository.show-pages.projects.incidents.s-273224e7.ede444d4.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/36ac9cf2.218a768f.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+<script src="/assets/webpack/pages.projects.merge_requests.show.252942d8.chunk.js" defer="defer" nonce="NweAXtqSIVamtfETqsr9sA=="></script>
+
+<meta content="object" property="og:type">
+<meta content="GitLab" property="og:site_name">
+<meta content="Migrate to Material Design 3 (!1350) · Merge requests · F-Droid / Client · GitLab" property="og:title">
+<meta content=" Goals  upgrade the color system without using dynamic color upgrade basic components (FAB, bottom app bar, etc.) " property="og:description">
+<meta content="https://gitlab.com/uploads/-/system/project/avatar/36189/ic_launcher.png" property="og:image">
+<meta content="64" property="og:image:width">
+<meta content="64" property="og:image:height">
+<meta content="https://gitlab.com/fdroid/fdroidclient/-/merge_requests/1350" property="og:url">
+<meta content="summary" property="twitter:card">
+<meta content="Migrate to Material Design 3 (!1350) · Merge requests · F-Droid / Client · GitLab" property="twitter:title">
+<meta content=" Goals  upgrade the color system without using dynamic color upgrade basic components (FAB, bottom app bar, etc.) " property="twitter:description">
+<meta content="https://gitlab.com/uploads/-/system/project/avatar/36189/ic_launcher.png" property="twitter:image">
+<meta property="twitter:label1" content="Author"><meta property="twitter:data1" content="proletarius101">
+<meta name="csrf-param" content="authenticity_token" />
+<meta name="csrf-token" content="mnAzaqZreo1aF6oNPydq7i_kIbAyKpSnOycn7NowjvlnqlD7eK3LTENGNqg6urObKAASDeGHx3kfFKEUKEIX-Q" />
+<meta name="csp-nonce" content="NweAXtqSIVamtfETqsr9sA==" />
+<meta name="action-cable-url" content="/-/cable" />
+<link href="/-/manifest.json" rel="manifest">
+<link rel="icon" type="image/png" href="/assets/favicon-72a2cad5025aa931d6ea56c3201d1f18e68a8cd39788c7c80d5b2b82aa5143ef.png" id="favicon" data-original-href="/assets/favicon-72a2cad5025aa931d6ea56c3201d1f18e68a8cd39788c7c80d5b2b82aa5143ef.png" />
+<link rel="apple-touch-icon" type="image/x-icon" href="/assets/apple-touch-icon-b049d4bc0dd9626f31db825d61880737befc7835982586d015bded10b4435460.png" />
+<link href="/search/opensearch.xml" rel="search" title="Search GitLab" type="application/opensearchdescription+xml">
+
+
+
+
+<meta content=" Goals  upgrade the color system without using dynamic color upgrade basic components (FAB, bottom app bar, etc.) " name="description">
+<meta content="#F1F0F6" media="(prefers-color-scheme: light)" name="theme-color">
+<meta content="#232128" media="(prefers-color-scheme: dark)" name="theme-color">
+</head>
+
+<body class="tab-width-8 gl-browser-chrome gl-platform-linux" data-group="fdroid" data-group-full-path="fdroid" data-namespace-id="28397" data-page="projects:merge_requests:show" data-page-type-id="1350" data-project="fdroidclient" data-project-full-path="fdroid/fdroidclient" data-project-id="36189">
+<div id="js-tooltips-container"></div>
+<script nonce="NweAXtqSIVamtfETqsr9sA==">
+//<![CDATA[
+gl = window.gl || {};
+gl.GfmAutoComplete = gl.GfmAutoComplete || {};
+gl.GfmAutoComplete.dataSources = {"epics":"/fdroid/fdroidclient/-/autocomplete_sources/epics","iterations":"/fdroid/fdroidclient/-/autocomplete_sources/iterations","vulnerabilities":"/fdroid/fdroidclient/-/autocomplete_sources/vulnerabilities","members":"/fdroid/fdroidclient/-/autocomplete_sources/members?type=MergeRequest\u0026type_id=1350","issues":"/fdroid/fdroidclient/-/autocomplete_sources/issues","mergeRequests":"/fdroid/fdroidclient/-/autocomplete_sources/merge_requests","labels":"/fdroid/fdroidclient/-/autocomplete_sources/labels?type=MergeRequest\u0026type_id=1350","milestones":"/fdroid/fdroidclient/-/autocomplete_sources/milestones","commands":"/fdroid/fdroidclient/-/autocomplete_sources/commands?type=MergeRequest\u0026type_id=1350","snippets":"/fdroid/fdroidclient/-/autocomplete_sources/snippets","contacts":"/fdroid/fdroidclient/-/autocomplete_sources/contacts?type=MergeRequest\u0026type_id=1350"};
+
+
+//]]>
+</script>
+<script nonce="NweAXtqSIVamtfETqsr9sA==">
+//<![CDATA[
+gl = window.gl || {};
+gl.client = {"isChrome":true,"isLinux":true};
+
+
+//]]>
+</script>
+
+
+<header class="super-topbar js-super-topbar"></header>
+<div class="layout-page js-page-layout page-gutter  page-with-super-sidebar">
+<script nonce="NweAXtqSIVamtfETqsr9sA==">
+//<![CDATA[
+const outer = document.createElement('div');
+outer.style.visibility = 'hidden';
+outer.style.overflow = 'scroll';
+document.body.appendChild(outer);
+const inner = document.createElement('div');
+outer.appendChild(inner);
+const scrollbarWidth = outer.offsetWidth - inner.offsetWidth;
+outer.parentNode.removeChild(outer);
+document.documentElement.style.setProperty('--scrollbar-width', `${scrollbarWidth}px`);
+
+//]]>
+</script><aside class="js-super-sidebar super-sidebar super-sidebar-loading" data-command-palette="{&quot;project_files_url&quot;:&quot;/fdroid/fdroidclient/-/files/master?format=json&quot;,&quot;project_blob_url&quot;:&quot;/fdroid/fdroidclient/-/blob/master&quot;}" data-is-saas="true" data-root-path="/" data-sidebar="{&quot;whats_new_most_recent_release_items_count&quot;:5,&quot;whats_new_version_digest&quot;:&quot;b4bb533fa95c6f945110887a7a55cb5876d00a039246e10eeb15e8f878438cd2&quot;,&quot;whats_new_read_articles&quot;:[],&quot;whats_new_mark_as_read_path&quot;:&quot;/-/whats_new/mark_as_read&quot;,&quot;is_logged_in&quot;:false,&quot;compare_plans_url&quot;:&quot;https://about.gitlab.com/pricing&quot;,&quot;context_switcher_links&quot;:[{&quot;title&quot;:&quot;Explore&quot;,&quot;link&quot;:&quot;/explore&quot;,&quot;icon&quot;:&quot;compass&quot;}],&quot;current_menu_items&quot;:[{&quot;id&quot;:&quot;project_overview&quot;,&quot;title&quot;:&quot;Client&quot;,&quot;avatar&quot;:&quot;/uploads/-/system/project/avatar/36189/ic_launcher.png&quot;,&quot;entity_id&quot;:36189,&quot;link&quot;:&quot;/fdroid/fdroidclient&quot;,&quot;link_classes&quot;:&quot;shortcuts-project&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;manage_menu&quot;,&quot;title&quot;:&quot;Manage&quot;,&quot;icon&quot;:&quot;users&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/activity&quot;,&quot;is_active&quot;:false,&quot;items&quot;:[{&quot;id&quot;:&quot;activity&quot;,&quot;title&quot;:&quot;Activity&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/activity&quot;,&quot;link_classes&quot;:&quot;shortcuts-project-activity&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;members&quot;,&quot;title&quot;:&quot;Members&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/project_members&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;labels&quot;,&quot;title&quot;:&quot;Labels&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/labels&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false},{&quot;id&quot;:&quot;plan_menu&quot;,&quot;title&quot;:&quot;Plan&quot;,&quot;icon&quot;:&quot;planning&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/work_items&quot;,&quot;is_active&quot;:false,&quot;items&quot;:[{&quot;id&quot;:&quot;project_issue_list&quot;,&quot;title&quot;:&quot;Work items&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/work_items&quot;,&quot;link_classes&quot;:&quot;shortcuts-issues has-sub-items&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;boards&quot;,&quot;title&quot;:&quot;Issue boards&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/boards&quot;,&quot;link_classes&quot;:&quot;shortcuts-issue-boards&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;milestones&quot;,&quot;title&quot;:&quot;Milestones&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/milestones&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;iterations&quot;,&quot;title&quot;:&quot;Iterations&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/cadences&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;external_wiki&quot;,&quot;title&quot;:&quot;External wiki&quot;,&quot;link&quot;:&quot;https://gitlab.com/fdroid/wiki/-/wikis/home&quot;,&quot;link_classes&quot;:&quot;shortcuts-external_wiki&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false},{&quot;id&quot;:&quot;code_menu&quot;,&quot;title&quot;:&quot;Code&quot;,&quot;icon&quot;:&quot;code&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/merge_requests&quot;,&quot;is_active&quot;:true,&quot;items&quot;:[{&quot;id&quot;:&quot;project_merge_request_list&quot;,&quot;title&quot;:&quot;Merge requests&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/merge_requests&quot;,&quot;link_classes&quot;:&quot;shortcuts-merge_requests&quot;,&quot;pill_count_field&quot;:&quot;openMergeRequestsCount&quot;,&quot;pill_count_dynamic&quot;:false,&quot;is_active&quot;:true},{&quot;id&quot;:&quot;files&quot;,&quot;title&quot;:&quot;Repository&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/tree/master&quot;,&quot;link_classes&quot;:&quot;shortcuts-tree&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;branches&quot;,&quot;title&quot;:&quot;Branches&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/branches&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;commits&quot;,&quot;title&quot;:&quot;Commits&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/commits/master?ref_type=heads&quot;,&quot;link_classes&quot;:&quot;shortcuts-commits&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;tags&quot;,&quot;title&quot;:&quot;Tags&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/tags&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;graphs&quot;,&quot;title&quot;:&quot;Repository graph&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/network/master?ref_type=heads&quot;,&quot;link_classes&quot;:&quot;shortcuts-network&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;compare&quot;,&quot;title&quot;:&quot;Compare revisions&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/compare?from=master\u0026to=master&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;file_locks&quot;,&quot;title&quot;:&quot;Locked files&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/path_locks&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false},{&quot;id&quot;:&quot;build_menu&quot;,&quot;title&quot;:&quot;Build&quot;,&quot;icon&quot;:&quot;rocket&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/pipelines&quot;,&quot;is_active&quot;:false,&quot;items&quot;:[{&quot;id&quot;:&quot;pipelines&quot;,&quot;title&quot;:&quot;Pipelines&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/pipelines&quot;,&quot;link_classes&quot;:&quot;shortcuts-pipelines&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;jobs&quot;,&quot;title&quot;:&quot;Jobs&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/jobs&quot;,&quot;link_classes&quot;:&quot;shortcuts-builds&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;pipeline_schedules&quot;,&quot;title&quot;:&quot;Pipeline schedules&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/pipeline_schedules&quot;,&quot;link_classes&quot;:&quot;shortcuts-builds&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;test_cases&quot;,&quot;title&quot;:&quot;Test cases&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/quality/test_cases&quot;,&quot;link_classes&quot;:&quot;shortcuts-test-cases&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;artifacts&quot;,&quot;title&quot;:&quot;Artifacts&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/artifacts&quot;,&quot;link_classes&quot;:&quot;shortcuts-builds&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false},{&quot;id&quot;:&quot;deploy_menu&quot;,&quot;title&quot;:&quot;Deploy&quot;,&quot;icon&quot;:&quot;deployments&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/releases&quot;,&quot;is_active&quot;:false,&quot;items&quot;:[{&quot;id&quot;:&quot;releases&quot;,&quot;title&quot;:&quot;Releases&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/releases&quot;,&quot;link_classes&quot;:&quot;shortcuts-deployments-releases&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;packages_registry&quot;,&quot;title&quot;:&quot;Package registry&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/packages&quot;,&quot;link_classes&quot;:&quot;shortcuts-container-registry&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;model_registry&quot;,&quot;title&quot;:&quot;Model registry&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/ml/models&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false},{&quot;id&quot;:&quot;operations_menu&quot;,&quot;title&quot;:&quot;Operate&quot;,&quot;icon&quot;:&quot;cloud-pod&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/terraform_module_registry&quot;,&quot;is_active&quot;:false,&quot;items&quot;:[{&quot;id&quot;:&quot;infrastructure_registry&quot;,&quot;title&quot;:&quot;Terraform modules&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/terraform_module_registry&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false},{&quot;id&quot;:&quot;analyze_menu&quot;,&quot;title&quot;:&quot;Analyze&quot;,&quot;icon&quot;:&quot;chart&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/ml/experiments&quot;,&quot;is_active&quot;:false,&quot;items&quot;:[{&quot;id&quot;:&quot;model_experiments&quot;,&quot;title&quot;:&quot;Model experiments&quot;,&quot;link&quot;:&quot;/fdroid/fdroidclient/-/ml/experiments&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false}],&quot;current_context_header&quot;:&quot;Project&quot;,&quot;university_path&quot;:&quot;https://university.gitlab.com&quot;,&quot;support_path&quot;:&quot;https://support.gitlab.com&quot;,&quot;docs_path&quot;:&quot;/help/docs&quot;,&quot;display_whats_new&quot;:true,&quot;show_version_check&quot;:null,&quot;search&quot;:{&quot;search_path&quot;:&quot;/search&quot;,&quot;issues_path&quot;:&quot;/dashboard/issues&quot;,&quot;mr_path&quot;:&quot;/dashboard/merge_requests&quot;,&quot;autocomplete_path&quot;:&quot;/search/autocomplete&quot;,&quot;settings_path&quot;:&quot;/search/settings&quot;,&quot;search_context&quot;:{&quot;group&quot;:{&quot;id&quot;:28397,&quot;name&quot;:&quot;F-Droid&quot;,&quot;full_name&quot;:&quot;F-Droid&quot;},&quot;group_metadata&quot;:{&quot;issues_path&quot;:&quot;/groups/fdroid/-/issues&quot;,&quot;mr_path&quot;:&quot;/groups/fdroid/-/merge_requests&quot;},&quot;project&quot;:{&quot;id&quot;:36189,&quot;name&quot;:&quot;Client&quot;},&quot;project_metadata&quot;:{&quot;mr_path&quot;:&quot;/fdroid/fdroidclient/-/merge_requests&quot;,&quot;issues_path&quot;:&quot;/fdroid/fdroidclient/-/issues&quot;},&quot;code_search&quot;:false,&quot;scope&quot;:&quot;merge_requests&quot;,&quot;for_snippets&quot;:null}},&quot;panel_type&quot;:&quot;project&quot;,&quot;shortcut_links&quot;:[{&quot;title&quot;:&quot;Snippets&quot;,&quot;href&quot;:&quot;/explore/snippets&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-snippets&quot;},{&quot;title&quot;:&quot;Groups&quot;,&quot;href&quot;:&quot;/explore/groups&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-groups&quot;},{&quot;title&quot;:&quot;Projects&quot;,&quot;href&quot;:&quot;/explore/projects&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-projects&quot;}],&quot;terms&quot;:&quot;/-/users/terms&quot;,&quot;sign_in_visible&quot;:&quot;true&quot;,&quot;allow_signup&quot;:&quot;true&quot;,&quot;new_user_registration_path&quot;:&quot;/users/sign_up&quot;,&quot;sign_in_path&quot;:&quot;/users/sign_in?redirect_to_referer=yes&quot;,&quot;trial_registration_path&quot;:&quot;/-/trial_registrations/new&quot;}"></aside>
+
+<div class="panels-container gl-flex gl-gap-3">
+<div class="content-panels gl-flex-1 gl-w-full gl-flex gl-gap-3 gl-relative js-content-panels gl-@container/content-panels">
+<div class="js-static-panel static-panel content-wrapper gl-relative paneled-view gl-flex-1 gl-overflow-y-auto gl-bg-default" id="static-panel-portal">
+<div class="panel-header">
+<div class="broadcast-wrapper">
+
+
+
+</div>
+<div class="top-bar-fixed container-fluid gl-rounded-t-lg gl-sticky gl-top-0 gl-left-0 gl-mx-0 gl-w-full" data-testid="top-bar">
+<div class="top-bar-container gl-flex gl-items-center gl-gap-2">
+<div class="gl-grow gl-basis-0 gl-flex gl-items-center gl-justify-start gl-gap-3">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"F-Droid","item":"https://gitlab.com/fdroid"},{"@type":"ListItem","position":2,"name":"Client","item":"https://gitlab.com/fdroid/fdroidclient"},{"@type":"ListItem","position":3,"name":"Merge requests","item":"https://gitlab.com/fdroid/fdroidclient/-/merge_requests"},{"@type":"ListItem","position":4,"name":"!1350","item":"https://gitlab.com/fdroid/fdroidclient/-/merge_requests/1350"}]}
+
+
+</script>
+<div data-testid="breadcrumb-links" id="js-vue-page-breadcrumbs-wrapper">
+<div data-breadcrumbs-json="[{&quot;text&quot;:&quot;F-Droid&quot;,&quot;href&quot;:&quot;/fdroid&quot;,&quot;avatarPath&quot;:&quot;/uploads/-/system/group/avatar/28397/ic_launcher.png&quot;},{&quot;text&quot;:&quot;Client&quot;,&quot;href&quot;:&quot;/fdroid/fdroidclient&quot;,&quot;avatarPath&quot;:&quot;/uploads/-/system/project/avatar/36189/ic_launcher.png&quot;},{&quot;text&quot;:&quot;Merge requests&quot;,&quot;href&quot;:&quot;/fdroid/fdroidclient/-/merge_requests&quot;,&quot;avatarPath&quot;:null},{&quot;text&quot;:&quot;!1350&quot;,&quot;href&quot;:&quot;/fdroid/fdroidclient/-/merge_requests/1350&quot;,&quot;avatarPath&quot;:null}]" id="js-vue-page-breadcrumbs"></div>
+<div id="js-injected-page-breadcrumbs"></div>
+</div>
+<div id="js-page-breadcrumbs-extra"></div>
+
+
+<div id="js-work-item-feedback"></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="panel-content">
+<div class="panel-content-inner js-static-panel-inner">
+<div class="alert-wrapper alert-wrapper-top-space gl-flex gl-flex-col gl-gap-3 container-fluid container-limited">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</div>
+
+<div class="container-fluid container-limited project-highlight-puc">
+<main class="content gl-@container/panel gl-pb-3 focus:gl-outline-none" id="content-body" itemscope itemtype="http://schema.org/SoftwareSourceCode" tabindex="-1">
+<div id="js-drawer-container"></div>
+<div class="flash-container flash-container-page sticky" data-testid="flash-container">
+<div id="js-global-alerts"></div>
+</div>
+
+
+
+
+
+
+
+
+<div class="merge-request" data-lock-version="30" data-mr-action="show" data-project-path="fdroid/fdroidclient" data-url="/fdroid/fdroidclient/-/merge_requests/1350.json">
+<div class="detail-page-header gl-flex gl-pt-5 gl-gap-3 gl-flex-wrap gl-mb-3 @sm/panel:gl-flex-nowrap @sm/panel:gl-mb-0 is-merge-request">
+<h1 class="title gl-heading-1 gl-self-center gl-mb-0 gl-flex-1 gl-wrap-anywhere" data-testid="title-content">
+Migrate to Material Design 3
+</h1>
+<div class="gl-flex gl-flex-row gl-gap-3 gl-w-full js-issuable-actions @sm/panel:gl-w-auto">
+<div class="dropdown gl-dropdown gl-flex-1">
+<div data-is-fork="true" data-reviewing-docs-path="/help/user/project/merge_requests/merge_request_troubleshooting.md#check-out-merge-requests-locally-through-the-head-ref" data-source-branch="md3" data-source-project-default-url="https://gitlab.com/fdroid-contrib/fdroidclient.git" data-source-project-full-path="fdroid-contrib/fdroidclient" data-source-project-path="fdroidclient" id="js-check-out-modal"></div>
+<button class="gl-button btn btn-md btn-default gl-flex gl-self-start gl-w-full @sm/panel:gl-w-auto !gl-pr-3" data-toggle="dropdown" data-testid="mr-code-dropdown" type="button"><span class="gl-button-text gl-inline-flex gl-justify-between gl-w-full">
+Code
+<svg class="s16 gl-icon gl-ml-2 !gl-mr-0" data-testid="chevron-down-icon"><use href="/assets/icons-41229992eca580608aadaaa9b83b717650b2863442574d0ebb87f859c42a3b6c.svg#chevron-down"></use></svg>
+
+</span>
+
+</button><div class="dropdown-menu dropdown-menu-right">
+<div class="gl-dropdown-inner">
+<div class="gl-dropdown-contents">
+<ul>
+<li class="gl-dropdown-section-header">
+<header class="dropdown-header">
+Review changes
+</header>
+</li>
+<li class="gl-dropdown-item">
+<button class="dropdown-item js-check-out-modal-trigger" type="button">
+<div class="gl-dropdown-item-text-wrapper">
+Check out branch
+</div>
+</button>
+</li>
+<li class="gl-dropdown-item">
+<a target="_blank" class="dropdown-item" data-testid="open-in-workspace-button" data-event-tracking="click_new_workspace_button" data-event-label="merge_requests:show" href="/-/remote_development/workspaces/new?project=fdroid-contrib%2Ffdroidclient&amp;gitRef=md3"><div class="gl-dropdown-item-text-wrapper">
+Open in Workspace
+</div>
+</a></li>
+
+<li class="gl-dropdown-divider">
+<hr class="dropdown-divider">
+</li>
+<li class="gl-dropdown-section-header">
+<header class="dropdown-header">
+Download
+</header>
+</li>
+<li class="gl-dropdown-item">
+<a class="dropdown-item" download="" data-testid="download-email-patches-menu-item" href="/fdroid/fdroidclient/-/merge_requests/1350.patch"><div class="gl-dropdown-item-text-wrapper">
+Patches
+</div>
+</a></li>
+<li class="gl-dropdown-item">
+<a class="dropdown-item" download="" data-testid="download-plain-diff-menu-item" href="/fdroid/fdroidclient/-/merge_requests/1350.diff"><div class="gl-dropdown-item-text-wrapper">
+Plain diff
+</div>
+</a></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+<button class="gl-button btn btn-md btn-default btn-icon gl-h-fit gutter-toggle js-sidebar-toggle @lg/panel:!gl-hidden" type="button"><svg class="s16 gl-icon gl-button-icon " data-testid="chevron-double-lg-left-icon"><use href="/assets/icons-41229992eca580608aadaaa9b83b717650b2863442574d0ebb87f859c42a3b6c.svg#chevron-double-lg-left"></use></svg>
+<span class="gl-button-text">
+<span class="gl-sr-only">Expand sidebar</span>
+
+</span>
+
+</button></div>
+</div>
+
+<div data-can-summarize="false" data-diffs-path="https://gitlab.com/fdroid/fdroidclient/-/merge_requests/1350/diffs" data-new-comment-template-paths="[{&quot;text&quot;:&quot;Your comment templates&quot;,&quot;href&quot;:&quot;/-/profile/comment_templates&quot;}]" id="js-review-drawer"></div>
+<div data-data="{&quot;iid&quot;:1350,&quot;canResolveDiscussion&quot;:&quot;false&quot;,&quot;defaultBranchName&quot;:&quot;master&quot;,&quot;projectPath&quot;:&quot;fdroid/fdroidclient&quot;,&quot;sourceProjectPath&quot;:&quot;fdroid-contrib/fdroidclient&quot;,&quot;title&quot;:&quot;Migrate to Material Design 3&quot;,&quot;isFluidLayout&quot;:&quot;&quot;,&quot;blocksMerge&quot;:&quot;true&quot;,&quot;imported&quot;:&quot;false&quot;,&quot;isDraft&quot;:&quot;false&quot;,&quot;tabs&quot;:[[&quot;show&quot;,&quot;Overview&quot;,&quot;/fdroid/fdroidclient/-/merge_requests/1350&quot;,341],[&quot;commits&quot;,&quot;Commits&quot;,&quot;/fdroid/fdroidclient/-/merge_requests/1350/commits&quot;,9],[&quot;pipelines&quot;,&quot;Pipelines&quot;,&quot;/fdroid/fdroidclient/-/merge_requests/1350/pipelines&quot;,63],[&quot;diffs&quot;,&quot;Changes&quot;,&quot;/fdroid/fdroidclient/-/merge_requests/1350/diffs&quot;,&quot;76&quot;]]}" id="js-merge-sticky-header"></div>
+<div class="merge-request-details issuable-details" data-id="36189">
+<div class="merge-request-sticky-header-wrapper js-merge-request-sticky-header-wrapper">
+<div class="merge-request-sticky-header gl-border-b">
+<div class="detail-page-description gl-pt-2 gl-pb-4 gl-flex gl-items-baseline gl-flex-wrap gl-text-subtle gl-relative is-merge-request">
+<div class="js-mr-header" data-hidden="false" data-iid="1350" data-imported="false" data-is-draft="false" data-project-path="fdroid/fdroidclient" data-state="merged"></div>
+<a class="gl-my-0 gl-ml-1 gl-mr-2 gl-hidden gl-overflow-hidden gl-text-ellipsis gl-whitespace-nowrap gl-font-bold gl-text-default merge-request-sticky-title" aria-hidden="true" href="#top">Migrate to Material Design 3
+</a><div class="merge-request-author-container"><a class="author-link gl-text-link gl-font-bold gl-mr-2 js-user-link" data-user-id="5451841" data-username="proletarius101" data-name="proletarius101" data-testid="author-link" href="/proletarius101"><span class="author">proletarius101</span></a>requested to merge </div><a title="fdroid-contrib/fdroidclient:md3" class="ref-container gl-inline-block gl-truncate gl-max-w-26 gl-ml-2 gl-shrink-0" href="/fdroid-contrib/fdroidclient/-/tree/md3"><span class="gl-align-middle -gl-mr-2 has-tooltip" title="The source project is a fork"><svg class="s12 gl-ml-1 has-tooltip" data-testid="fork-icon"><use href="/assets/icons-41229992eca580608aadaaa9b83b717650b2863442574d0ebb87f859c42a3b6c.svg#fork"></use></svg></span> fdroid-contrib/fdroidclient:md3</a> <button class="gl-button btn btn-icon btn-sm btn-default btn-default-tertiary gl-inline-block gl-mx-1 js-source-branch-copy" title="Copy branch name &lt;kbd class=&#39;flat gl-ml-2&#39; aria-hidden=true&gt;b&lt;/kbd&gt;" aria-keyshortcuts="b" aria-label="Copy branch name" aria-live="polite" data-toggle="tooltip" data-placement="bottom" data-container="body" data-html="true" data-clipboard-text="md3" type="button"><svg class="s16 gl-icon gl-button-icon " data-testid="copy-to-clipboard-icon"><use href="/assets/icons-41229992eca580608aadaaa9b83b717650b2863442574d0ebb87f859c42a3b6c.svg#copy-to-clipboard"></use></svg>
+
+</button> into <a title="master" class="ref-container gl-inline-block gl-truncate gl-max-w-26 gl-shrink-0 gl-mx-2" href="/fdroid/fdroidclient/-/tree/master">master</a>   <time class="js-timeago gl-inline-block" title="Feb 16, 2024 5:48am" datetime="2024-02-16T05:48:59Z" tabindex="0" aria-label="Feb 16, 2024 5:48am" data-toggle="tooltip" data-placement="top" data-container="body">Feb 16, 2024</time>
+</div>
+
+<div class="merge-request-tabs-container gl-flex gl-justify-between gl-relative gl-gap-2 is-merge-request js-tabs-affix">
+<ul class="merge-request-tabs nav-tabs nav nav-links gl-flex gl-flex-nowrap gl-m-0 gl-p-0 gl-border-0">
+<li class="notes-tab active" data-testid="notes-tab">
+<a data-action="show" data-target="#notes" data-toggle="tabvue" href="/fdroid/fdroidclient/-/merge_requests/1350">Overview
+<span class="gl-badge badge badge-pill badge-neutral"><span class="gl-badge-content"><span class="js-discussions-count">341</span>
+</span></span></a>
+</li>
+<li class="commits-tab" data-testid="commits-tab">
+<a data-action="commits" data-target="#commits" data-toggle="tabvue" href="/fdroid/fdroidclient/-/merge_requests/1350/commits">Commits
+<span class="gl-badge badge badge-pill badge-neutral"><span class="gl-badge-content"><span class="js-commits-count">9</span>
+</span></span></a>
+</li>
+<li class="pipelines-tab">
+<a data-action="pipelines" data-target="#pipelines" data-toggle="tabvue" href="/fdroid/fdroidclient/-/merge_requests/1350/pipelines">Pipelines
+<span class="gl-badge badge badge-pill badge-neutral"><span class="gl-badge-content"><span class="js-pipelines-mr-count">63</span>
+</span></span></a>
+</li>
+
+<li class="diffs-tab js-diffs-tab" data-testid="diffs-tab" id="diffs-tab">
+<a data-action="diffs" data-target="#diffs" data-toggle="tabvue" href="/fdroid/fdroidclient/-/merge_requests/1350/diffs">Changes
+<span class="gl-badge badge badge-pill badge-neutral"><span class="gl-badge-content"><span class="js-changes-tab-count" data-gid="gid://gitlab/MergeRequest/282616556">76</span>
+</span></span></a>
+</li>
+</ul>
+<div class="merge-request-tabs-actions gl-flex gl-flex-wrap gl-items-center gl-gap-3">
+<div data-blocks-merge="true" data-can-resolve-discussion="false" id="js-vue-discussion-counter"></div>
+<div id="js-submit-review-button"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="tab-content" id="diff-notes-app">
+<div id="js-diff-file-finder">
+<div id="js-code-navigation"></div>
+</div>
+<div class="tab-pane notes voting_notes" id="notes" style="display: block">
+<div class="merge-request-overview">
+<section>
+<div class="issuable-discussion js-vue-notes-event">
+<div class="detail-page-description gl-pb-0">
+<div>
+<div class="description !gl-mt-4 " data-testid="description-content">
+<div class="md">
+<h2 data-sourcepos="1:1-1:8" dir="auto">&#x000A;<a href="#goals" aria-hidden="true" class="anchor" id="user-content-goals"></a>Goals</h2>&#x000A;<ul data-sourcepos="3:1-7:0" dir="auto">&#x000A;<li data-sourcepos="3:1-3:54">upgrade the color system without using dynamic color</li>&#x000A;<li data-sourcepos="4:1-4:54">upgrade basic components (FAB, bottom app bar, etc.)</li>&#x000A;<li data-sourcepos="5:1-5:29">does not introduce breakage</li>&#x000A;<li data-sourcepos="6:1-7:0">minimal changes</li>&#x000A;</ul>&#x000A;<h2 data-sourcepos="8:1-8:9" dir="auto">&#x000A;<a href="#colors" aria-hidden="true" class="anchor" id="user-content-colors"></a>Colors</h2>&#x000A;<p data-sourcepos="10:1-10:409" dir="auto">I used our current primary (fdroid_blue <code data-sourcepos="10:42-10:48">#1976d2<span class="gfm-color_chip"><span style="background-color: #1976d2;"></span></span></code>) and secondary color (fdroid_green <code data-sourcepos="10:87-10:93">#8ab000<span class="gfm-color_chip"><span style="background-color: #8ab000;"></span></span></code>) with the <a data-sourcepos="10:106-10:212" href="https://www.figma.com/community/plugin/1034969338659738588/material-theme-builder" rel="nofollow noreferrer noopener" target="_blank">Material Theme Builder</a> (with matched color), and here is what I get: <a href="https://www.figma.com/file/ABnrhL6k5yDa67nOchezuD/Material-3-Design-Kit-(Community)?type=design&amp;node-id=49823%3A12141&amp;mode=design&amp;t=LNzqJd5skWrE7WCK-1" rel="nofollow noreferrer noopener" target="_blank">https://www.figma.com/file/ABnrhL6k5yDa67nOchezuD/Material-3-Design-Kit-(Community)?type=design&amp;node-id=49823%3A12141&amp;mode=design&amp;t=LNzqJd5skWrE7WCK-1</a></p>&#x000A;<p data-sourcepos="12:1-12:61" dir="auto"><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/13671d2d1786674c1d00410aadcaa8dc/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/13671d2d1786674c1d00410aadcaa8dc/image.png" data-link="true"><img data-sourcepos="12:1-12:61" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/13671d2d1786674c1d00410aadcaa8dc/image.png" data-canonical-src="/uploads/13671d2d1786674c1d00410aadcaa8dc/image.png"></a></p>&#x000A;<p data-sourcepos="14:1-14:324" dir="auto">We don't have a tertiary brand color. So I just used the generated tertiary color by the Material Theme Builder (magenta <code data-sourcepos="14:123-14:129">#A685B1<span class="gfm-color_chip"><span style="background-color: #A685B1;"></span></span></code>), based on the Primary Color fdroid_blue <code data-sourcepos="14:174-14:180">#1976d2<span class="gfm-color_chip"><span style="background-color: #1976d2;"></span></span></code>, as <a data-sourcepos="14:187-14:286" href="https://m3.material.io/foundations/customization#b4bea241-95cb-4e46-9668-ddd37c760955" rel="nofollow noreferrer noopener" target="_blank">recommended</a> by the guidelines for this situation.</p>&#x000A;<p data-sourcepos="16:1-16:61" dir="auto"><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/5bee9ea62d76cf064311b6b256c9d8cd/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/5bee9ea62d76cf064311b6b256c9d8cd/image.png" data-link="true"><img data-sourcepos="16:1-16:61" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/5bee9ea62d76cf064311b6b256c9d8cd/image.png" data-canonical-src="/uploads/5bee9ea62d76cf064311b6b256c9d8cd/image.png"></a></p>&#x000A;<p data-sourcepos="18:1-18:87" dir="auto"><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/b808d4ba590bcbe4bdd5e98bcf9f2933/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/b808d4ba590bcbe4bdd5e98bcf9f2933/image.png" data-link="true"><img data-sourcepos="18:1-18:61" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image" width="212" height="374" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/b808d4ba590bcbe4bdd5e98bcf9f2933/image.png" data-canonical-src="/uploads/b808d4ba590bcbe4bdd5e98bcf9f2933/image.png"></a></p>&#x000A;<h2 data-sourcepos="20:1-20:10" dir="auto">&#x000A;<a href="#preview" aria-hidden="true" class="anchor" id="user-content-preview"></a>Preview</h2>&#x000A;<h3 data-sourcepos="22:1-22:9" dir="auto">&#x000A;<a href="#light" aria-hidden="true" class="anchor" id="user-content-light"></a>Light</h3>&#x000A;<p data-sourcepos="24:1-24:828" dir="auto"><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/3420ba75fb4d9467a3d003c0be9f52da/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/3420ba75fb4d9467a3d003c0be9f52da/image.png" data-link="true"><img data-sourcepos="24:1-24:61" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/3420ba75fb4d9467a3d003c0be9f52da/image.png" data-canonical-src="/uploads/3420ba75fb4d9467a3d003c0be9f52da/image.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/f7d86e660492598e9446769067d0f385/28f623a8-2eb6-4a5d-89d8-16acf231baf6.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/f7d86e660492598e9446769067d0f385/28f623a8-2eb6-4a5d-89d8-16acf231baf6.png" data-link="true"><img data-sourcepos="24:88-24:210" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="28f623a8-2eb6-4a5d-89d8-16acf231baf6" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/f7d86e660492598e9446769067d0f385/28f623a8-2eb6-4a5d-89d8-16acf231baf6.png" data-canonical-src="/uploads/f7d86e660492598e9446769067d0f385/28f623a8-2eb6-4a5d-89d8-16acf231baf6.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/15abd2aaf46391edb1b4ec09b9e44f10/81744797-83bf-4bcf-b9a5-081579e6a8fc.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/15abd2aaf46391edb1b4ec09b9e44f10/81744797-83bf-4bcf-b9a5-081579e6a8fc.png" data-link="true"><img data-sourcepos="24:237-24:359" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="81744797-83bf-4bcf-b9a5-081579e6a8fc" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/15abd2aaf46391edb1b4ec09b9e44f10/81744797-83bf-4bcf-b9a5-081579e6a8fc.png" data-canonical-src="/uploads/15abd2aaf46391edb1b4ec09b9e44f10/81744797-83bf-4bcf-b9a5-081579e6a8fc.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/337e9f83e1cfcd1f6f1aa1b9f347fbcd/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/337e9f83e1cfcd1f6f1aa1b9f347fbcd/image.png" data-link="true"><img data-sourcepos="24:386-24:450" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image.png" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/337e9f83e1cfcd1f6f1aa1b9f347fbcd/image.png" data-canonical-src="/uploads/337e9f83e1cfcd1f6f1aa1b9f347fbcd/image.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/5563a32ce3a8226852970f396be839ad/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/5563a32ce3a8226852970f396be839ad/image.png" data-link="true"><img data-sourcepos="24:477-24:537" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/5563a32ce3a8226852970f396be839ad/image.png" data-canonical-src="/uploads/5563a32ce3a8226852970f396be839ad/image.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/9a11c8bbdee1122fcbe651167ea553df/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/9a11c8bbdee1122fcbe651167ea553df/image.png" data-link="true"><img data-sourcepos="24:564-24:624" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/9a11c8bbdee1122fcbe651167ea553df/image.png" data-canonical-src="/uploads/9a11c8bbdee1122fcbe651167ea553df/image.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/cecafda5ccfb95aedcbafe1bfe7c4e22/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/cecafda5ccfb95aedcbafe1bfe7c4e22/image.png" data-link="true"><img data-sourcepos="24:651-24:711" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/cecafda5ccfb95aedcbafe1bfe7c4e22/image.png" data-canonical-src="/uploads/cecafda5ccfb95aedcbafe1bfe7c4e22/image.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/b42c74efaf49bf37a50a73e0d20af92b/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/b42c74efaf49bf37a50a73e0d20af92b/image.png" data-link="true"><img data-sourcepos="24:738-24:802" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image.png" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/b42c74efaf49bf37a50a73e0d20af92b/image.png" data-canonical-src="/uploads/b42c74efaf49bf37a50a73e0d20af92b/image.png"></a></p>&#x000A;<h3 data-sourcepos="26:1-26:8" dir="auto">&#x000A;<a href="#dark" aria-hidden="true" class="anchor" id="user-content-dark"></a>Dark</h3>&#x000A;<p data-sourcepos="28:1-28:1022" dir="auto"><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/1c3aa56f8076ca93855364b2f92c9ce4/2a4d7fe3-c6f2-4e44-92f9-7b8ae7a0c713.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/1c3aa56f8076ca93855364b2f92c9ce4/2a4d7fe3-c6f2-4e44-92f9-7b8ae7a0c713.png" data-link="true"><img data-sourcepos="28:1-28:123" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="2a4d7fe3-c6f2-4e44-92f9-7b8ae7a0c713" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/1c3aa56f8076ca93855364b2f92c9ce4/2a4d7fe3-c6f2-4e44-92f9-7b8ae7a0c713.png" data-canonical-src="/uploads/1c3aa56f8076ca93855364b2f92c9ce4/2a4d7fe3-c6f2-4e44-92f9-7b8ae7a0c713.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/9c2c5e444ae1cb56b1f78b73526305cf/4c9a288f-4936-48d4-b547-035e8403fad1.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/9c2c5e444ae1cb56b1f78b73526305cf/4c9a288f-4936-48d4-b547-035e8403fad1.png" data-link="true"><img data-sourcepos="28:150-28:272" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="4c9a288f-4936-48d4-b547-035e8403fad1" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/9c2c5e444ae1cb56b1f78b73526305cf/4c9a288f-4936-48d4-b547-035e8403fad1.png" data-canonical-src="/uploads/9c2c5e444ae1cb56b1f78b73526305cf/4c9a288f-4936-48d4-b547-035e8403fad1.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/6bf1cb0a77f680bebae67f70e927ca30/a61f50a7-76ed-486c-b191-8212a376468e.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/6bf1cb0a77f680bebae67f70e927ca30/a61f50a7-76ed-486c-b191-8212a376468e.png" data-link="true"><img data-sourcepos="28:299-28:421" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="a61f50a7-76ed-486c-b191-8212a376468e" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/6bf1cb0a77f680bebae67f70e927ca30/a61f50a7-76ed-486c-b191-8212a376468e.png" data-canonical-src="/uploads/6bf1cb0a77f680bebae67f70e927ca30/a61f50a7-76ed-486c-b191-8212a376468e.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/7780036d6ce44d38c341168c0219d2cf/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/7780036d6ce44d38c341168c0219d2cf/image.png" data-link="true"><img data-sourcepos="28:448-28:508" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/7780036d6ce44d38c341168c0219d2cf/image.png" data-canonical-src="/uploads/7780036d6ce44d38c341168c0219d2cf/image.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/dc098ec1f15bb097a22a06557ea33736/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/dc098ec1f15bb097a22a06557ea33736/image.png" data-link="true"><img data-sourcepos="28:535-28:599" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image.png" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/dc098ec1f15bb097a22a06557ea33736/image.png" data-canonical-src="/uploads/dc098ec1f15bb097a22a06557ea33736/image.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/c4f9f42a53b98beafa2ce2b5df2e7212/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/c4f9f42a53b98beafa2ce2b5df2e7212/image.png" data-link="true"><img data-sourcepos="28:626-28:690" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image.png" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/c4f9f42a53b98beafa2ce2b5df2e7212/image.png" data-canonical-src="/uploads/c4f9f42a53b98beafa2ce2b5df2e7212/image.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/6ce9667781d6d0193b293abda5bb5c85/055b6bca-d267-45d5-abe8-04419b26dac1.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/6ce9667781d6d0193b293abda5bb5c85/055b6bca-d267-45d5-abe8-04419b26dac1.png" data-link="true"><img data-sourcepos="28:717-28:843" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="055b6bca-d267-45d5-abe8-04419b26dac1.png" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/6ce9667781d6d0193b293abda5bb5c85/055b6bca-d267-45d5-abe8-04419b26dac1.png" data-canonical-src="/uploads/6ce9667781d6d0193b293abda5bb5c85/055b6bca-d267-45d5-abe8-04419b26dac1.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/22eb8f1a9c6a6b475ac1b12ce4be0942/2123e4ef-01fd-47fb-820c-5c2b694362c8.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/22eb8f1a9c6a6b475ac1b12ce4be0942/2123e4ef-01fd-47fb-820c-5c2b694362c8.png" data-link="true"><img data-sourcepos="28:870-28:996" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="2123e4ef-01fd-47fb-820c-5c2b694362c8.png" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/22eb8f1a9c6a6b475ac1b12ce4be0942/2123e4ef-01fd-47fb-820c-5c2b694362c8.png" data-canonical-src="/uploads/22eb8f1a9c6a6b475ac1b12ce4be0942/2123e4ef-01fd-47fb-820c-5c2b694362c8.png"></a></p>&#x000A;<h3 data-sourcepos="30:1-30:9" dir="auto">&#x000A;<a href="#black" aria-hidden="true" class="anchor" id="user-content-black"></a>Black</h3>&#x000A;<p data-sourcepos="32:1-32:1018" dir="auto"><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/3a1f32f13d353ac49c26a5db80fc2e1c/121f881f-0400-43f8-84c1-64a3a0cfa582.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/3a1f32f13d353ac49c26a5db80fc2e1c/121f881f-0400-43f8-84c1-64a3a0cfa582.png" data-link="true"><img data-sourcepos="32:1-32:123" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="121f881f-0400-43f8-84c1-64a3a0cfa582" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/3a1f32f13d353ac49c26a5db80fc2e1c/121f881f-0400-43f8-84c1-64a3a0cfa582.png" data-canonical-src="/uploads/3a1f32f13d353ac49c26a5db80fc2e1c/121f881f-0400-43f8-84c1-64a3a0cfa582.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/4e5cf9caac71039a13adedfcb882da72/a209b5d7-13c6-44a2-b324-b8a72c09bbad.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/4e5cf9caac71039a13adedfcb882da72/a209b5d7-13c6-44a2-b324-b8a72c09bbad.png" data-link="true"><img data-sourcepos="32:150-32:272" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="a209b5d7-13c6-44a2-b324-b8a72c09bbad" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/4e5cf9caac71039a13adedfcb882da72/a209b5d7-13c6-44a2-b324-b8a72c09bbad.png" data-canonical-src="/uploads/4e5cf9caac71039a13adedfcb882da72/a209b5d7-13c6-44a2-b324-b8a72c09bbad.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/2b22cfe0c6f361d607fc1ab923e9a6bd/cf283e16-5ad0-4685-be52-cadc15016810.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/2b22cfe0c6f361d607fc1ab923e9a6bd/cf283e16-5ad0-4685-be52-cadc15016810.png" data-link="true"><img data-sourcepos="32:299-32:421" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="cf283e16-5ad0-4685-be52-cadc15016810" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/2b22cfe0c6f361d607fc1ab923e9a6bd/cf283e16-5ad0-4685-be52-cadc15016810.png" data-canonical-src="/uploads/2b22cfe0c6f361d607fc1ab923e9a6bd/cf283e16-5ad0-4685-be52-cadc15016810.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/7b6083f618a227ef072481e8e2c07212/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/7b6083f618a227ef072481e8e2c07212/image.png" data-link="true"><img data-sourcepos="32:448-32:508" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/7b6083f618a227ef072481e8e2c07212/image.png" data-canonical-src="/uploads/7b6083f618a227ef072481e8e2c07212/image.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/46a38ab31ade5af8b5f214b30fe6445d/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/46a38ab31ade5af8b5f214b30fe6445d/image.png" data-link="true"><img data-sourcepos="32:535-32:599" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image.png" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/46a38ab31ade5af8b5f214b30fe6445d/image.png" data-canonical-src="/uploads/46a38ab31ade5af8b5f214b30fe6445d/image.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/c0ae86c893023d5d4df9a6dead60464e/image.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/c0ae86c893023d5d4df9a6dead60464e/image.png" data-link="true"><img data-sourcepos="32:626-32:686" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="image" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/c0ae86c893023d5d4df9a6dead60464e/image.png" data-canonical-src="/uploads/c0ae86c893023d5d4df9a6dead60464e/image.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/0cf85bed0fa6c2d9fe7664e0c995a2a7/698ebf16-9a70-4868-8732-a58af364ae86.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/0cf85bed0fa6c2d9fe7664e0c995a2a7/698ebf16-9a70-4868-8732-a58af364ae86.png" data-link="true"><img data-sourcepos="32:713-32:839" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="698ebf16-9a70-4868-8732-a58af364ae86.png" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/0cf85bed0fa6c2d9fe7664e0c995a2a7/698ebf16-9a70-4868-8732-a58af364ae86.png" data-canonical-src="/uploads/0cf85bed0fa6c2d9fe7664e0c995a2a7/698ebf16-9a70-4868-8732-a58af364ae86.png"></a><a class="no-attachment-icon gfm" href="/-/project/36189/uploads/01f66d208c2193b9c84f68cb86495139/4166ce81-9617-4225-b206-f3e45c8bdd8b.png" target="_blank" rel="noopener noreferrer" data-canonical-src="/uploads/01f66d208c2193b9c84f68cb86495139/4166ce81-9617-4225-b206-f3e45c8bdd8b.png" data-link="true"><img data-sourcepos="32:866-32:992" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="4166ce81-9617-4225-b206-f3e45c8bdd8b.png" width="179" height="388" decoding="async" class="lazy gfm" data-src="/-/project/36189/uploads/01f66d208c2193b9c84f68cb86495139/4166ce81-9617-4225-b206-f3e45c8bdd8b.png" data-canonical-src="/uploads/01f66d208c2193b9c84f68cb86495139/4166ce81-9617-4225-b206-f3e45c8bdd8b.png"></a></p>&#x000A;<p data-sourcepos="34:1-34:39" dir="auto">Fixes <a href="/fdroid/fdroidclient/-/issues/1962" data-reference-type="issue" data-original="#1962" data-link="false" data-link-reference="false" data-issue="32370157" data-project="36189" data-iid="1962" data-namespace-path="fdroid/fdroidclient" data-project-path="fdroid/fdroidclient" data-issue-type="issue" data-container="body" data-placement="top" title="New efficient Material Design for the App" class="gfm gfm-issue">#1962 (closed)</a>, <a href="/fdroid/fdroidclient/-/issues/2246" data-reference-type="issue" data-original="#2246" data-link="false" data-link-reference="false" data-issue="91798734" data-project="36189" data-iid="2246" data-namespace-path="fdroid/fdroidclient" data-project-path="fdroid/fdroidclient" data-issue-type="issue" data-container="body" data-placement="top" title="(Dark theme) Contrast between elements is too high after 1.13 theme changes" class="gfm gfm-issue">#2246 (closed)</a>, <a href="/fdroid/fdroidclient/-/issues/2511" data-reference-type="issue" data-original="#2511" data-link="false" data-link-reference="false" data-issue="121513783" data-project="36189" data-iid="2511" data-namespace-path="fdroid/fdroidclient" data-project-path="fdroid/fdroidclient" data-issue-type="issue" data-container="body" data-placement="top" title="Support Material 3/You." class="gfm gfm-issue">#2511 (closed)</a>, <a href="/fdroid/fdroidclient/-/issues/2927" data-reference-type="issue" data-original="#2927" data-link="false" data-link-reference="false" data-issue="160986245" data-project="36189" data-iid="2927" data-namespace-path="fdroid/fdroidclient" data-project-path="fdroid/fdroidclient" data-issue-type="issue" data-container="body" data-placement="top" title="Cosmetic: bell icon in Updates screen doesn't look consistent between dark and light mode" class="gfm gfm-issue">#2927 (closed)</a>, <a href="/fdroid/fdroidclient/-/issues/2926" data-reference-type="issue" data-original="#2926" data-link="false" data-link-reference="false" data-issue="160931405" data-project="36189" data-iid="2926" data-namespace-path="fdroid/fdroidclient" data-project-path="fdroid/fdroidclient" data-issue-type="issue" data-container="body" data-placement="top" title="Cosmetic: featureGraphic is high up and cut off" class="gfm gfm-issue">#2926 (closed)</a></p>
+</div>
+<textarea class="hidden js-task-list-field" data-value="## Goals
+
+* upgrade the color system without using dynamic color
+* upgrade basic components (FAB, bottom app bar, etc.)
+* does not introduce breakage
+* minimal changes
+
+## Colors
+
+I used our current primary (fdroid_blue `#1976d2`) and secondary color (fdroid_green `#8ab000`) with the [Material Theme Builder](https://www.figma.com/community/plugin/1034969338659738588/material-theme-builder) (with matched color), and here is what I get: https://www.figma.com/file/ABnrhL6k5yDa67nOchezuD/Material-3-Design-Kit-(Community)?type=design&amp;node-id=49823%3A12141&amp;mode=design&amp;t=LNzqJd5skWrE7WCK-1
+
+![image](/uploads/13671d2d1786674c1d00410aadcaa8dc/image.png)
+
+We don&#39;t have a tertiary brand color. So I just used the generated tertiary color by the Material Theme Builder (magenta `#A685B1`), based on the Primary Color fdroid_blue `#1976d2`, as [recommended](https://m3.material.io/foundations/customization#b4bea241-95cb-4e46-9668-ddd37c760955) by the guidelines for this situation.
+
+![image](/uploads/5bee9ea62d76cf064311b6b256c9d8cd/image.png)
+
+![image](/uploads/b808d4ba590bcbe4bdd5e98bcf9f2933/image.png){width=&quot;212&quot; height=&quot;374&quot;}
+
+## Preview
+
+### Light
+
+![image](/uploads/3420ba75fb4d9467a3d003c0be9f52da/image.png){width=&quot;179&quot; height=&quot;388&quot;}![28f623a8-2eb6-4a5d-89d8-16acf231baf6](/uploads/f7d86e660492598e9446769067d0f385/28f623a8-2eb6-4a5d-89d8-16acf231baf6.png){width=&quot;179&quot; height=&quot;388&quot;}![81744797-83bf-4bcf-b9a5-081579e6a8fc](/uploads/15abd2aaf46391edb1b4ec09b9e44f10/81744797-83bf-4bcf-b9a5-081579e6a8fc.png){width=&quot;179&quot; height=&quot;388&quot;}![image.png](/uploads/337e9f83e1cfcd1f6f1aa1b9f347fbcd/image.png){width=&quot;179&quot; height=&quot;388&quot;}![image](/uploads/5563a32ce3a8226852970f396be839ad/image.png){width=&quot;179&quot; height=&quot;388&quot;}![image](/uploads/9a11c8bbdee1122fcbe651167ea553df/image.png){width=&quot;179&quot; height=&quot;388&quot;}![image](/uploads/cecafda5ccfb95aedcbafe1bfe7c4e22/image.png){width=&quot;179&quot; height=&quot;388&quot;}![image.png](/uploads/b42c74efaf49bf37a50a73e0d20af92b/image.png){width=&quot;179&quot; height=&quot;388&quot;}
+
+### Dark
+
+![2a4d7fe3-c6f2-4e44-92f9-7b8ae7a0c713](/uploads/1c3aa56f8076ca93855364b2f92c9ce4/2a4d7fe3-c6f2-4e44-92f9-7b8ae7a0c713.png){width=&quot;179&quot; height=&quot;388&quot;}![4c9a288f-4936-48d4-b547-035e8403fad1](/uploads/9c2c5e444ae1cb56b1f78b73526305cf/4c9a288f-4936-48d4-b547-035e8403fad1.png){width=&quot;179&quot; height=&quot;388&quot;}![a61f50a7-76ed-486c-b191-8212a376468e](/uploads/6bf1cb0a77f680bebae67f70e927ca30/a61f50a7-76ed-486c-b191-8212a376468e.png){width=&quot;179&quot; height=&quot;388&quot;}![image](/uploads/7780036d6ce44d38c341168c0219d2cf/image.png){width=&quot;179&quot; height=&quot;388&quot;}![image.png](/uploads/dc098ec1f15bb097a22a06557ea33736/image.png){width=&quot;179&quot; height=&quot;388&quot;}![image.png](/uploads/c4f9f42a53b98beafa2ce2b5df2e7212/image.png){width=&quot;179&quot; height=&quot;388&quot;}![055b6bca-d267-45d5-abe8-04419b26dac1.png](/uploads/6ce9667781d6d0193b293abda5bb5c85/055b6bca-d267-45d5-abe8-04419b26dac1.png){width=&quot;179&quot; height=&quot;388&quot;}![2123e4ef-01fd-47fb-820c-5c2b694362c8.png](/uploads/22eb8f1a9c6a6b475ac1b12ce4be0942/2123e4ef-01fd-47fb-820c-5c2b694362c8.png){width=&quot;179&quot; height=&quot;388&quot;}
+
+### Black
+
+![121f881f-0400-43f8-84c1-64a3a0cfa582](/uploads/3a1f32f13d353ac49c26a5db80fc2e1c/121f881f-0400-43f8-84c1-64a3a0cfa582.png){width=&quot;179&quot; height=&quot;388&quot;}![a209b5d7-13c6-44a2-b324-b8a72c09bbad](/uploads/4e5cf9caac71039a13adedfcb882da72/a209b5d7-13c6-44a2-b324-b8a72c09bbad.png){width=&quot;179&quot; height=&quot;388&quot;}![cf283e16-5ad0-4685-be52-cadc15016810](/uploads/2b22cfe0c6f361d607fc1ab923e9a6bd/cf283e16-5ad0-4685-be52-cadc15016810.png){width=&quot;179&quot; height=&quot;388&quot;}![image](/uploads/7b6083f618a227ef072481e8e2c07212/image.png){width=&quot;179&quot; height=&quot;388&quot;}![image.png](/uploads/46a38ab31ade5af8b5f214b30fe6445d/image.png){width=&quot;179&quot; height=&quot;388&quot;}![image](/uploads/c0ae86c893023d5d4df9a6dead60464e/image.png){width=&quot;179&quot; height=&quot;388&quot;}![698ebf16-9a70-4868-8732-a58af364ae86.png](/uploads/0cf85bed0fa6c2d9fe7664e0c995a2a7/698ebf16-9a70-4868-8732-a58af364ae86.png){width=&quot;179&quot; height=&quot;388&quot;}![4166ce81-9617-4225-b206-f3e45c8bdd8b.png](/uploads/01f66d208c2193b9c84f68cb86495139/4166ce81-9617-4225-b206-f3e45c8bdd8b.png){width=&quot;179&quot; height=&quot;388&quot;}
+
+Fixes #1962, #2246, #2511, #2927, #2926"></textarea>
+</div>
+<div class="edited-text gl-mt-4 gl-text-subtle gl-text-sm">Edited <time class="js-timeago time_ago" title="Jan 23, 2025 6:51pm" datetime="2025-01-23T18:51:27Z" tabindex="0" aria-label="Jan 23, 2025 6:51pm" data-toggle="tooltip" data-placement="bottom" data-container="body">Jan 23, 2025</time> by <a class="author-link gl-text-link hover:gl-underline gl-text-subtle js-user-link" data-user-id="26331" data-username="grote" data-name="Torsten Grote" data-testid="author-link" href="/grote"><span class="">Torsten Grote</span></a></div>
+</div>
+
+</div>
+<div class="emoji-block emoji-list-container js-noteable-awards">
+<div class="gl-flex gl-flex-wrap gl-justify-between gl-pt-3">
+<div data-can-award-emoji="false" data-path="/api/v4/projects/36189/merge_requests/1350/award_emoji" data-show-default-award-emojis="true" id="js-vue-awards-block"></div>
+
+</div>
+
+</div>
+
+<div class="js-verification-alert" data-identity-verification-path="/-/identity_verification" data-identity-verification-required="false"></div>
+<script nonce="NweAXtqSIVamtfETqsr9sA==">
+//<![CDATA[
+window.gl = window.gl || {};
+window.gl.mrWidgetData = {"id":282616556,"iid":1350,"source_project_full_path":"fdroid-contrib/fdroidclient","target_project_full_path":"fdroid/fdroidclient","can_create_pipeline_in_target_project":false,"email_patches_path":"/fdroid/fdroidclient/-/merge_requests/1350.patch","plain_diff_path":"/fdroid/fdroidclient/-/merge_requests/1350.diff","merge_request_basic_path":"/fdroid/fdroidclient/-/merge_requests/1350.json?serializer=basic","merge_request_widget_path":"/fdroid/fdroidclient/-/merge_requests/1350/widget.json","merge_request_cached_widget_path":"/fdroid/fdroidclient/-/merge_requests/1350/cached_widget.json","commit_change_content_path":"/fdroid/fdroidclient/-/merge_requests/1350/commit_change_content","conflicts_docs_path":"/help/user/project/merge_requests/conflicts.md","reviewing_and_managing_merge_requests_docs_path":"/help/user/project/merge_requests/merge_request_troubleshooting.md#check-out-merge-requests-locally-through-the-head-ref","merge_request_pipelines_docs_path":"/help/ci/pipelines/merge_request_pipelines.md","ci_environments_status_path":"/fdroid/fdroidclient/-/merge_requests/1350/ci_environments_status","user_callouts_path":"/-/users/callouts","suggest_pipeline_feature_id":"suggest_pipeline","migrate_jenkins_feature_id":"migrate_from_jenkins_banner","is_dismissed_jenkins_migration":true,"human_access":null,"new_project_pipeline_path":"/fdroid/fdroidclient/-/pipelines/new","source_project_default_url":"https://gitlab.com/fdroid-contrib/fdroidclient.git","issues_links":{"assign_to_closing":"/fdroid/fdroidclient/-/merge_requests/1350/assign_related_issues","assign_to_closing_count":0,"closing":"\u003ca href=\"/fdroid/fdroidclient/-/work_items/1962\" title=\"New efficient Material Design for the App\" class=\"gfm gfm-issue\" data-original=\"#1962\" data-link=\"false\" data-link-reference=\"false\" data-issue=\"32370157\" data-project=\"36189\" data-iid=\"1962\" data-namespace-path=\"fdroid/fdroidclient\" data-project-path=\"fdroid/fdroidclient\" data-issue-type=\"issue\" data-container=\"body\" data-placement=\"top\" data-reference-type=\"issue\"\u003e#1962 (closed)\u003c/a\u003e, \u003ca href=\"/fdroid/fdroidclient/-/work_items/2246\" title=\"(Dark theme) Contrast between elements is too high after 1.13 theme changes\" class=\"gfm gfm-issue\" data-original=\"#2246\" data-link=\"false\" data-link-reference=\"false\" data-issue=\"91798734\" data-project=\"36189\" data-iid=\"2246\" data-namespace-path=\"fdroid/fdroidclient\" data-project-path=\"fdroid/fdroidclient\" data-issue-type=\"issue\" data-container=\"body\" data-placement=\"top\" data-reference-type=\"issue\"\u003e#2246 (closed)\u003c/a\u003e, \u003ca href=\"/fdroid/fdroidclient/-/work_items/2511\" title=\"Support Material 3/You.\" class=\"gfm gfm-issue\" data-original=\"#2511\" data-link=\"false\" data-link-reference=\"false\" data-issue=\"121513783\" data-project=\"36189\" data-iid=\"2511\" data-namespace-path=\"fdroid/fdroidclient\" data-project-path=\"fdroid/fdroidclient\" data-issue-type=\"issue\" data-container=\"body\" data-placement=\"top\" data-reference-type=\"issue\"\u003e#2511 (closed)\u003c/a\u003e, \u003ca href=\"/fdroid/fdroidclient/-/work_items/2926\" title=\"Cosmetic: featureGraphic is high up and cut off\" class=\"gfm gfm-issue\" data-original=\"#2926\" data-link=\"false\" data-link-reference=\"false\" data-issue=\"160931405\" data-project=\"36189\" data-iid=\"2926\" data-namespace-path=\"fdroid/fdroidclient\" data-project-path=\"fdroid/fdroidclient\" data-issue-type=\"issue\" data-container=\"body\" data-placement=\"top\" data-reference-type=\"issue\"\u003e#2926 (closed)\u003c/a\u003e, and \u003ca href=\"/fdroid/fdroidclient/-/work_items/2927\" title=\"Cosmetic: bell icon in Updates screen doesn't look consistent between dark and light mode\" class=\"gfm gfm-issue\" data-original=\"#2927\" data-link=\"false\" data-link-reference=\"false\" data-issue=\"160986245\" data-project=\"36189\" data-iid=\"2927\" data-namespace-path=\"fdroid/fdroidclient\" data-project-path=\"fdroid/fdroidclient\" data-issue-type=\"issue\" data-container=\"body\" data-placement=\"top\" data-reference-type=\"issue\"\u003e#2927 (closed)\u003c/a\u003e","closing_count":5,"mentioned_but_not_closing":"","mentioned_count":0},"security_reports_docs_path":"/help/user/application_security/detect/security_scanning_results.md#merge-request-security-widget","enabled_reports":{"sast":false,"container_scanning":false,"dast":false,"dependency_scanning":false,"license_scanning":false,"coverage_fuzzing":false,"secret_detection":false,"api_fuzzing":false},"show_gitpod_button":true,"gitpod_url":"https://gitpod.io/#https://gitlab.com/fdroid/fdroidclient/-/merge_requests/1350","gitpod_enabled":false,"merge_request_path":"/fdroid/fdroidclient/-/merge_requests/1350","require_password_to_approve":false,"merge_request_approvers_available":true,"multiple_approval_rules_available":true,"pipeline_id":1646679479,"pipeline_iid":2670,"can_read_vulnerabilities":false,"can_read_vulnerability_feedback":false,"create_vulnerability_feedback_issue_path":null,"create_vulnerability_feedback_merge_request_path":null,"create_vulnerability_feedback_dismissal_path":null,"discover_project_security_path":null,"has_approvals_available":true,"api_approval_settings_path":"/api/v4/projects/36189/merge_requests/1350/approval_settings","merge_immediately_docs_path":"/help/ci/pipelines/merge_trains.md#skip-the-merge-train-and-merge-immediately","saml_approval_path":null,"require_saml_auth_to_approve":false}
+
+window.gl.mrWidgetData.artifacts_endpoint = '/fdroid/fdroidclient/-/pipelines/:pipeline_artifacts_id/downloadable_artifacts.json';
+window.gl.mrWidgetData.artifacts_endpoint_placeholder = ':pipeline_artifacts_id';
+window.gl.mrWidgetData.pipeline_etag = '/api/graphql:pipelines/sha/71e42c64296918dc7e449976c151fab90dcec946';
+window.gl.mrWidgetData.squash_before_merge_help_path = '/help/user/project/merge_requests/squash_and_merge.md';
+window.gl.mrWidgetData.ci_troubleshooting_docs_path = '/help/ci/debugging.md';
+window.gl.mrWidgetData.mr_troubleshooting_docs_path = '/help/user/project/merge_requests/merge_request_troubleshooting.md';
+window.gl.mrWidgetData.pipeline_must_succeed_docs_path = '/help/user/project/merge_requests/auto_merge.md#require-a-successful-pipeline-for-merge';
+window.gl.mrWidgetData.code_coverage_check_help_page_path = '/help/ci/testing/code_coverage/_index.md#add-a-coverage-check-approval-rule';
+window.gl.mrWidgetData.security_configuration_path = '/fdroid/fdroidclient/-/security/configuration';
+window.gl.mrWidgetData.license_compliance_docs_path = '/help/user/compliance/license_scanning_of_cyclonedx_files/_index.md';
+window.gl.mrWidgetData.eligible_approvers_docs_path = '/help/user/project/merge_requests/approvals/rules.md#eligible-approvers';
+window.gl.mrWidgetData.approvals_help_path = '/help/user/project/merge_requests/approvals/_index.md';
+window.gl.mrWidgetData.codequality_help_path = '/help/ci/testing/code_quality.md#pipeline-details-view';
+window.gl.mrWidgetData.false_positive_doc_url = '/help/user/application_security/vulnerabilities/_index.md';
+window.gl.mrWidgetData.can_view_false_positive = 'true';
+window.gl.mrWidgetData.user_preferences_gitpod_path = '/-/profile/preferences#user_gitpod_enabled';
+window.gl.mrWidgetData.user_profile_enable_gitpod_path = '/-/user_settings/profile?user%5Bgitpod_enabled%5D=true';
+window.gl.mrWidgetData.saml_approval_path = window.gl.mrWidgetData.saml_approval_path;
+
+
+
+//]]>
+</script><h2 class="gl-sr-only" id="merge-request-widgets-heading">
+Merge request reports
+</h2>
+<div aria-labelledby="merge-request-widgets-heading" class="mr-widget" id="js-vue-mr-widget" role="region"></div>
+
+<div data-archived="false" data-current-user-data="null" data-endpoint-metadata="/fdroid/fdroidclient/-/merge_requests/1350/diffs_metadata.json?diff_head=true&amp;view=inline&amp;w=1" data-help-page-path="/help/user/project/merge_requests/reviews/suggestions.md" data-is-locked="" data-new-comment-template-paths="[{&quot;text&quot;:&quot;Your comment templates&quot;,&quot;href&quot;:&quot;/-/profile/comment_templates&quot;}]" data-noteable-data="{&quot;id&quot;:282616556,&quot;iid&quot;:1350,&quot;description&quot;:&quot;## Goals\n\n* upgrade the color system without using dynamic color\n* upgrade basic components (FAB, bottom app bar, etc.)\n* does not introduce breakage\n* minimal changes\n\n## Colors\n\nI used our current primary (fdroid_blue `#1976d2`) and secondary color (fdroid_green `#8ab000`) with the [Material Theme Builder](https://www.figma.com/community/plugin/1034969338659738588/material-theme-builder) (with matched color), and here is what I get: https://www.figma.com/file/ABnrhL6k5yDa67nOchezuD/Material-3-Design-Kit-(Community)?type=design\u0026node-id=49823%3A12141\u0026mode=design\u0026t=LNzqJd5skWrE7WCK-1\n\n![image](/uploads/13671d2d1786674c1d00410aadcaa8dc/image.png)\n\nWe don&#39;t have a tertiary brand color. So I just used the generated tertiary color by the Material Theme Builder (magenta `#A685B1`), based on the Primary Color fdroid_blue `#1976d2`, as [recommended](https://m3.material.io/foundations/customization#b4bea241-95cb-4e46-9668-ddd37c760955) by the guidelines for this situation.\n\n![image](/uploads/5bee9ea62d76cf064311b6b256c9d8cd/image.png)\n\n![image](/uploads/b808d4ba590bcbe4bdd5e98bcf9f2933/image.png){width=\&quot;212\&quot; height=\&quot;374\&quot;}\n\n## Preview\n\n### Light\n\n![image](/uploads/3420ba75fb4d9467a3d003c0be9f52da/image.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![28f623a8-2eb6-4a5d-89d8-16acf231baf6](/uploads/f7d86e660492598e9446769067d0f385/28f623a8-2eb6-4a5d-89d8-16acf231baf6.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![81744797-83bf-4bcf-b9a5-081579e6a8fc](/uploads/15abd2aaf46391edb1b4ec09b9e44f10/81744797-83bf-4bcf-b9a5-081579e6a8fc.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![image.png](/uploads/337e9f83e1cfcd1f6f1aa1b9f347fbcd/image.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![image](/uploads/5563a32ce3a8226852970f396be839ad/image.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![image](/uploads/9a11c8bbdee1122fcbe651167ea553df/image.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![image](/uploads/cecafda5ccfb95aedcbafe1bfe7c4e22/image.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![image.png](/uploads/b42c74efaf49bf37a50a73e0d20af92b/image.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}\n\n### Dark\n\n![2a4d7fe3-c6f2-4e44-92f9-7b8ae7a0c713](/uploads/1c3aa56f8076ca93855364b2f92c9ce4/2a4d7fe3-c6f2-4e44-92f9-7b8ae7a0c713.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![4c9a288f-4936-48d4-b547-035e8403fad1](/uploads/9c2c5e444ae1cb56b1f78b73526305cf/4c9a288f-4936-48d4-b547-035e8403fad1.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![a61f50a7-76ed-486c-b191-8212a376468e](/uploads/6bf1cb0a77f680bebae67f70e927ca30/a61f50a7-76ed-486c-b191-8212a376468e.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![image](/uploads/7780036d6ce44d38c341168c0219d2cf/image.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![image.png](/uploads/dc098ec1f15bb097a22a06557ea33736/image.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![image.png](/uploads/c4f9f42a53b98beafa2ce2b5df2e7212/image.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![055b6bca-d267-45d5-abe8-04419b26dac1.png](/uploads/6ce9667781d6d0193b293abda5bb5c85/055b6bca-d267-45d5-abe8-04419b26dac1.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![2123e4ef-01fd-47fb-820c-5c2b694362c8.png](/uploads/22eb8f1a9c6a6b475ac1b12ce4be0942/2123e4ef-01fd-47fb-820c-5c2b694362c8.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}\n\n### Black\n\n![121f881f-0400-43f8-84c1-64a3a0cfa582](/uploads/3a1f32f13d353ac49c26a5db80fc2e1c/121f881f-0400-43f8-84c1-64a3a0cfa582.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![a209b5d7-13c6-44a2-b324-b8a72c09bbad](/uploads/4e5cf9caac71039a13adedfcb882da72/a209b5d7-13c6-44a2-b324-b8a72c09bbad.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![cf283e16-5ad0-4685-be52-cadc15016810](/uploads/2b22cfe0c6f361d607fc1ab923e9a6bd/cf283e16-5ad0-4685-be52-cadc15016810.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![image](/uploads/7b6083f618a227ef072481e8e2c07212/image.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![image.png](/uploads/46a38ab31ade5af8b5f214b30fe6445d/image.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![image](/uploads/c0ae86c893023d5d4df9a6dead60464e/image.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![698ebf16-9a70-4868-8732-a58af364ae86.png](/uploads/0cf85bed0fa6c2d9fe7664e0c995a2a7/698ebf16-9a70-4868-8732-a58af364ae86.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}![4166ce81-9617-4225-b206-f3e45c8bdd8b.png](/uploads/01f66d208c2193b9c84f68cb86495139/4166ce81-9617-4225-b206-f3e45c8bdd8b.png){width=\&quot;179\&quot; height=\&quot;388\&quot;}\n\nFixes #1962, #2246, #2511, #2927, #2926&quot;,&quot;title&quot;:&quot;Migrate to Material Design 3&quot;,&quot;merge_params&quot;:{&quot;force_remove_source_branch&quot;:&quot;1&quot;,&quot;auto_merge_strategy&quot;:&quot;merge_when_checks_pass&quot;,&quot;should_remove_source_branch&quot;:true,&quot;sha&quot;:&quot;71e42c64296918dc7e449976c151fab90dcec946&quot;},&quot;state&quot;:&quot;merged&quot;,&quot;source_branch&quot;:&quot;md3&quot;,&quot;target_branch&quot;:&quot;master&quot;,&quot;source_branch_path&quot;:&quot;/fdroid-contrib/fdroidclient/-/tree/md3&quot;,&quot;target_branch_path&quot;:&quot;/fdroid/fdroidclient/-/tree/master&quot;,&quot;diff_head_sha&quot;:&quot;71e42c64296918dc7e449976c151fab90dcec946&quot;,&quot;create_note_path&quot;:&quot;/fdroid/fdroidclient/notes?target_id=282616556\u0026target_type=merge_request&quot;,&quot;preview_note_path&quot;:&quot;/fdroid/fdroidclient/-/preview_markdown?target_id=1350\u0026target_type=MergeRequest&quot;,&quot;can_receive_suggestion&quot;:true,&quot;create_issue_to_resolve_discussions_path&quot;:null,&quot;new_blob_path&quot;:null,&quot;current_user&quot;:{&quot;can_create_note&quot;:false,&quot;can_update&quot;:false,&quot;can_create_confidential_note&quot;:false},&quot;is_project_archived&quot;:false,&quot;project_id&quot;:36189,&quot;require_password_to_approve&quot;:false}" data-noteable-type="MergeRequest" data-notes-data="{&quot;noteableType&quot;:&quot;merge_request&quot;,&quot;noteableId&quot;:282616556,&quot;projectId&quot;:36189,&quot;groupId&quot;:null,&quot;discussionsPath&quot;:&quot;/fdroid/fdroidclient/-/merge_requests/1350/discussions.json&quot;,&quot;registerPath&quot;:&quot;/users/sign_up?redirect_to_referer=yes&quot;,&quot;newSessionPath&quot;:&quot;/users/sign_in?redirect_to_referer=yes&quot;,&quot;markdownDocsPath&quot;:&quot;/help/user/markdown.md&quot;,&quot;quickActionsDocsPath&quot;:&quot;/help/user/project/quick_actions.md&quot;,&quot;closePath&quot;:&quot;/fdroid/fdroidclient/-/merge_requests/1350?merge_request%5Bstate_event%5D=close&quot;,&quot;reopenPath&quot;:&quot;/fdroid/fdroidclient/-/merge_requests/1350?merge_request%5Bstate_event%5D=reopen&quot;,&quot;notesPath&quot;:&quot;/fdroid/fdroidclient/noteable/merge_request/282616556/notes&quot;,&quot;prerenderedNotesCount&quot;:10,&quot;lastFetchedAt&quot;:1775425775000000,&quot;notesFilter&quot;:null,&quot;draftsPath&quot;:&quot;/fdroid/fdroidclient/-/merge_requests/1350/drafts&quot;,&quot;draftsPublishPath&quot;:&quot;/fdroid/fdroidclient/-/merge_requests/1350/drafts/publish&quot;,&quot;draftsDiscardPath&quot;:&quot;/fdroid/fdroidclient/-/merge_requests/1350/drafts/discard&quot;}" data-notes-filters="{&quot;Show all activity&quot;:0,&quot;Show comments only&quot;:1,&quot;Show history only&quot;:2}" data-report-abuse-path="/-/abuse_reports/add_category" data-target-type="merge_request" id="js-vue-mr-discussions"></div>
+</div>
+</section>
+<aside aria-label="merge_request" aria-live="polite" class="right-sidebar js-right-sidebar right-sidebar-expanded right-sidebar-merge-requests right-sidebar-collapsed" data-always-show-toggle data-auto-collapse data-issuable-type="merge_request" data-testid="issuable-sidebar">
+<div class="issuable-sidebar is-merge-request">
+<div class="issuable-sidebar-header @md/panel:gl-flex @lg/panel:!gl-hidden gl-justify-end">
+<button class="gl-button btn btn-md btn-default gutter-toggle gl-float-right js-sidebar-toggle has-tooltip !gl-border-0" type="button" aria-label="Toggle sidebar" title="Collapse sidebar" data-container="body" data-placement="left" data-boundary="viewport" type="button"><span class="gl-button-text">
+<span class="js-sidebar-toggle-container gl-button-text" data-is-expanded="true"><svg class="s16 js-sidebar-expand hidden" data-testid="chevron-double-lg-left-icon"><use href="/assets/icons-41229992eca580608aadaaa9b83b717650b2863442574d0ebb87f859c42a3b6c.svg#chevron-double-lg-left"></use></svg><svg class="s16 js-sidebar-collapse " data-testid="chevron-double-lg-right-icon"><use href="/assets/icons-41229992eca580608aadaaa9b83b717650b2863442574d0ebb87f859c42a3b6c.svg#chevron-double-lg-right"></use></svg></span>
+
+</span>
+
+</button></div>
+<form class="issuable-context-form inline-update js-issuable-update !gl-pr-2" action="/fdroid/fdroidclient/-/merge_requests/1350.json" accept-charset="UTF-8" data-remote="true" method="post"><div class="block assignee gl-mt-3" data-testid="assignee-block-container">
+<div class="js-sidebar-assignees-root" data-field="merge_request" data-max-assignees="200">
+<div class="title hide-collapsed gl-flex gl-justify-between gl-items-center !gl-mb-0">
+<span class="gl-font-bold">Assignee</span>
+<span class="gl-spinner-container" role="status"><span aria-hidden class="gl-spinner gl-spinner-sm gl-spinner-dark !gl-align-text-bottom"></span><span class="gl-sr-only !gl-absolute">Loading</span>
+</span>
+</div>
+</div>
+
+</div>
+<div class="block reviewer" data-testid="reviewers-block-container">
+<div class="js-sidebar-reviewers-root" data-field="merge_request">
+<div class="title hide-collapsed gl-flex gl-justify-between gl-items-center !gl-mb-0">
+<span class="gl-font-bold">Reviewers</span>
+<span class="gl-spinner-container" role="status"><span aria-hidden class="gl-spinner gl-spinner-sm gl-spinner-dark !gl-align-text-bottom"></span><span class="gl-sr-only !gl-absolute">Loading</span>
+</span>
+</div>
+</div>
+<div class="selectbox hide-collapsed">
+<div class="js-reviewers-inputs"></div>
+<div class="dropdown "><button class="dropdown-menu-toggle js-reviewer-search js-author-search js-multiselect js-save-user-data" type="button" data-current-user="true" data-iid="1350" data-issuable-type="merge_request" data-project-id="36189" data-author-id="5451841" data-field-name="merge_request[reviewer_ids][]" data-issue-update="/fdroid/fdroidclient/-/merge_requests/1350.json" data-ability-name="merge_request" data-null-user="true" data-display="static" data-multi-select="true" data-dropdown-title="Select reviewers" data-dropdown-header="Reviewers" data-suggested-reviewers-help-path="/help/user/project/merge_requests/reviews/_index.md#request-a-review" data-suggested-reviewers-header="Suggestion(s)" data-all-members-header="All project members" data-show-suggested="true" data-max-select="200" data-toggle="dropdown"><span class="dropdown-toggle-text ">Select reviewers</span><svg class="s16 dropdown-menu-toggle-icon" data-testid="chevron-down-icon"><use href="/assets/icons-41229992eca580608aadaaa9b83b717650b2863442574d0ebb87f859c42a3b6c.svg#chevron-down"></use></svg></button><div class="dropdown-menu dropdown-select dropdown-menu-user dropdown-menu-selectable dropdown-menu-author"><div class="dropdown-title gl-flex"><span class="gl-ml-auto">Request review from</span><button class="dropdown-title-button dropdown-menu-close gl-ml-auto" aria-label="Close" type="button"><svg class="s16 dropdown-menu-close-icon" data-testid="close-icon"><use href="/assets/icons-41229992eca580608aadaaa9b83b717650b2863442574d0ebb87f859c42a3b6c.svg#close"></use></svg></button></div><div class="dropdown-input"><input type="search" data-testid="dropdown-input-field" class="dropdown-input-field" placeholder="Search users" autocomplete="off" /><svg class="s16 dropdown-input-search" data-testid="search-icon"><use href="/assets/icons-41229992eca580608aadaaa9b83b717650b2863442574d0ebb87f859c42a3b6c.svg#search"></use></svg><svg class="s16 dropdown-input-clear js-dropdown-input-clear" data-testid="close-icon"><use href="/assets/icons-41229992eca580608aadaaa9b83b717650b2863442574d0ebb87f859c42a3b6c.svg#close"></use></svg></div><div data-testid="dropdown-list-content" class="dropdown-content "></div><div class="dropdown-loading"><div class="gl-spinner-container gl-mt-7" role="status"><span aria-hidden class="gl-spinner gl-spinner-md gl-spinner-dark !gl-align-text-bottom"></span><span class="gl-sr-only !gl-absolute">Loading</span>
+</div></div></div></div>
+
+</div>
+
+</div>
+<div class="js-sidebar-labels-widget-root" data-allow-label-create="" data-allow-scoped-labels="true" data-can-edit="" data-iid="1350" data-issuable-type="merge_request" data-labels-fetch-path="/fdroid/fdroidclient/-/labels.json?include_ancestor_groups=true" data-labels-manage-path="/fdroid/fdroidclient/-/labels" data-project-issues-path="/fdroid/fdroidclient/-/merge_requests" data-project-path="fdroid/fdroidclient" data-selected-labels="[{&quot;id&quot;:38057772,&quot;title&quot;:&quot;OTF Sustainability&quot;,&quot;color&quot;:&quot;#9400d3&quot;,&quot;description&quot;:&quot;Work to be considered as part of the OTF FOSS Sustainability funding. The Free and Open Source Software (FOSS) Sustainability Fund is Open Technology Fund’s newest mechanism to support the long-term maintenance of established FOSS projects and the communities that sustain them. \n\nhttps://www.opentech.fund/funds/free-and-open-source-software-sustainability-fund/&quot;,&quot;text_color&quot;:&quot;#FFFFFF&quot;,&quot;created_at&quot;:&quot;2024-11-08T14:02:23.499Z&quot;,&quot;updated_at&quot;:&quot;2025-01-23T09:50:18.234Z&quot;,&quot;group_id&quot;:28397,&quot;project_id&quot;:null,&quot;template&quot;:false},{&quot;id&quot;:56523,&quot;title&quot;:&quot;material-design&quot;,&quot;color&quot;:&quot;#33ad00&quot;,&quot;description&quot;:null,&quot;text_color&quot;:&quot;#FFFFFF&quot;,&quot;created_at&quot;:&quot;2015-04-28T21:57:02.689Z&quot;,&quot;updated_at&quot;:&quot;2015-04-28T21:57:54.297Z&quot;,&quot;group_id&quot;:null,&quot;project_id&quot;:36189,&quot;template&quot;:false},{&quot;id&quot;:54374,&quot;title&quot;:&quot;ui&quot;,&quot;color&quot;:&quot;#5cb85c&quot;,&quot;description&quot;:null,&quot;text_color&quot;:&quot;#FFFFFF&quot;,&quot;created_at&quot;:&quot;2015-04-21T12:29:46.880Z&quot;,&quot;updated_at&quot;:&quot;2015-04-21T12:29:46.880Z&quot;,&quot;group_id&quot;:null,&quot;project_id&quot;:36189,&quot;template&quot;:false}]"></div>
+<div class="block milestone" data-testid="sidebar-milestones">
+<div class="js-sidebar-milestone-widget-root" data-can-edit="" data-issue-iid="1350" data-project-path="fdroid/fdroidclient"></div>
+</div>
+
+<div class="js-sidebar-time-tracking-root block">
+<!-- / Fallback while content is loading -->
+<div class="title hide-collapsed gl-flex gl-justify-between gl-items-center !gl-mb-0">
+<span class="gl-font-bold">Time tracking</span>
+<span class="gl-spinner-container" role="status"><span aria-hidden class="gl-spinner gl-spinner-sm gl-spinner-dark !gl-align-text-bottom"></span><span class="gl-sr-only !gl-absolute">Loading</span>
+</span>
+</div>
+</div>
+<div class="js-sidebar-participants-widget-root"></div>
+</form><script class="js-sidebar-options" type="application/json">{"endpoint":"/fdroid/fdroidclient/-/merge_requests/1350.json?serializer=sidebar_extras","toggleSubscriptionEndpoint":"/fdroid/fdroidclient/-/merge_requests/1350/toggle_subscription","moveIssueEndpoint":"/fdroid/fdroidclient/-/issues/1350/move","projectsAutocompleteEndpoint":"/-/autocomplete/projects?project_id=36189","editable":"","currentUser":null,"rootPath":"/","fullPath":"fdroid/fdroidclient","iid":1350,"id":282616556,"severity":null,"timeTrackingLimitToHours":true,"canCreateTimelogs":null,"createNoteEmail":null,"issuableType":"merge_request","directlyInviteMembers":"false","weightOptions":["None","Any",0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"weightNoneValue":"None","multipleApprovalRulesAvailable":true}</script>
+</div>
+</aside>
+
+</div>
+
+</div>
+<div class="tab-pane commits" id="commits" style="">
+
+</div>
+<div class="tab-pane pipelines" id="pipelines" style="">
+<div data-artifacts-endpoint="/fdroid/fdroidclient/-/pipelines/:pipeline_artifacts_id/downloadable_artifacts.json" data-artifacts-endpoint-placeholder=":pipeline_artifacts_id" data-disable-initialization data-empty-state-svg-path="/assets/illustrations/empty-state/empty-pipeline-md-da65fef91300a7624533aef4ed0ccc9a4e26aea98447f3b3f38214f0b6179c54.svg" data-endpoint="/fdroid/fdroidclient/-/merge_requests/1350/pipelines" data-error-state-svg-path="/assets/illustrations/empty-state/empty-job-failed-md-de6ea5f513519f451925880fe046b96bb15e72638ea39b35795c5eeda04f4f09.svg" data-full-path="fdroid/fdroidclient" data-graphql-path="/api/graphql" data-new-pipeline-path="/fdroid/fdroidclient/-/pipelines/new" data-project-id="36189" id="commit-pipeline-table-view"></div>
+
+
+</div>
+
+<div class="tab-pane diffs" data-changes-empty-state-illustration="/assets/illustrations/empty-state/empty-commit-md-3d909692128c5f66d129418cf4f8e73c6e12b09409e62b1cc81e940e66fc5a1f.svg" data-codequality-report-available="false" data-current-user-data="null" data-default-suggestion-commit-message="Apply %{suggestions_count} suggestion(s) to %{files_count} file(s)
+
+%{co_authored_by}" data-dismiss-endpoint="/-/users/callouts" data-endpoint="/fdroid/fdroidclient/-/merge_requests/1350/diffs.json?diff_head=true" data-endpoint-batch="/fdroid/fdroidclient/-/merge_requests/1350/diffs_batch.json?diff_head=true" data-endpoint-diff-for-path="/fdroid/fdroidclient/-/merge_requests/1350/diff_for_path.json" data-endpoint-metadata="/fdroid/fdroidclient/-/merge_requests/1350/diffs_metadata.json?diff_head=true&amp;view=inline&amp;w=1" data-file-by-file-default="" data-help-page-path="/help/user/project/merge_requests/reviews/suggestions.md" data-iid="1350" data-is-fluid-layout="" data-is-forked="false" data-new-comment-template-paths="[{&quot;text&quot;:&quot;Your comment templates&quot;,&quot;href&quot;:&quot;/-/profile/comment_templates&quot;}]" data-per-page="5" data-project-path="/fdroid/fdroidclient" data-sast-report-available="false" data-show-suggest-popover="true" data-show-whitespace-default="true" data-source-project-default-url="https://gitlab.com/fdroid-contrib/fdroidclient.git" data-source-project-full-path="fdroid-contrib/fdroidclient" data-update-current-user-path="/api/v4/user/preferences" id="js-diffs-app" style="">
+
+</div>
+
+</div>
+<div class="mr-loading-status">
+<div class="loading hide">
+<div class="gl-spinner-container" role="status"><span aria-hidden class="gl-spinner gl-spinner-lg gl-spinner-dark !gl-align-text-bottom"></span><span class="gl-sr-only !gl-absolute">Loading</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="js-revert-commit-modal" data-branch="master" data-branch-collaboration="false" data-branches-endpoint="/fdroid/fdroidclient/-/branches" data-endpoint="/fdroid/fdroidclient/-/commit/74f0c63abd933ef1cc1e283546fa71a2eecf0ad2/revert" data-existing-branch="" data-push-code="false" data-title="Revert this merge request"></div>
+
+<div class="js-cherry-pick-commit-modal" data-branch="master" data-branch-collaboration="false" data-branches-endpoint="/fdroid/fdroidclient/refs" data-endpoint="/fdroid/fdroidclient/-/commit/74f0c63abd933ef1cc1e283546fa71a2eecf0ad2/cherry_pick" data-existing-branch="" data-projects="[]" data-push-code="false" data-target-project-id="36189" data-target-project-name="fdroid/fdroidclient" data-title="Cherry-pick this merge request"></div>
+
+<div id="js-reviewer-drawer-portal"></div>
+<script nonce="NweAXtqSIVamtfETqsr9sA==">
+//<![CDATA[
+  window.gl = window.gl || {};
+  window.gl.webIDEPath = '/-/ide/project/fdroid/fdroidclient/edit/'
+
+
+//]]>
+</script>
+
+<script nonce="NweAXtqSIVamtfETqsr9sA==">
+//<![CDATA[
+// Append static, server-generated data not included in merge request entity (EE-Only)
+// Object.assign would be useful here, but it blows up Phantom.js in tests
+window.gl.mrWidgetData.is_geo_secondary_node = 'false' === 'true';
+window.gl.mrWidgetData.geo_secondary_help_path = '/help/administration/geo/replication/configuration.md';
+window.gl.mrWidgetData.sast_help_path = '/help/user/application_security/sast/_index.md';
+window.gl.mrWidgetData.secret_detection_help_path = '/help/user/application_security/secret_detection/_index.md';
+window.gl.mrWidgetData.container_scanning_help_path = '/help/user/application_security/container_scanning/_index.md';
+window.gl.mrWidgetData.dast_help_path = '/help/user/application_security/dast/_index.md';
+window.gl.mrWidgetData.dependency_scanning_help_path = '/help/user/application_security/dependency_scanning/_index.md';
+window.gl.mrWidgetData.api_fuzzing_help_path = '/help/user/application_security/api_fuzzing/_index.md';
+window.gl.mrWidgetData.coverage_fuzzing_help_path = '/help/user/application_security/coverage_fuzzing/_index.md';
+window.gl.mrWidgetData.license_scanning_comparison_path = '/fdroid/fdroidclient/-/merge_requests/1350/license_scanning_reports'
+window.gl.mrWidgetData.license_scanning_comparison_collapsed_path = '/fdroid/fdroidclient/-/merge_requests/1350/license_scanning_reports_collapsed'
+window.gl.mrWidgetData.aiCommitMessageEnabled = false
+window.gl.mrWidgetData.dismissal_descriptions = '{\"acceptable_risk\":\"The vulnerability is known, and has not been remediated or mitigated, but is considered to be an acceptable business risk.\",\"false_positive\":\"An error in reporting in which a test result incorrectly indicates the presence of a vulnerability in a system when the vulnerability is not present.\",\"mitigating_control\":\"A management, operational, or technical control (that is, safeguard or countermeasure) employed by an organization that provides equivalent or comparable protection for an information system.\",\"used_in_tests\":\"The finding is not a vulnerability because it is part of a test or is test data.\",\"not_applicable\":\"The vulnerability is known, and has not been remediated or mitigated, but is considered to be in a part of the application that will not be updated.\"}';
+window.gl.mrWidgetData.customize_jira_issue_enabled = '';
+window.gl.mrWidgetData.commit_path_template = '/fdroid/fdroidclient/-/commit/$COMMIT_SHA';
+window.gl.mrWidgetData.merge_trains_path = '/fdroid/fdroidclient/-/merge_trains';
+window.gl.mrWidgetData.validity_checks_enabled = 'false';
+
+
+
+//]]>
+</script><script nonce="NweAXtqSIVamtfETqsr9sA==">
+//<![CDATA[
+window.gl.mrWidgetData.path_locks_path = '/fdroid/fdroidclient/path_locks'
+
+
+
+//]]>
+</script>
+
+
+</main>
+</div>
+
+</div>
+
+</div>
+</div>
+<div class="js-dynamic-panel paneled-view contextual-panel gl-@container/panel !gl-absolute gl-shadow-lg @xl/content-panels:gl-w-1/2 @xl/content-panels:gl-shadow-none @xl/content-panels:!gl-relative" id="contextual-panel-portal"></div>
+</div>
+</div>
+
+
+</div>
+
+
+<script nonce="NweAXtqSIVamtfETqsr9sA==">
+//<![CDATA[
+if ('loading' in HTMLImageElement.prototype) {
+  document.querySelectorAll('img.lazy').forEach(img => {
+    img.loading = 'lazy';
+    let imgUrl = img.dataset.src;
+    // Only adding width + height for avatars for now
+    if (imgUrl.indexOf('/avatar/') > -1 && imgUrl.indexOf('?') === -1) {
+      const targetWidth = img.getAttribute('width') || img.width;
+      imgUrl += `?width=${targetWidth}`;
+    }
+    img.src = imgUrl;
+    img.removeAttribute('data-src');
+    img.classList.remove('lazy');
+    img.classList.add('js-lazy-loaded');
+    img.dataset.testid = 'js-lazy-loaded-content';
+  });
+}
+
+//]]>
+</script>
+<script nonce="NweAXtqSIVamtfETqsr9sA==">
+//<![CDATA[
+gl = window.gl || {};
+gl.experiments = {};
+
+
+//]]>
+</script>
+
+</body>
+</html>
+

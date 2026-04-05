@@ -3,9 +3,14 @@ use std::future::Future;
 use std::pin::Pin;
 use url::Url;
 
+pub struct HtmlExtractorOutcome {
+    pub content_html: String,
+    pub metadata_patch: Metadata,
+}
+
 pub enum ExtractorOutcome {
     Selector { selector: String },
-    Html { content_html: String, metadata_patch: Metadata },
+    Html(Box<HtmlExtractorOutcome>),
 }
 
 pub trait SiteExtractor: Send + Sync {
@@ -99,23 +104,55 @@ impl SiteExtractor for GitForgeExtractor {
             || path.contains("/merge_requests/")
             || path.contains("/merge-requests/")
         {
+            let (title_selectors, body_selectors, comment_selectors) = match url.host_str().unwrap_or_default() {
+                "gitlab.com" => (
+                    vec![
+                        "meta[property='og:title']",
+                        ".merge-request-sticky-title",
+                        ".js-mr-header + a",
+                        "h1",
+                    ],
+                    vec![
+                        ".detail-page-description .description .md",
+                        ".detail-page-description .description",
+                        ".description .md",
+                    ],
+                    vec![".timeline-entry.note", ".note"],
+                ),
+                "codeberg.org" => (
+                    vec!["meta[property='og:title']", ".issue-title > a", ".issue-title", "h1"],
+                    vec![
+                        ".timeline-item.comment.first .comment-body",
+                        ".comment-list .timeline-item.comment.first .comment-body",
+                    ],
+                    vec![".timeline-item.comment:not(.first)", ".timeline-item.comment"],
+                ),
+                _ => (
+                    vec![
+                        "meta[property='og:title']",
+                        "[data-issue-title]",
+                        ".issue-title a",
+                        ".issue-title",
+                        ".js-issue-title",
+                        "h1",
+                    ],
+                    vec![
+                        "[data-issue-body]",
+                        ".issue-body",
+                        ".discussion-item-body .comment-body",
+                        ".comment-body",
+                        ".description",
+                    ],
+                    vec!["[data-comment]", ".timeline-comment", ".discussion-item"],
+                ),
+            };
+
             return synthesize_thread(
                 doc,
                 url,
-                &[
-                    "[data-issue-title]",
-                    ".issue-title",
-                    ".js-issue-title",
-                    "h1",
-                ],
-                &[
-                    "[data-issue-body]",
-                    ".issue-body",
-                    ".comment-body",
-                    ".description",
-                    ".timeline-comment .comment-body",
-                ],
-                &["[data-comment]", ".timeline-comment", ".comment", ".discussion-item"],
+                &title_selectors,
+                &body_selectors,
+                &comment_selectors,
                 Some(host_site_name(url)),
             )
             .map(Some);
@@ -132,9 +169,7 @@ impl SiteExtractor for GitForgeExtractor {
             "[data-file-body]",
         ] {
             if doc.select(selector).map(|els| !els.is_empty()).unwrap_or(false) {
-                return Ok(Some(ExtractorOutcome::Selector {
-                    selector: selector.to_string(),
-                }));
+                return Ok(Some(ExtractorOutcome::Selector { selector: selector.to_string() }));
             }
         }
 
@@ -152,52 +187,124 @@ impl SiteExtractor for RedditExtractor {
     }
 
     fn extract(&self, doc: &Document, _url: &Url) -> Result<Option<ExtractorOutcome>> {
-        let title = first_text(doc, &["[data-post-title]", "h1", ".title a.title", ".post-title"])
+        if let Some(post) = first_element(doc, &["#siteTable > .thing.link", "#siteTable .thing.link"]) {
+            let title = first_attr(doc, &["meta[property='og:title']"], "content")
+                .or_else(|| {
+                    first_text_in_element(
+                        &post,
+                        &[
+                            ".top-matter .title a.title",
+                            ".top-matter .title",
+                            "[data-post-title]",
+                            "h1",
+                        ],
+                    )
+                })
+                .or_else(|| doc.title())
+                .unwrap_or_else(|| "Reddit discussion".to_string());
+            let author = first_text_in_element(
+                &post,
+                &[".tagline .author", "[data-post-author]", ".author", "a.author"],
+            );
+            let date = first_attr_in_element(&post, &["time", ".live-timestamp"], "datetime")
+                .or_else(|| first_text_in_element(&post, &["time", ".live-timestamp"]));
+            let post_body_html = first_inner_html_in_element(
+                &post,
+                &["[data-post-body]", ".expando .usertext-body .md", ".usertext-body .md"],
+            );
+            let comments_html = build_comment_thread_html(
+                doc,
+                &[".commentarea .thing.comment", "[data-comment]"],
+                &[".tagline .author", "[data-author]", ".author", "a.author"],
+                &["time", ".live-timestamp"],
+                &[".usertext-body .md", "[data-comment-body]", ".comment-body"],
+            );
+
+            return Ok(Some(render_reddit_thread(
+                title,
+                author,
+                date,
+                post_body_html,
+                comments_html,
+            )));
+        }
+
+        let title = first_attr(doc, &["meta[property='og:title']"], "content")
+            .or_else(|| first_text(doc, &["[data-post-title]", "h1", ".title a.title", ".post-title"]))
             .or_else(|| doc.title())
             .unwrap_or_else(|| "Reddit discussion".to_string());
         let author = first_text(doc, &["[data-post-author]", ".author", "a.author"]);
         let date = first_attr(doc, &["time"], "datetime").or_else(|| first_text(doc, &["time"]));
-        let post_body_html = first_inner_html(doc, &["[data-post-body]", ".usertext-body", ".md", ".post-body"]);
+        let post_body_html = first_inner_html(
+            doc,
+            &["[data-post-body]", ".usertext-body .md", ".usertext-body", ".post-body"],
+        );
         let comments_html = build_comment_thread_html(
             doc,
-            &["[data-comment]", ".comment"],
+            &["[data-comment]", ".thing.comment"],
             &["[data-author]", ".author", "a.author"],
             &["time", ".live-timestamp"],
-            &["[data-comment-body]", ".comment-body", ".usertext-body", ".md"],
+            &[
+                "[data-comment-body]",
+                ".comment-body",
+                ".usertext-body .md",
+                ".usertext-body",
+            ],
         );
 
-        let mut html = String::new();
-        html.push_str("<article class=\"site-extractor reddit-thread\">");
-        html.push_str(&format!("<h1>{}</h1>", escape_html(&title)));
-        if let Some(author) = &author {
-            html.push_str(&format!("<p><strong>{}</strong></p>", escape_html(author)));
-        }
-        if let Some(date) = &date {
-            html.push_str(&format!("<time datetime=\"{}\">{}</time>", escape_html(date), escape_html(date)));
-        }
-        if let Some(post_body_html) = post_body_html {
-            html.push_str("<section><h2>Post</h2>");
-            html.push_str(&post_body_html);
-            html.push_str("</section>");
-        }
-        if !comments_html.is_empty() {
-            html.push_str("<section><h2>Comments</h2>");
-            html.push_str(&comments_html);
-            html.push_str("</section>");
-        }
-        html.push_str("</article>");
-
-        Ok(Some(ExtractorOutcome::Html {
-            content_html: html,
-            metadata_patch: Metadata {
-                title: Some(title),
-                author,
-                date,
-                site_name: Some("Reddit".to_string()),
-                ..Default::default()
-            },
-        }))
+        Ok(Some(render_reddit_thread(
+            title,
+            author,
+            date,
+            post_body_html,
+            comments_html,
+        )))
     }
+}
+
+fn render_reddit_thread(
+    title: String, author: Option<String>, date: Option<String>, post_body_html: Option<String>, comments_html: String,
+) -> ExtractorOutcome {
+    let post_body_html = post_body_html
+        .map(|html| sanitize_extracted_html(&html))
+        .filter(|html| !normalize_ws(&strip_tags(html)).is_empty());
+    let comments_html = sanitize_extracted_html(&comments_html);
+
+    let mut html = String::new();
+    html.push_str("<article class=\"site-extractor reddit-thread\">");
+    html.push_str(&format!("<h1>{}</h1>", escape_html(&title)));
+    if let Some(author) = &author {
+        html.push_str(&format!("<p><strong>{}</strong></p>", escape_html(author)));
+    }
+    if let Some(date) = &date {
+        html.push_str(&format!(
+            "<time datetime=\"{}\">{}</time>",
+            escape_html(date),
+            escape_html(date)
+        ));
+    }
+    if let Some(post_body_html) = post_body_html {
+        html.push_str("<section><h2>Post</h2>");
+        html.push_str(&post_body_html);
+        html.push_str("</section>");
+    }
+    if !comments_html.is_empty() {
+        html.push_str("<section><h2>Comments</h2>");
+        html.push_str(&comments_html);
+        html.push_str("</section>");
+    }
+    html.push_str("</article>");
+
+    ExtractorOutcome::Html(Box::new(HtmlExtractorOutcome {
+        content_html: html,
+        metadata_patch: Metadata {
+            title: Some(title),
+            author,
+            date,
+            site_name: Some("Reddit".to_string()),
+            ..Default::default()
+        },
+    }))
 }
 
 impl SiteExtractor for HackerNewsExtractor {
@@ -206,8 +313,7 @@ impl SiteExtractor for HackerNewsExtractor {
     }
 
     fn matches(&self, url: &Url) -> bool {
-        url.host_str().unwrap_or_default() == "news.ycombinator.com"
-            && url.path().eq_ignore_ascii_case("/item")
+        url.host_str().unwrap_or_default() == "news.ycombinator.com" && url.path().eq_ignore_ascii_case("/item")
     }
 
     fn extract(&self, doc: &Document, _url: &Url) -> Result<Option<ExtractorOutcome>> {
@@ -232,14 +338,14 @@ impl SiteExtractor for HackerNewsExtractor {
         }
         html.push_str("</article>");
 
-        Ok(Some(ExtractorOutcome::Html {
+        Ok(Some(ExtractorOutcome::Html(Box::new(HtmlExtractorOutcome {
             content_html: html,
             metadata_patch: Metadata {
                 title: Some(title),
                 site_name: Some("Hacker News".to_string()),
                 ..Default::default()
             },
-        }))
+        }))))
     }
 }
 
@@ -259,15 +365,29 @@ impl SiteExtractor for SubstackExtractor {
 
         if !is_note {
             for selector in [
+                ".available-content .body.markup",
+                ".available-content",
                 "[data-post-body]",
                 "article.post",
-                ".available-content",
                 "article",
             ] {
-                if doc.select(selector).map(|els| !els.is_empty()).unwrap_or(false) {
-                    return Ok(Some(ExtractorOutcome::Selector {
-                        selector: selector.to_string(),
-                    }));
+                if let Some(element) = first_element(doc, &[selector]) {
+                    return Ok(Some(ExtractorOutcome::Html(Box::new(HtmlExtractorOutcome {
+                        content_html: sanitize_extracted_html(&element.outer_html()),
+                        metadata_patch: Metadata {
+                            title: first_attr(
+                                doc,
+                                &["meta[property='og:title']", "meta[name='twitter:title']"],
+                                "content",
+                            )
+                            .or_else(|| first_text(doc, &["h1"]))
+                            .or_else(|| doc.title()),
+                            author: first_text(doc, &[".byline-wrapper a", ".author-name", ".author"]),
+                            date: first_attr(doc, &["time"], "datetime").or_else(|| first_text(doc, &["time"])),
+                            site_name: Some("Substack".to_string()),
+                            ..Default::default()
+                        },
+                    }))));
                 }
             }
         }
@@ -293,14 +413,14 @@ impl SiteExtractor for SubstackExtractor {
         }
         html.push_str("</article>");
 
-        Ok(Some(ExtractorOutcome::Html {
+        Ok(Some(ExtractorOutcome::Html(Box::new(HtmlExtractorOutcome {
             content_html: html,
             metadata_patch: Metadata {
                 title: Some(title),
                 site_name: Some("Substack".to_string()),
                 ..Default::default()
             },
-        }))
+        }))))
     }
 }
 
@@ -310,7 +430,10 @@ impl SiteExtractor for YouTubeExtractor {
     }
 
     fn matches(&self, url: &Url) -> bool {
-        matches!(url.host_str().unwrap_or_default(), "youtube.com" | "www.youtube.com" | "youtu.be")
+        matches!(
+            url.host_str().unwrap_or_default(),
+            "youtube.com" | "www.youtube.com" | "youtu.be"
+        )
     }
 
     fn extract(&self, _doc: &Document, _url: &Url) -> Result<Option<ExtractorOutcome>> {
@@ -327,10 +450,7 @@ impl SiteExtractor for YouTubeExtractor {
         let page_html = doc.as_string();
         let embedded_transcript = first_inner_html(
             doc,
-            &[
-                "script[data-innertube-transcript]",
-                "script#lectito-youtube-transcript",
-            ],
+            &["script[data-innertube-transcript]", "script#lectito-youtube-transcript"],
         );
         let url = url.clone();
         let fetch_config = fetch_config.clone();
@@ -349,14 +469,14 @@ impl SiteExtractor for YouTubeExtractor {
             };
 
             let transcript_html = render_youtube_transcript(&url, &title, &transcript_json)?;
-            Ok(Some(ExtractorOutcome::Html {
+            Ok(Some(ExtractorOutcome::Html(Box::new(HtmlExtractorOutcome {
                 content_html: transcript_html,
                 metadata_patch: Metadata {
                     title: Some(title),
                     site_name: Some("YouTube".to_string()),
                     ..Default::default()
                 },
-            }))
+            }))))
         })
     }
 }
@@ -367,21 +487,32 @@ fn synthesize_thread(
 ) -> Result<ExtractorOutcome> {
     let title = first_text(doc, title_selectors)
         .or_else(|| doc.title())
+        .map(|title| clean_thread_title(&title))
         .unwrap_or_else(|| "Discussion".to_string());
-    let description_html = first_inner_html(doc, body_selectors).unwrap_or_default();
+    let description_html = first_inner_html(doc, body_selectors)
+        .map(|html| sanitize_extracted_html(&html))
+        .unwrap_or_default();
     let lead_author = first_text(doc, &["[data-author]", ".author", ".comment-author", ".user"]);
     let lead_date = first_attr(doc, &["time"], "datetime").or_else(|| first_text(doc, &["time"]));
-    let mut comments_html = build_comment_thread_html(
+    let mut comments_html = sanitize_extracted_html(&build_comment_thread_html(
         doc,
         comment_selectors,
         &["[data-author]", ".author", ".comment-author", ".user", "a.author"],
-        &["time"],
-        &["[data-comment-body]", ".comment-body", ".md", ".note-body", ".usertext-body"],
-    );
+        &["time", ".live-timestamp", "relative-time"],
+        &[
+            "[data-comment-body]",
+            ".comment-body .render-content",
+            ".comment-body",
+            ".note-body",
+            ".usertext-body .md",
+            ".md",
+        ],
+    ));
 
     if !description_html.is_empty() {
         let description_text = strip_tags(&description_html);
-        if let Some(first_comment_body) = first_text(doc, &["[data-comment-body]", ".comment-body", ".md", ".note-body"])
+        if let Some(first_comment_body) =
+            first_text(doc, &["[data-comment-body]", ".comment-body", ".md", ".note-body"])
             && normalize_ws(&first_comment_body) == normalize_ws(&description_text)
         {
             comments_html = remove_first_article(&comments_html);
@@ -391,7 +522,11 @@ fn synthesize_thread(
     let mut html = String::new();
     html.push_str("<article class=\"site-extractor thread\">");
     html.push_str(&format!("<h1>{}</h1>", escape_html(&title)));
-    html.push_str(&format!("<p><a href=\"{}\">{}</a></p>", escape_html(url.as_str()), escape_html(url.as_str())));
+    html.push_str(&format!(
+        "<p><a href=\"{}\">{}</a></p>",
+        escape_html(url.as_str()),
+        escape_html(url.as_str())
+    ));
     if !description_html.is_empty() {
         html.push_str("<section><h2>Description</h2>");
         html.push_str(&description_html);
@@ -404,7 +539,7 @@ fn synthesize_thread(
     }
     html.push_str("</article>");
 
-    Ok(ExtractorOutcome::Html {
+    Ok(ExtractorOutcome::Html(Box::new(HtmlExtractorOutcome {
         content_html: html,
         metadata_patch: Metadata {
             title: Some(title),
@@ -413,11 +548,12 @@ fn synthesize_thread(
             site_name,
             ..Default::default()
         },
-    })
+    })))
 }
 
 fn build_comment_thread_html(
-    doc: &Document, comment_selectors: &[&str], author_selectors: &[&str], time_selectors: &[&str], body_selectors: &[&str],
+    doc: &Document, comment_selectors: &[&str], author_selectors: &[&str], time_selectors: &[&str],
+    body_selectors: &[&str],
 ) -> String {
     let Some(selector) = comment_selectors
         .iter()
@@ -435,12 +571,15 @@ fn build_comment_thread_html(
         let author = first_text_in_element(&comment, author_selectors);
         let time = first_attr_in_element(&comment, time_selectors, "datetime")
             .or_else(|| first_text_in_element(&comment, time_selectors));
-        let body_html = first_inner_html_in_element(&comment, body_selectors)
-            .or_else(|| (!comment.text().trim().is_empty()).then(|| format!("<p>{}</p>", escape_html(&comment.text()))));
+        let body_html =
+            first_inner_html_in_element(&comment, body_selectors).map(|html| sanitize_extracted_html(&html));
 
         let Some(body_html) = body_html else {
             continue;
         };
+        if normalize_ws(&strip_tags(&body_html)).is_empty() {
+            continue;
+        }
 
         let mut item = String::new();
         item.push_str("<article class=\"comment\">");
@@ -448,7 +587,11 @@ fn build_comment_thread_html(
             item.push_str(&format!("<h3>{}</h3>", escape_html(author)));
         }
         if let Some(time) = &time {
-            item.push_str(&format!("<time datetime=\"{}\">{}</time>", escape_html(time), escape_html(time)));
+            item.push_str(&format!(
+                "<time datetime=\"{}\">{}</time>",
+                escape_html(time),
+                escape_html(time)
+            ));
         }
         item.push_str("<div class=\"comment-body\">");
         item.push_str(&body_html);
@@ -491,6 +634,14 @@ fn first_text(doc: &Document, selectors: &[&str]) -> Option<String> {
             .and_then(|elements| elements.into_iter().next())
             .map(|element| element.text().trim().to_string())
             .filter(|text| !text.is_empty())
+    })
+}
+
+fn first_element<'a>(doc: &'a Document, selectors: &[&str]) -> Option<crate::parse::Element<'a>> {
+    selectors.iter().find_map(|selector| {
+        doc.select(selector)
+            .ok()
+            .and_then(|elements| elements.into_iter().next())
     })
 }
 
@@ -562,12 +713,7 @@ fn extract_youtube_caption_url(html: &str) -> Option<String> {
     static BASE_URL_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let re = BASE_URL_RE.get_or_init(|| regex::Regex::new(r#""baseUrl":"([^"]+)""#).unwrap());
     let value = re.captures(html)?.get(1)?.as_str();
-    Some(
-        value
-            .replace("\\u0026", "&")
-            .replace("\\/", "/")
-            .replace("&amp;", "&"),
-    )
+    Some(value.replace("\\u0026", "&").replace("\\/", "/").replace("&amp;", "&"))
 }
 
 fn render_youtube_transcript(url: &Url, title: &str, transcript_json: &str) -> Result<String> {
@@ -660,6 +806,53 @@ fn escape_html(value: &str) -> String {
         .replace('"', "&quot;")
 }
 
+fn clean_thread_title(value: &str) -> String {
+    let value = normalize_ws(value);
+    let value = value.strip_suffix("New issue").map(str::trim).unwrap_or(&value);
+    value.to_string()
+}
+
+fn sanitize_extracted_html(value: &str) -> String {
+    static REMOVALS: std::sync::OnceLock<Vec<regex::Regex>> = std::sync::OnceLock::new();
+    static REPLACEMENTS: std::sync::OnceLock<Vec<(regex::Regex, &'static str)>> = std::sync::OnceLock::new();
+    let removals = REMOVALS.get_or_init(|| {
+        vec![
+            regex::Regex::new(r#"(?is)<textarea[^>]*>.*?</textarea>"#).unwrap(),
+            regex::Regex::new(r#"(?is)<(?:form|button)[^>]*>.*?</(?:form|button)>"#).unwrap(),
+            regex::Regex::new(r#"(?is)<ul[^>]*class="[^"]*flat-list buttons[^"]*"[^>]*>.*?</ul>"#).unwrap(),
+            regex::Regex::new(r#"(?is)<(?:div|section|aside)[^>]*class="[^"]*(?:raw-content|edit-content-zone|tw-hidden|hidden js-task-list-field|reportform|commentsignupbar|subscription-widget-wrap|subscription-widget|image-link-expand)[^"]*"[^>]*>.*?</(?:div|section|aside)>"#).unwrap(),
+            regex::Regex::new(r#"(?is)<a[^>]*class="[^"]*embed-comment[^"]*"[^>]*>.*?</a>"#).unwrap(),
+            regex::Regex::new(r#"(?is)<svg[^>]*>.*?</svg>"#).unwrap(),
+            regex::Regex::new(r#"(?is)<p>\s*</p>"#).unwrap(),
+        ]
+    });
+    let replacements = REPLACEMENTS.get_or_init(|| {
+        vec![
+            (
+                regex::Regex::new(
+                    r#"(?is)<h2([^>]*)>([^<]+?)<div[^>]*class="[^"]*header-anchor-parent[^"]*"[^>]*>.*?</h2>"#,
+                )
+                .unwrap(),
+                "<h2$1>$2</h2>",
+            ),
+            (
+                regex::Regex::new(r#"(?is)<div[^>]*class="[^"]*subscribe-widget[^"]*"[^>]*>.*$"#).unwrap(),
+                "",
+            ),
+        ]
+    });
+
+    let mut cleaned = value.to_string();
+    for re in removals {
+        cleaned = re.replace_all(&cleaned, "").to_string();
+    }
+    for (re, replacement) in replacements {
+        cleaned = re.replace_all(&cleaned, *replacement).to_string();
+    }
+
+    cleaned.trim().to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -674,7 +867,7 @@ mod tests {
         .unwrap();
 
         let outcome = registry.extract(&doc, &url).unwrap();
-        assert!(matches!(outcome, Some(ExtractorOutcome::Html { .. })));
+        assert!(matches!(outcome, Some(ExtractorOutcome::Html(_))));
     }
 
     #[test]

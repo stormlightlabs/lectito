@@ -1,0 +1,14 @@
+{
+  "url": "https://github.com/stormlightlabs/lazurite",
+  "mode": "selector_hint",
+  "title": "GitHub - stormlightlabs/lazurite: cross-platform mobile app for BlueSky",
+  "author": "stormlightlabs",
+  "date": null,
+  "min_words": 300,
+  "must_contain": [
+    "Lazurite is a cross-platform Bluesky client built with Flutter and Dart using Material You",
+    "Local-only drafts and caching powered by Drift",
+    "Built-in logs and developer utilities for exploring the AT Protocol"
+  ],
+  "must_not_contain": []
+}

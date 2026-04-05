@@ -1,0 +1,7 @@
+https://github.com/stormlightlabs/lazurite
+https://gitlab.com/fdroid/fdroidclient/-/merge_requests/1350
+https://codeberg.org/ziglang/zig/issues/30677
+https://news.ycombinator.com/item?id=38646892
+https://old.reddit.com/r/rust/comments/1sa402r/this_week_in_rust_645/
+https://patternmatched.substack.com/p/software-as-fan-art
+https://wordpress.org/news/2023/12/wordpress-6-4-2/
