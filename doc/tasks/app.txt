@@ -1,0 +1,407 @@
+LECTITO WEB APP & API TASKS                                      *app-tasks.txt*
+================================================================================
+
+Tasks for building the lectito-server crate, Svelte SPA, algorithm improvements,
+and SKILL.md. See doc/specs/app.txt for full specification.
+
+================================================================================
+MILESTONE A: Algorithm Improvements
+================================================================================
+
+[ ] Multi-pass retry strategy
+    - If extraction yields < 200 words, retry with relaxed settings
+    - Pass 1: disable partial selector removal
+    - Pass 2: disable hidden element removal
+    - Pass 3: target largest hidden subtree
+    - Pass 4: disable scoring entirely
+    - Final fallback: schema.org articleBody/text
+
+[ ] Selector-based removal (pre-scoring)
+    - Port ~200 exact CSS selectors to a Rust const list
+    - Port ~400 partial class/id/data-attr patterns
+    - Apply before content scoring
+    - Protect elements inside <pre>/<code>
+    - Protect ancestors of detected main content
+    - Add toggle flag to ExtractConfig (remove_exact_selectors,
+      remove_partial_selectors)
+
+[ ] Content pattern removal (post-scoring)
+    - Detect breadcrumb lists (internal links to shallow paths)
+    - Remove promotional banners before h1
+    - Remove hero header blocks (h1 + time + little prose)
+    - Remove author bylines ("By [Name]" near start)
+    - Remove read-time metadata ("3 min read")
+    - Remove newsletter signup blocks
+    - Remove related-article trailing sections
+    - Remove boilerplate ("This article appeared in...", copyright)
+
+[ ] Enhanced main content detection
+    - Priority-ordered entry point selector list
+    - Score formula: (list_length - index) * 40 + content_score
+    - Prefer deepest child matching higher-priority selector (>50 words)
+    - Table-based layout fallback for old-style pages
+
+[ ] HTML standardization pass
+    - Footnote normalization (detect 15+ patterns, unify format)
+    - Code block language detection and class normalization
+    - Callout/admonition standardization (GitHub alerts, Bootstrap)
+    - Div flattening (unwrap unnecessary wrapper divs)
+    - Attribute whitelist (~40 allowed attrs, strip rest)
+    - Math normalization (KaTeX, MathJax -> MathML) [stretch goal]
+
+[ ] Hidden element detection improvements
+    - Detect Tailwind/CSS framework hidden utilities
+    - Detect inline style: display:none, visibility:hidden, opacity:0
+    - Add CSS framework class patterns to removal list
+
+[ ] Enhanced metadata
+    - Favicon extraction (link[rel=icon], /favicon.ico fallback)
+    - OG image / twitter:image / schema.org image.url
+    - CJK-aware word counting
+    - Title cleaning: strip site-name suffix via separator heuristics
+
+[ ] Site-specific extractor module
+    - Define ExtractorRegistry trait + URL pattern matching
+    - Extractors return contentSelector or extracted HTML
+    - GitHub extractor (issues, PRs, READMEs)
+    - Reddit extractor (posts + comments)
+    - YouTube extractor (transcript via InnerTube API)
+    - HackerNews extractor (comment threads)
+    - Substack extractor (notes/posts)
+
+Acceptance Criteria:
+- Each improvement has unit tests with real-world HTML fixtures
+- Extraction quality improves on a curated test set (measured by word count
+  and content accuracy vs manually verified ground truth)
+- All existing tests continue to pass
+
+================================================================================
+MILESTONE B: Server Crate Foundation
+================================================================================
+
+[ ] Create crates/server/ with Cargo.toml
+    - Dependencies: axum 0.8, tower, tower-http, sqlx (postgres), serde,
+      serde_json, tracing, tracing-subscriber, tokio, lectito-core
+    - Add to workspace members in root Cargo.toml
+
+[ ] Basic Axum server skeleton
+    - main.rs: tokio runtime, tracing init, config from env
+    - Router with /api/v1/ prefix
+    - GET /api/v1/health endpoint
+    - Graceful shutdown on SIGTERM/SIGINT
+    - Error handling: map LectitoError to HTTP status codes
+
+[ ] Configuration module
+    - Read all config from environment variables
+    - Typed config struct with defaults
+    - Validate on startup (DATABASE_URL required, ports valid, etc.)
+
+[ ] Static file serving
+    - Serve @web/ build output at / with SPA fallback (index.html)
+    - Cache-Control headers for static assets
+
+[ ] Docker / docker-compose setup
+    - Dockerfile for lectito-server (multi-stage build)
+    - docker-compose.yml with server + Postgres
+    - .env.example with all config vars
+
+Acceptance Criteria:
+- `cargo run -p lectito-server` starts and serves health endpoint
+- Static files served with correct MIME types
+- docker-compose up brings up server + Postgres
+
+================================================================================
+MILESTONE C: Database & Migrations
+================================================================================
+
+[ ] SQLx setup
+    - Add sqlx-cli as dev dependency
+    - Create crates/server/migrations/ directory
+    - Configure sqlx to use crates/server/.env for DATABASE_URL
+
+[ ] Migration 001: initial schema
+    - extracted_articles table (id, url, url_hash, format, content,
+      metadata JSONB, fetched_at, expires_at, hit_count)
+    - Unique index on (url_hash, format)
+    - Index on expires_at for cleanup queries
+    - rate_limits table (ip, window_start, window_seconds, request_count)
+    - blocked_domains table (domain, reason, blocked_at)
+    - ip_bans table (ip, reason, banned_at, expires_at)
+
+[ ] Database connection pool
+    - sqlx::PgPool as Axum shared state
+    - Connection pool config (max connections, idle timeout)
+    - Health check includes DB ping
+
+[ ] Cache cleanup background task
+    - Tokio spawn: DELETE FROM extracted_articles WHERE expires_at < now()
+    - Run every 15 minutes
+    - DELETE FROM rate_limits WHERE window_start + interval < now()
+
+Acceptance Criteria:
+- Migrations run cleanly on fresh Postgres
+- Pool handles concurrent requests without exhaustion
+- Expired rows cleaned up automatically
+
+================================================================================
+MILESTONE D: Content Cache
+================================================================================
+
+[ ] URL normalization module
+    - Lowercase scheme and host
+    - Sort query params alphabetically
+    - Strip fragment
+    - Strip tracking params (utm_*, fbclid, gclid, etc.)
+    - SHA-256 hash of normalized URL + format = cache key
+
+[ ] Cache read path
+    - Before extraction: query extracted_articles by url_hash + format
+    - If found and not expired: increment hit_count, return cached
+    - Set response.cached = true
+
+[ ] Cache write path
+    - After extraction: INSERT into extracted_articles
+    - ON CONFLICT (url_hash, format) DO UPDATE (refresh content + expires_at)
+    - Default TTL from CACHE_TTL_SECS env var (default 86400)
+
+[ ] Cache bypass
+    - Respect Cache-Control: no-cache header -> skip cache read, force extract
+    - Still write result to cache (refresh)
+
+Acceptance Criteria:
+- Second request for same URL returns cached content (verified by cached flag)
+- Cache-Control: no-cache forces re-extraction
+- Expired entries not returned
+
+================================================================================
+MILESTONE E: Rate Limiting
+================================================================================
+
+[ ] Rate limit middleware (Axum layer)
+    - Extract client IP (X-Forwarded-For with trusted proxy, or peer addr)
+    - Check rate_limits table for current window counts
+    - Three windows: per-minute (60), per-hour (600), per-day (5000)
+    - If any window exceeded: return 429 with Retry-After header
+
+[ ] Rate limit headers
+    - X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
+    - Set on every response (including 429)
+
+[ ] GET /api/v1/limits endpoint
+    - Return current rate limit status for calling IP
+
+[ ] In-memory fallback
+    - If Postgres is temporarily unreachable, use in-memory HashMap
+    - Degrade gracefully: allow requests but log warning
+
+Acceptance Criteria:
+- 61st request in a minute returns 429
+- Rate limit headers accurate on every response
+- Graceful degradation when DB is down
+
+================================================================================
+MILESTONE F: Spam Filter
+================================================================================
+
+[ ] Domain blocklist
+    - Load from file (one domain per line, # comments)
+    - Path configurable via BLOCKED_DOMAINS env var
+    - Block localhost, 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12,
+      192.168.0.0/16, ::1, link-local (SSRF prevention)
+    - Also check blocked_domains table in Postgres
+
+[ ] URL validation
+    - Only allow http:// and https:// schemes
+    - Block URLs with embedded credentials (user:pass@host)
+    - Block URLs longer than 2048 characters
+
+[ ] Auto-ban on repeated 429s
+    - Track consecutive 429s per IP
+    - After 5 consecutive 429s within 10 minutes: insert ip_bans row
+    - Ban duration: 1 hour (configurable)
+    - Check ip_bans before rate limit check
+
+[ ] Admin API (optional, auth-gated)
+    - POST /api/v1/admin/block-domain { domain, reason }
+    - DELETE /api/v1/admin/block-domain/:domain
+    - POST /api/v1/admin/ban-ip { ip, reason, duration_hours }
+
+Acceptance Criteria:
+- Requests for blocked domains return 403
+- SSRF attempts (localhost, private IPs) blocked
+- Repeated abusers auto-banned
+
+================================================================================
+MILESTONE G: Extract Endpoint
+================================================================================
+
+[ ] POST /api/v1/extract
+    - Parse and validate request body
+    - Run spam filter -> cache lookup -> fetch -> extract -> cache write
+    - Map ExtractConfig from request options
+    - Return structured JSON response with content + metadata
+
+[ ] GET /api/v1/extract
+    - Same logic, params from query string
+    - URL must be percent-encoded
+
+[ ] Request timeout
+    - FETCH_TIMEOUT_SECS for upstream fetch (default 30s)
+    - Total request timeout 60s (tower timeout layer)
+
+[ ] CORS
+    - Allow all origins (public API)
+    - Expose rate limit headers
+
+[ ] Response compression
+    - gzip/br via tower-http CompressionLayer
+
+Acceptance Criteria:
+- POST and GET both return correct extracted content
+- Timeouts handled gracefully (504)
+- CORS headers present
+- Compressed responses
+
+================================================================================
+MILESTONE H: Svelte SPA - Foundation
+================================================================================
+
+[ ] Project setup
+    - SvelteKit SPA mode (adapter-static or adapter-auto)
+    - Tailwind CSS 4 configured
+    - TypeScript strict mode
+    - API client module (fetch wrapper with error handling)
+    - Types for API request/response
+
+[ ] Layout
+    - Root layout with header (logo, nav), main, footer
+    - Dark mode toggle (system preference + manual)
+    - Responsive design (mobile-first)
+
+[ ] Home page (/)
+    - URL input with paste detection and validation
+    - Format selector dropdown (markdown/html/text)
+    - Options toggles (frontmatter, references, strip images)
+    - Extract button -> calls API
+    - Loading spinner during extraction
+    - Error toast for 4xx/5xx responses
+    - Rate limit display (remaining requests)
+
+Acceptance Criteria:
+- SPA builds to static files
+- Home page functional with API calls
+- Responsive on mobile and desktop
+
+================================================================================
+MILESTONE I: Svelte SPA - Reader View
+================================================================================
+
+[ ] Reader page (/r/:id)
+    - Receive extraction result (via store or route param + cache)
+    - Clean article layout: serif body, max-width ~680px, optimized spacing
+    - Metadata header: title, author, date, site favicon, reading time
+    - Article content rendered as HTML (sanitized)
+
+[ ] Format controls
+    - Toggle between rendered / raw markdown / HTML source / plain text
+    - Syntax highlighting for raw formats (code blocks)
+
+[ ] Actions
+    - Copy to clipboard (copies current format)
+    - Download as file (.md / .html / .txt)
+    - "Extract another" link back to /
+
+[ ] Accessibility
+    - ARIA landmarks and labels
+    - Keyboard navigation
+    - Focus management on route change
+    - Sufficient color contrast in both themes
+
+Acceptance Criteria:
+- Articles render cleanly with good typography
+- All format toggles work
+- Copy and download functional
+- Passes axe-core accessibility audit (no critical issues)
+
+================================================================================
+MILESTONE J: Svelte SPA - Library View
+================================================================================
+
+[ ] Library page (/library)
+    - Displays cached/previously-extracted articles from Postgres
+    - Card grid layout: title, site favicon, excerpt, date, reading time
+    - Sort by: most recent, most read (hit_count), alphabetical
+    - Search/filter by title, domain, date range
+
+[ ] Library API endpoint
+    GET /api/v1/library?page=1&per_page=20&sort=recent&q=search
+    - Returns paginated list of cached articles (metadata only, no content)
+    - Response: { items: [...], total: 500, page: 1, per_page: 20 }
+
+[ ] Article detail from library
+    - Click card -> navigate to /r/:id (load content from cache by ID)
+    - GET /api/v1/library/:id -> returns full cached article
+
+[ ] Library stats
+    - Total articles cached
+    - Top domains
+    - Display somewhere on library page (sidebar or header)
+
+Acceptance Criteria:
+- Library shows all cached articles with pagination
+- Search filters results correctly
+- Clicking a card loads the full article in reader view
+- Sorting works for all sort modes
+
+================================================================================
+MILESTONE K: SKILL.md (Agent Interface)
+================================================================================
+
+[ ] Write SKILL.md at repo root
+    - Tool name: lectito
+    - Description: Extract readable article content from web URLs
+    - API base URL placeholder (configurable)
+    - Full endpoint documentation with JSON schemas
+    - Rate limit behavior documentation
+    - Error codes and recovery guidance
+    - Example requests (curl and JSON)
+    - Use cases: article extraction, web research, content summarization,
+      saving articles for later reading
+
+[ ] Test SKILL.md with an agent
+    - Verify an LLM agent can read SKILL.md and correctly call the API
+    - Fix any ambiguities found during testing
+
+Acceptance Criteria:
+- SKILL.md is self-contained: an agent needs no other docs to use the API
+- Schemas are valid and examples are correct
+- Rate limit and error handling clearly documented
+
+================================================================================
+MILESTONE L: Testing & Polish
+================================================================================
+
+[ ] Server integration tests
+    - Test each endpoint with sqlx test database
+    - Test rate limiting (verify 429 after limit)
+    - Test cache hit/miss paths
+    - Test spam filter (blocked domain, SSRF, auto-ban)
+
+[ ] Frontend tests
+    - Vitest unit tests for API client, stores, utilities
+    - Playwright E2E: extract flow, reader view, library navigation
+
+[ ] Performance
+    - Benchmark extraction endpoint (target: < 3s for typical article)
+    - Connection pool tuning
+    - Add request_id tracing for debugging
+
+[ ] Documentation
+    - README section for server setup
+    - .env.example with all config vars documented
+    - API docs (OpenAPI/Swagger or hosted docs page)
+
+Acceptance Criteria:
+- All tests pass in CI
+- Server handles 50 concurrent requests without errors
+- Documentation sufficient for self-hosting

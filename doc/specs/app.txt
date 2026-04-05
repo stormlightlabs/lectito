@@ -1,0 +1,414 @@
+LECTITO WEB APP & API SPECIFICATION                              *app-spec.txt*
+================================================================================
+
+A free, rate-limited REST API and Svelte SPA for extracting readable content
+from web pages, backed by the lectito-core library with algorithm improvements
+with enhanced extraction algorithms, Postgres caching, and spam filtering.
+
+================================================================================
+ARCHITECTURE OVERVIEW
+================================================================================
+
+    +-------------+       +------------------+       +----------+
+    | Svelte SPA  | ----> | lectito-server   | ----> | Postgres |
+    | (@web/)     |  HTTP | (Axum REST API)  |       | (cache + |
+    +-------------+       | crates/server/   |       |  limits) |
+                          +------------------+       +----------+
+                                |
+                          +------------------+
+                          | lectito-core     |
+                          | (extraction)     |
+                          +------------------+
+
+Crate: `lectito-server` in `crates/server/`
+Frontend: `@web/` (Svelte 5 + SvelteKit SPA, Tailwind CSS)
+Database: PostgreSQL (content cache, rate limit state, request log)
+
+================================================================================
+REST API
+================================================================================
+
+Base path: /api/v1
+
+Endpoints
+--------------------------------------------------------------------------------
+
+POST /api/v1/extract
+    Extract article content from a URL.
+
+    Request body (JSON):
+        {
+          "url": "https://example.com/article",     // required
+          "format": "markdown",                      // html|markdown|text|json
+          "include_frontmatter": true,               // for markdown format
+          "include_references": false,               // link reference table
+          "strip_images": false,                     // remove images
+          "content_selector": null                   // CSS selector override
+        }
+
+    Response (JSON):
+        {
+          "content": "...",                          // extracted content
+          "metadata": {
+            "title": "...",
+            "author": "...",
+            "date": "...",
+            "excerpt": "...",
+            "site_name": "...",
+            "language": "en",
+            "word_count": 2500,
+            "reading_time_minutes": 12.5,
+            "image": "https://...",
+            "favicon": "https://..."
+          },
+          "cached": true,                            // served from cache?
+          "extracted_at": "2026-04-05T12:00:00Z"
+        }
+
+    Errors:
+        400  Invalid URL or request body
+        403  URL blocked by spam filter
+        429  Rate limit exceeded (Retry-After header set)
+        502  Upstream fetch failed
+        504  Upstream fetch timed out
+
+GET /api/v1/extract?url={url}&format={format}
+    GET variant for simple integrations / browser use.
+    Same query params as POST body fields. URL must be percent-encoded.
+
+GET /api/v1/library?page=1&per_page=20&sort=recent&q=search
+    Browse cached/previously-extracted articles.
+
+    Query params:
+        page            Page number (default: 1)
+        per_page        Items per page (default: 20, max: 100)
+        sort            recent|popular|alpha (default: recent)
+        q               Search by title or domain (optional)
+
+    Response (JSON):
+        {
+          "items": [
+            {
+              "id": "uuid",
+              "url": "https://...",
+              "title": "...",
+              "author": "...",
+              "site_name": "...",
+              "favicon": "...",
+              "excerpt": "...",
+              "date": "...",
+              "word_count": 2500,
+              "reading_time_minutes": 12.5,
+              "hit_count": 42,
+              "fetched_at": "2026-04-05T12:00:00Z"
+            }
+          ],
+          "total": 500,
+          "page": 1,
+          "per_page": 20
+        }
+
+GET /api/v1/library/:id
+    Retrieve a specific cached article by ID.
+    Response: same as POST /api/v1/extract response.
+
+GET /api/v1/health
+    Returns { "status": "ok", "version": "1.0.0" }
+
+GET /api/v1/limits
+    Returns current rate limit status for the caller.
+    Response:
+        {
+          "requests_remaining": 55,
+          "requests_limit": 60,
+          "window_seconds": 60,
+          "reset_at": "2026-04-05T12:01:00Z"
+        }
+
+================================================================================
+RATE LIMITING
+================================================================================
+
+Strategy: Token bucket per IP, tracked in Postgres.
+
+Default limits (configurable via env):
+    - 60 requests per minute per IP
+    - 600 requests per hour per IP
+    - 5000 requests per day per IP
+
+Headers on every response:
+    X-RateLimit-Limit: 60
+    X-RateLimit-Remaining: 55
+    X-RateLimit-Reset: 1712318460
+
+429 response includes Retry-After header (seconds).
+
+Implementation: Middleware layer in Axum. Postgres table `rate_limits` stores
+per-IP counters with sliding window expiry. Fallback to in-memory if DB is
+temporarily unavailable.
+
+================================================================================
+CONTENT CACHE (POSTGRES)
+================================================================================
+
+Cache extracted content to avoid redundant fetches and extraction.
+
+Table: extracted_articles
+    id              UUID PRIMARY KEY
+    url             TEXT NOT NULL (normalized)
+    url_hash        BYTEA NOT NULL (SHA-256, indexed)
+    format          TEXT NOT NULL (html|markdown|text|json)
+    content         TEXT NOT NULL
+    metadata        JSONB NOT NULL
+    fetched_at      TIMESTAMPTZ NOT NULL
+    expires_at      TIMESTAMPTZ NOT NULL
+    hit_count       INTEGER DEFAULT 0
+
+Cache behavior:
+    - Key: SHA-256(normalized_url + format)
+    - Default TTL: 24 hours (configurable via env CACHE_TTL_SECS)
+    - On hit: increment hit_count, return cached content
+    - On miss: fetch, extract, store, return
+    - Cache-Control: respect no-cache request header to force re-extract
+    - Periodic cleanup job: DELETE WHERE expires_at < now()
+
+URL normalization: lowercase scheme/host, sort query params, strip fragments,
+strip common tracking params (utm_*, fbclid, etc.).
+
+================================================================================
+SPAM FILTER
+================================================================================
+
+Prevent abuse by blocking requests for known-bad or dangerous URLs.
+
+Layers:
+    1. Domain blocklist (configurable file + env)
+       - Block known spam/phishing domains
+       - Block localhost, private IPs, link-local ranges (SSRF prevention)
+    2. URL pattern blocklist (regex list)
+       - Block file:// and other non-http(s) schemes
+       - Block URLs with credentials (user:pass@host)
+    3. Request-rate anomaly detection
+       - Flag IPs that hit rate limits repeatedly
+       - Temporary auto-ban after N consecutive 429s (default: 5 in 10 min)
+
+Table: blocked_domains
+    domain          TEXT PRIMARY KEY
+    reason          TEXT
+    blocked_at      TIMESTAMPTZ DEFAULT now()
+
+Table: ip_bans
+    ip              INET PRIMARY KEY
+    reason          TEXT
+    banned_at       TIMESTAMPTZ DEFAULT now()
+    expires_at      TIMESTAMPTZ  -- NULL = permanent
+
+Spam filter runs before rate limiting (cheap check first).
+
+================================================================================
+ALGORITHM IMPROVEMENTS
+================================================================================
+
+Improvements to add to lectito-core:
+
+1. Multi-pass retry strategy
+   If initial extraction yields < 200 words, retry with progressively relaxed
+   settings:
+     Pass 1: Disable partial selector removal
+     Pass 2: Disable hidden element removal
+     Pass 3: Target largest hidden content subtree
+     Pass 4: Disable scoring + partial selectors + content patterns
+     Fallback: Check schema.org articleBody/text as last resort
+
+2. Selector-based removal (pre-scoring)
+   Curated removal lists:
+     - ~200 exact CSS selectors (nav, footer, .sidebar, .ad, [role="banner"])
+     - ~400 partial class/id/data-attr patterns ("breadcrumb", "newsletter")
+   Apply before scoring. Protect elements inside <pre>/<code> and ancestors
+   of detected main content.
+
+3. Content pattern removal (post-scoring)
+   Detect and remove by content heuristics:
+     - Breadcrumb lists, promotional banners, hero headers
+     - Author bylines, read-time metadata, newsletter signups
+     - Related-article sections, boilerplate ("This article appeared in...")
+     - Standalone <time> elements at content boundaries
+
+4. Enhanced main content detection
+   Priority-ordered entry point selectors:
+     #post, .post-content, article, [role="main"], main, body
+   Score = (list_length - index) * 40 + content_score
+   Prefer deepest child matching a higher-priority selector if >50 words.
+
+5. HTML standardization pass
+   - Math normalization (KaTeX, MathJax, LaTeX -> MathML)
+   - Code block language detection and class normalization
+   - Footnote standardization (15+ patterns normalized)
+   - Callout/admonition standardization (GitHub alerts, Bootstrap)
+   - Div flattening (unwrap unnecessary wrapper divs)
+   - Attribute whitelist (~40 allowed attrs, strip rest)
+
+6. Hidden element detection improvements
+   - Inline styles: display:none, visibility:hidden, opacity:0
+   - CSS framework utilities: Tailwind hidden, sr-only, sm:hidden
+   - Mobile-first signal: elements hidden at mobile widths are non-content
+
+7. Enhanced metadata extraction
+   - Favicon extraction (link[rel=icon], /favicon.ico fallback)
+   - Image extraction (og:image, twitter:image, schema.org image.url)
+   - CJK-aware word counting
+   - Title cleaning: strip site-name suffixes using separator heuristics
+
+8. Site-specific extractors (new module)
+   Pluggable extractor registry keyed by URL pattern. Initial extractors:
+     - GitHub (issues, PRs, READMEs, code)
+     - Reddit (posts + comment trees)
+     - YouTube (transcript via InnerTube API)
+     - HackerNews (comment threads)
+     - Substack (notes/posts)
+   Extractors return either a contentSelector (re-enter generic pipeline)
+   or fully extracted HTML.
+
+================================================================================
+SVELTE SPA
+================================================================================
+
+Single-page app at @web/ served by lectito-server (or standalone dev server).
+
+Pages / Views:
+    /               Home: URL input + extract button
+    /r/:id          Reader view: displays extracted article
+    /library        Library: browse cached articles
+    /about          About page with API docs summary
+
+Home View:
+    - URL input field (auto-detect paste)
+    - Format selector (markdown/html/text)
+    - Options: frontmatter, references, strip images
+    - "Extract" button -> POST /api/v1/extract
+    - Loading state with progress indication
+    - Error display for 4xx/5xx responses
+
+Reader View:
+    - Clean, readable article layout (serif body, optimized line length)
+    - Metadata header: title, author, date, site, reading time
+    - Favicon + site name
+    - Format toggle (rendered markdown / raw markdown / HTML / text)
+    - Copy button (copies current format to clipboard)
+    - Download button (saves as .md / .html / .txt)
+    - "Extract another" link back to home
+
+Library View:
+    - Card grid of cached articles (paginated)
+    - Each card: title, site favicon, excerpt, date, reading time, hit count
+    - Sort: most recent, most read, alphabetical
+    - Search: filter by title or domain
+    - Click card -> reader view (/r/:id)
+    - Stats summary: total articles, top domains
+
+Design:
+    - Tailwind CSS, responsive, dark mode support
+    - Minimal chrome, focus on readability
+    - System font stack for UI, serif for article body
+    - Accessible: ARIA labels, keyboard nav, focus management
+
+================================================================================
+LECTITO-SERVER CRATE
+================================================================================
+
+Crate: crates/server/
+Binary: lectito-server
+Framework: Axum 0.8+
+Async runtime: Tokio
+
+Dependencies:
+    axum           - HTTP framework
+    tower          - middleware (CORS, compression, rate limiting)
+    tower-http     - static file serving, CORS, compression
+    sqlx           - Postgres driver (async, compile-time checked)
+    serde/json     - serialization
+    tracing        - structured logging
+    lectito-core   - content extraction
+
+Configuration (env vars):
+    DATABASE_URL        Postgres connection string
+    LISTEN_ADDR         Bind address (default: 0.0.0.0:3000)
+    CACHE_TTL_SECS      Cache TTL (default: 86400)
+    RATE_LIMIT_PER_MIN  Per-IP per-minute limit (default: 60)
+    RATE_LIMIT_PER_HOUR Per-IP per-hour limit (default: 600)
+    RATE_LIMIT_PER_DAY  Per-IP per-day limit (default: 5000)
+    BLOCKED_DOMAINS     Path to domain blocklist file
+    FETCH_TIMEOUT_SECS  Upstream fetch timeout (default: 30)
+    RUST_LOG            Log level filter (default: info)
+
+Static file serving:
+    Serve @web/ build output from /static or / (SPA fallback to index.html).
+
+Startup:
+    1. Connect to Postgres, run migrations (sqlx migrate)
+    2. Load domain blocklist
+    3. Start background cache cleanup task
+    4. Bind HTTP listener
+
+================================================================================
+AGENT SKILL (SKILL.md)
+================================================================================
+
+A public SKILL.md at repo root so that AI agents can discover and use the
+lectito API programmatically.
+
+Contents:
+    - Tool name and description
+    - API base URL (configurable)
+    - Endpoint specs with request/response schemas
+    - Rate limit documentation
+    - Example curl commands
+    - Error handling guidance
+    - When to use (article extraction, web research, content summarization)
+
+See SKILL.md for the full agent-facing specification.
+
+================================================================================
+DATABASE SCHEMA
+================================================================================
+
+Migration 001: initial schema
+
+    CREATE TABLE extracted_articles (
+        id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        url             TEXT NOT NULL,
+        url_hash        BYTEA NOT NULL,
+        format          TEXT NOT NULL DEFAULT 'markdown',
+        content         TEXT NOT NULL,
+        metadata        JSONB NOT NULL DEFAULT '{}',
+        fetched_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+        expires_at      TIMESTAMPTZ NOT NULL,
+        hit_count       INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE UNIQUE INDEX idx_articles_url_hash_format
+        ON extracted_articles (url_hash, format);
+    CREATE INDEX idx_articles_expires_at
+        ON extracted_articles (expires_at);
+
+    CREATE TABLE rate_limits (
+        ip              INET NOT NULL,
+        window_start    TIMESTAMPTZ NOT NULL,
+        window_seconds  INTEGER NOT NULL,
+        request_count   INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (ip, window_start, window_seconds)
+    );
+    CREATE INDEX idx_rate_limits_expiry
+        ON rate_limits (window_start);
+
+    CREATE TABLE blocked_domains (
+        domain          TEXT PRIMARY KEY,
+        reason          TEXT,
+        blocked_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    CREATE TABLE ip_bans (
+        ip              INET PRIMARY KEY,
+        reason          TEXT,
+        banned_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+        expires_at      TIMESTAMPTZ
+    );
