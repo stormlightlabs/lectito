@@ -4,8 +4,11 @@ import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import { sveltekit } from '@sveltejs/kit/vite';
 
+const apiProxyTarget = process.env.LECTITO_SERVER_URL ?? 'http://127.0.0.1:3000';
+
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
+	server: { proxy: { '/api': { target: apiProxyTarget, changeOrigin: true } } },
 	test: {
 		expect: { requireAssertions: true },
 		projects: [

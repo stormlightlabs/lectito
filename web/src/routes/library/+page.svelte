@@ -5,6 +5,8 @@
 	import type { LibraryResponse, LibrarySort } from '$lib/types';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 
+	type LibraryHref = '/library' | `/library?${string}`;
+
 	function parsePositiveInt(value: string | null, fallback: number) {
 		const parsed = Number(value);
 		return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
@@ -27,7 +29,7 @@
 	let library = $state<LibraryResponse | null>(null);
 	let error = $state<string | null>(null);
 
-	function withQuery(overrides: Record<string, string | number | null | undefined>) {
+	function withQuery(overrides: Record<string, string | number | null | undefined>): LibraryHref {
 		const params = new SvelteURLSearchParams();
 		const merged = {
 			page: currentQuery.page,

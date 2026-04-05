@@ -5,6 +5,7 @@
 	import type { LibraryResponse, LibrarySort } from '$lib/types';
 	import { formatDate, formatHoursFromMinutes, formatNumber, formatReadingTime, formatWordCount } from '$lib/utils';
 
+	type LibraryHref = '/library' | `/library?${string}`;
 	type TQuery = {
 		page: number;
 		per_page: number;
@@ -23,7 +24,7 @@
 		library: LibraryResponse | null;
 		query: TQuery;
 		error?: string | null;
-		buildLink: (overrides: Record<string, string | number | null | undefined>) => string;
+		buildLink: (overrides: Record<string, string | number | null | undefined>) => LibraryHref;
 	} = $props();
 
 	const SORT_OPTIONS: { label: string; value: LibrarySort }[] = [
@@ -190,7 +191,7 @@
 						<a
 							aria-disabled={query.page <= 1}
 							class="btn-outline px-3 py-2 font-mono text-sm aria-disabled:pointer-events-none aria-disabled:opacity-50"
-							href={buildLink({ page: Math.max(1, query.page - 1) })}>
+							href={resolve(buildLink({ page: Math.max(1, query.page - 1) }))}>
 							← Prev
 						</a>
 
@@ -198,7 +199,7 @@
 							<a
 								class="btn-outline px-3 py-2 font-mono text-sm"
 								data-active={pageNumber === query.page}
-								href={buildLink({ page: pageNumber })}>
+								href={resolve(buildLink({ page: pageNumber }))}>
 								{pageNumber}
 							</a>
 						{/each}
@@ -206,7 +207,7 @@
 						<a
 							aria-disabled={query.page >= totalPages}
 							class="btn-outline px-3 py-2 font-mono text-sm aria-disabled:pointer-events-none aria-disabled:opacity-50"
-							href={buildLink({ page: Math.min(totalPages, query.page + 1) })}>
+							href={resolve(buildLink({ page: Math.min(totalPages, query.page + 1) }))}>
 							Next →
 						</a>
 					</div>
@@ -228,7 +229,7 @@
 							{#each topDomains as entry (entry.domain)}
 								<a
 									class="flex items-center justify-between border-b border-mist pb-3 last:border-b-0 last:pb-0"
-									href={buildLink({ domain: entry.domain, page: 1 })}>
+									href={resolve(buildLink({ domain: entry.domain, page: 1 }))}>
 									<span class="font-serif text-sm text-ink">{entry.domain}</span>
 									<span class="font-mono text-xs text-fog">{formatNumber(entry.count)}</span>
 								</a>
