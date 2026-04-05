@@ -3,6 +3,7 @@
 	"singleQuote": true,
 	"trailingComma": "none",
 	"printWidth": 121,
+	"tabWidth": 2,
 	"bracketSameLine": true,
 	"objectWrap": "collapse",
 	"plugins": ["prettier-plugin-svelte", "prettier-plugin-tailwindcss"],
