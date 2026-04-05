@@ -280,14 +280,14 @@ impl Readability {
             remove_hidden: false,
             ..Default::default()
         };
-        if let Ok(schema_doc) = Document::parse_with_preprocessing_config(html, &schema_preprocess) {
-            if let Some(extracted) = extract_schema_org_article(&schema_doc) {
-                let article = Article::from_document(&schema_doc, extracted.content, url.map(|u| u.to_string()));
-                if article.word_count >= RETRY_WORD_THRESHOLD {
-                    return Ok(article);
-                }
-                update_best(&mut best, article);
+        if let Ok(schema_doc) = Document::parse_with_preprocessing_config(html, &schema_preprocess)
+            && let Some(extracted) = extract_schema_org_article(&schema_doc)
+        {
+            let article = Article::from_document(&schema_doc, extracted.content, url.map(|u| u.to_string()));
+            if article.word_count >= RETRY_WORD_THRESHOLD {
+                return Ok(article);
             }
+            update_best(&mut best, article);
         }
 
         best.ok_or(LectitoError::NotReadable { score: 0.0, threshold: self.config.min_score })

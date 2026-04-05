@@ -84,19 +84,19 @@ MILESTONE B: Server Crate Foundation
       serde_json, tracing, tracing-subscriber, tokio, lectito-core
     - Add to workspace members in root Cargo.toml
 
-[ ] Basic Axum server skeleton
+[x] Basic Axum server skeleton
     - main.rs: tokio runtime, tracing init, config from env
     - Router with /api/v1/ prefix
     - GET /api/v1/health endpoint
     - Graceful shutdown on SIGTERM/SIGINT
     - Error handling: map LectitoError to HTTP status codes
 
-[ ] Configuration module
+[x] Configuration module
     - Read all config from environment variables
     - Typed config struct with defaults
     - Validate on startup (DATABASE_URL required, ports valid, etc.)
 
-[ ] Static file serving
+[x] Static file serving
     - Serve @web/ build output at / with SPA fallback (index.html)
     - Cache-Control headers for static assets
 
@@ -114,7 +114,7 @@ Acceptance Criteria:
 MILESTONE C: Database & Migrations
 ================================================================================
 
-[ ] Migration 001: initial schema
+[x] Migration 001: initial schema
     - extracted_articles table (id, url, url_hash, format, content,
       metadata JSONB, fetched_at, expires_at, hit_count)
     - Unique index on (url_hash, format)
@@ -123,12 +123,12 @@ MILESTONE C: Database & Migrations
     - blocked_domains table (domain, reason, blocked_at)
     - ip_bans table (ip, reason, banned_at, expires_at)
 
-[ ] Database connection pool
+[x] Database connection pool
     - deadpool
     - Connection pool config (max connections, idle timeout)
     - Health check includes DB ping
 
-[ ] Cache cleanup background task
+[x] Cache cleanup background task
     - Tokio spawn: DELETE FROM extracted_articles WHERE expires_at < now()
     - Run every 15 minutes
     - DELETE FROM rate_limits WHERE window_start + interval < now()

@@ -501,12 +501,11 @@ pub(crate) fn extract_largest_hidden_subtree(doc: &Document) -> Option<Extracted
 /// JSON-LD plain text is HTML-escaped and wrapped in a `<div>`.
 pub(crate) fn extract_schema_org_article(doc: &Document) -> Option<ExtractedContent> {
     for selector in &[r#"[itemprop="articleBody"]"#, r#"[itemprop="text"]"#] {
-        if let Ok(elements) = doc.select(selector) {
-            if let Some(el) = elements.first() {
-                if !el.text().trim().is_empty() {
-                    return Some(ExtractedContent { content: el.outer_html(), top_score: 100.0, element_count: 1 });
-                }
-            }
+        if let Ok(elements) = doc.select(selector)
+            && let Some(el) = elements.first()
+            && !el.text().trim().is_empty()
+        {
+            return Some(ExtractedContent { content: el.outer_html(), top_score: 100.0, element_count: 1 });
         }
     }
 
