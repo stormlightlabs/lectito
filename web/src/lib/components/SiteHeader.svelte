@@ -3,17 +3,7 @@
 
 	type NavKey = 'home' | 'library' | 'about';
 
-	let {
-		active = 'home',
-		backHref = null,
-		backLabel = null,
-		eyebrow = 'A Tool for Curious Readers'
-	}: {
-		active?: NavKey;
-		backHref?: `/${'' | 'library' | 'about'}` | null;
-		backLabel?: string | null;
-		eyebrow?: string;
-	} = $props();
+	let { active = 'home' }: { active?: NavKey } = $props();
 
 	const links: { href: `/${'' | 'library' | 'about'}`; label: string; key: NavKey }[] = [
 		{ href: '/', label: 'Extract', key: 'home' },
@@ -25,13 +15,6 @@
 <header class="bg-[rgba(250,250,250,0.84)] backdrop-blur-sm">
 	<div class="mx-auto max-w-6xl px-6 py-6">
 		<div class="mb-4 flex items-center justify-between gap-6">
-			<div class="muted-label">
-				{#if backHref && backLabel}
-					<a class="hover:text-ink" href={resolve(backHref)}>{backLabel}</a>
-				{:else}
-					<span>{eyebrow}</span>
-				{/if}
-			</div>
 			<nav class="flex flex-wrap items-center gap-6 text-sm text-stone">
 				{#each links as link (`${link.href}:${link.key}`)}
 					<a
