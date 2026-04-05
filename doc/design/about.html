@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About & API Documentation — Lectito</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Google+Sans:wght@300;400;500;600;700&family=Google+Sans+Code:wght@400;500&display=swap"
+      rel="stylesheet" />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Google Sans", "system-ui", "sans-serif"],
+              serif: ["Lora", "Georgia", "serif"],
+              mono: ["Google Sans Code", "monospace"],
+            },
+            colors: { ink: "#0a0a0a", charcoal: "#1a1a1a", graphite: "#2d2d2d", stone: "#666666", fog: "#999999", mist: "#e5e5e5", paper: "#fafafa" },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        background: #fafafa;
+        color: #0a0a0a;
+      }
+      .masthead {
+        border-bottom: 2px solid #0a0a0a;
+      }
+      .code-block {
+        background: #1a1a1a;
+        color: #fafafa;
+      }
+      .endpoint {
+        border-left: 3px solid #0a0a0a;
+      }
+      .nav-link {
+        transition: all 0.2s ease;
+      }
+      .nav-link:hover {
+        color: #0a0a0a;
+        padding-left: 0.5rem;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen font-sans">
+    <!-- Masthead -->
+    <header class="bg-paper">
+      <div class="max-w-6xl mx-auto px-6 py-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-xs font-medium tracking-widest uppercase text-stone">
+            <a href="index.html" class="hover:text-ink transition-colors">← Back to Extract</a>
+          </div>
+          <nav class="flex gap-8 text-sm">
+            <a href="library.html" class="text-ink hover:text-stone transition-colors">Library</a>
+            <a href="about.html" class="text-ink border-b-2 border-ink pb-0.5">About</a>
+            <a href="#" class="text-ink hover:text-stone transition-colors">API</a>
+          </nav>
+        </div>
+        <div class="masthead pb-6">
+          <h1 class="font-sans text-5xl font-bold tracking-tight text-ink text-center">LECTITO</h1>
+        </div>
+      </div>
+    </header>
+
+    <div class="max-w-6xl mx-auto px-6 py-12">
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-12">
+        <!-- Sidebar Navigation -->
+        <aside class="hidden lg:block">
+          <nav class="sticky top-8 space-y-6">
+            <div>
+              <h4 class="font-sans font-semibold text-xs uppercase tracking-wider text-stone mb-3">Overview</h4>
+              <ul class="space-y-2 text-sm">
+                <li><a href="#about" class="nav-link text-stone hover:text-ink font-serif">About Lectito</a></li>
+                <li><a href="#features" class="nav-link text-stone hover:text-ink font-serif">Features</a></li>
+                <li><a href="#rate-limits" class="nav-link text-stone hover:text-ink font-serif">Rate Limits</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 class="font-sans font-semibold text-xs uppercase tracking-wider text-stone mb-3">API Reference</h4>
+              <ul class="space-y-2 text-sm">
+                <li><a href="#extract" class="nav-link text-stone hover:text-ink font-serif">POST /extract</a></li>
+                <li><a href="#get-extract" class="nav-link text-stone hover:text-ink font-serif">GET /extract</a></li>
+                <li><a href="#library" class="nav-link text-stone hover:text-ink font-serif">GET /library</a></li>
+                <li><a href="#health" class="nav-link text-stone hover:text-ink font-serif">GET /health</a></li>
+                <li><a href="#limits" class="nav-link text-stone hover:text-ink font-serif">GET /limits</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 class="font-sans font-semibold text-xs uppercase tracking-wider text-stone mb-3">Resources</h4>
+              <ul class="space-y-2 text-sm">
+                <li><a href="#" class="nav-link text-stone hover:text-ink font-serif">GitHub</a></li>
+                <li><a href="#" class="nav-link text-stone hover:text-ink font-serif">SKILL.md</a></li>
+                <li><a href="#" class="nav-link text-stone hover:text-ink font-serif">Status Page</a></li>
+              </ul>
+            </div>
+          </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="lg:col-span-3">
+          <!-- About Section -->
+          <section id="about" class="mb-16">
+            <h2 class="font-serif text-3xl font-semibold text-ink mb-6">About Lectito</h2>
+            <div class="prose prose-lg max-w-none font-serif">
+              <p class="text-lg leading-relaxed text-charcoal mb-4">
+                Lectito is a free, open-source tool for extracting readable content from web pages. Named after the Latin word for "reading," it
+                strips away clutter—ads, navigation, tracking scripts—and delivers clean, well-formatted articles in your choice of Markdown, HTML,
+                plain text, or JSON.
+              </p>
+              <p class="leading-relaxed text-stone mb-4">
+                Built with Rust for performance and reliability, Lectito uses sophisticated content extraction algorithms to identify the main article
+                text on any web page. It handles everything from modern JavaScript-heavy sites to legacy table-based layouts, extracting clean content
+                in under three seconds.
+              </p>
+              <p class="leading-relaxed text-stone">
+                The service is completely free for personal use, with generous rate limits that accommodate most research and automation needs. For
+                developers, we offer a simple REST API that integrates seamlessly into workflows, research tools, and content pipelines.
+              </p>
+            </div>
+          </section>
+
+          <!-- Features Section -->
+          <section id="features" class="mb-16">
+            <h2 class="font-serif text-3xl font-semibold text-ink mb-6">Features</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="p-6 bg-white border border-mist">
+                <h3 class="font-sans font-semibold text-ink mb-2">Smart Content Extraction</h3>
+                <p class="font-serif text-sm text-stone">
+                  Advanced algorithms detect and extract article content while removing ads, navigation, sidebars, and other clutter.
+                </p>
+              </div>
+              <div class="p-6 bg-white border border-mist">
+                <h3 class="font-sans font-semibold text-ink mb-2">Multiple Output Formats</h3>
+                <p class="font-serif text-sm text-stone">Export as Markdown, HTML, plain text, or structured JSON with full metadata.</p>
+              </div>
+              <div class="p-6 bg-white border border-mist">
+                <h3 class="font-sans font-semibold text-ink mb-2">Intelligent Caching</h3>
+                <p class="font-serif text-sm text-stone">
+                  Frequently requested URLs are cached for 24 hours, improving response times and reducing load.
+                </p>
+              </div>
+              <div class="p-6 bg-white border border-mist">
+                <h3 class="font-sans font-semibold text-ink mb-2">Open Source</h3>
+                <p class="font-serif text-sm text-stone">Built with Rust and Svelte. Self-host or contribute on GitHub under the MIT License.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Rate Limits Section -->
+          <section id="rate-limits" class="mb-16">
+            <h2 class="font-serif text-3xl font-semibold text-ink mb-6">Rate Limits</h2>
+            <p class="font-serif text-stone mb-6">
+              To ensure fair usage and service stability, the API enforces rate limits per IP address across three time windows:
+            </p>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b-2 border-ink">
+                    <th class="text-left py-3 font-sans font-semibold">Window</th>
+                    <th class="text-left py-3 font-sans font-semibold">Limit</th>
+                    <th class="text-left py-3 font-sans font-semibold">Reset</th>
+                  </tr>
+                </thead>
+                <tbody class="font-mono">
+                  <tr class="border-b border-mist">
+                    <td class="py-3">Per Minute</td>
+                    <td class="py-3">60 requests</td>
+                    <td class="py-3 text-stone">Every minute</td>
+                  </tr>
+                  <tr class="border-b border-mist">
+                    <td class="py-3">Per Hour</td>
+                    <td class="py-3">600 requests</td>
+                    <td class="py-3 text-stone">Every hour</td>
+                  </tr>
+                  <tr class="border-b border-mist">
+                    <td class="py-3">Per Day</td>
+                    <td class="py-3">5,000 requests</td>
+                    <td class="py-3 text-stone">Daily (UTC)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="mt-6 p-4 bg-paper border border-mist">
+              <p class="font-serif text-sm text-stone">
+                <strong class="text-ink">Tip:</strong> Check your current rate limit status at any time by calling
+                <code class="font-mono text-xs bg-white px-1 py-0.5">GET /api/v1/limits</code>. All responses include rate limit headers.
+              </p>
+            </div>
+          </section>
+
+          <!-- API Endpoints -->
+          <section id="extract" class="mb-16">
+            <h2 class="font-serif text-3xl font-semibold text-ink mb-6">API Reference</h2>
+
+            <!-- POST /extract -->
+            <div class="endpoint pl-6 mb-12">
+              <div class="flex items-center gap-3 mb-4">
+                <span class="px-2 py-1 bg-ink text-white text-xs font-mono font-semibold">POST</span>
+                <code class="font-mono text-lg">/api/v1/extract</code>
+              </div>
+              <p class="font-serif text-stone mb-4">Extract article content from a URL. This is the primary endpoint for content extraction.</p>
+
+              <h4 class="font-sans font-semibold text-sm uppercase tracking-wider text-stone mb-3">Request Body</h4>
+              <div class="code-block p-4 rounded mb-4 overflow-x-auto">
+                <pre class="font-mono text-sm"><code>{
+  "url": "https://example.com/article",
+  "format": "markdown",
+  "include_frontmatter": true,
+  "include_references": false,
+  "strip_images": false,
+  "content_selector": null
+}</code></pre>
+              </div>
+
+              <h4 class="font-sans font-semibold text-sm uppercase tracking-wider text-stone mb-3">Response</h4>
+              <div class="code-block p-4 rounded overflow-x-auto">
+                <pre class="font-mono text-sm"><code>{
+  "content": "# Article Title\n\nArticle body content...",
+  "metadata": {
+    "title": "Article Title",
+    "author": "Jane Doe",
+    "date": "2026-01-15",
+    "excerpt": "Brief description...",
+    "site_name": "Example Site",
+    "language": "en",
+    "word_count": 2450,
+    "reading_time_minutes": 12.5,
+    "image": "https://example.com/image.jpg",
+    "favicon": "https://example.com/favicon.ico"
+  },
+  "cached": true,
+  "extracted_at": "2026-04-05T12:00:00Z"
+}</code></pre>
+              </div>
+            </div>
+
+            <!-- GET /extract -->
+            <div id="get-extract" class="endpoint pl-6 mb-12">
+              <div class="flex items-center gap-3 mb-4">
+                <span class="px-2 py-1 bg-stone text-white text-xs font-mono font-semibold">GET</span>
+                <code class="font-mono text-lg">/api/v1/extract</code>
+              </div>
+              <p class="font-serif text-stone mb-4">GET variant for simple integrations and browser use. Parameters are passed as query strings.</p>
+
+              <h4 class="font-sans font-semibold text-sm uppercase tracking-wider text-stone mb-3">Query Parameters</h4>
+              <div class="code-block p-4 rounded overflow-x-auto">
+                <pre class="font-mono text-sm"><code>GET /api/v1/extract?url=https%3A%2F%2Fexample.com%2Farticle&format=markdown</code></pre>
+              </div>
+            </div>
+
+            <!-- GET /library -->
+            <div id="library" class="endpoint pl-6 mb-12">
+              <div class="flex items-center gap-3 mb-4">
+                <span class="px-2 py-1 bg-stone text-white text-xs font-mono font-semibold">GET</span>
+                <code class="font-mono text-lg">/api/v1/library</code>
+              </div>
+              <p class="font-serif text-stone mb-4">
+                Browse cached and previously extracted articles. Returns paginated metadata without full content.
+              </p>
+
+              <h4 class="font-sans font-semibold text-sm uppercase tracking-wider text-stone mb-3">Query Parameters</h4>
+              <ul class="font-mono text-sm space-y-2 mb-4">
+                <li><code>page</code> — Page number (default: 1)</li>
+                <li><code>per_page</code> — Items per page (default: 20, max: 100)</li>
+                <li><code>sort</code> — recent, popular, or alpha (default: recent)</li>
+                <li><code>q</code> — Search query for title/domain (optional)</li>
+              </ul>
+            </div>
+
+            <!-- GET /health -->
+            <div id="health" class="endpoint pl-6 mb-12">
+              <div class="flex items-center gap-3 mb-4">
+                <span class="px-2 py-1 bg-stone text-white text-xs font-mono font-semibold">GET</span>
+                <code class="font-mono text-lg">/api/v1/health</code>
+              </div>
+              <p class="font-serif text-stone mb-4">Health check endpoint. Returns service status and version information.</p>
+              <div class="code-block p-4 rounded overflow-x-auto">
+                <pre class="font-mono text-sm"><code>{
+  "status": "ok",
+  "version": "1.0.0"
+}</code></pre>
+              </div>
+            </div>
+
+            <!-- GET /limits -->
+            <div id="limits" class="endpoint pl-6 mb-12">
+              <div class="flex items-center gap-3 mb-4">
+                <span class="px-2 py-1 bg-stone text-white text-xs font-mono font-semibold">GET</span>
+                <code class="font-mono text-lg">/api/v1/limits</code>
+              </div>
+              <p class="font-serif text-stone mb-4">Returns current rate limit status for the calling IP address.</p>
+              <div class="code-block p-4 rounded overflow-x-auto">
+                <pre class="font-mono text-sm"><code>{
+  "requests_remaining": 55,
+  "requests_limit": 60,
+  "window_seconds": 60,
+  "reset_at": "2026-04-05T12:01:00Z"
+}</code></pre>
+              </div>
+            </div>
+          </section>
+
+          <!-- Example Usage -->
+          <section class="mb-16">
+            <h2 class="font-serif text-3xl font-semibold text-ink mb-6">Example Usage</h2>
+
+            <h4 class="font-sans font-semibold text-sm uppercase tracking-wider text-stone mb-3">cURL</h4>
+            <div class="code-block p-4 rounded mb-6 overflow-x-auto">
+              <pre class="font-mono text-sm"><code>curl -X POST https://api.lectito.io/api/v1/extract \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/article", "format": "markdown"}'</code></pre>
+            </div>
+
+            <h4 class="font-sans font-semibold text-sm uppercase tracking-wider text-stone mb-3">JavaScript</h4>
+            <div class="code-block p-4 rounded overflow-x-auto">
+              <pre class="font-mono text-sm"><code>const response = await fetch('https://api.lectito.io/api/v1/extract', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    url: 'https://example.com/article',
+    format: 'markdown'
+  })
+});
+
+const data = await response.json();
+console.log(data.content);</code></pre>
+            </div>
+          </section>
+
+          <!-- Error Codes -->
+          <section class="mb-16">
+            <h2 class="font-serif text-3xl font-semibold text-ink mb-6">Error Codes</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b-2 border-ink">
+                    <th class="text-left py-3 font-sans font-semibold">Code</th>
+                    <th class="text-left py-3 font-sans font-semibold">Meaning</th>
+                    <th class="text-left py-3 font-sans font-semibold">Description</th>
+                  </tr>
+                </thead>
+                <tbody class="font-mono">
+                  <tr class="border-b border-mist">
+                    <td class="py-3">400</td>
+                    <td class="py-3 font-serif">Bad Request</td>
+                    <td class="py-3 text-stone">Invalid URL or malformed request body</td>
+                  </tr>
+                  <tr class="border-b border-mist">
+                    <td class="py-3">403</td>
+                    <td class="py-3 font-serif">Forbidden</td>
+                    <td class="py-3 text-stone">URL blocked by spam filter or domain blocklist</td>
+                  </tr>
+                  <tr class="border-b border-mist">
+                    <td class="py-3">429</td>
+                    <td class="py-3 font-serif">Too Many Requests</td>
+                    <td class="py-3 text-stone">Rate limit exceeded. Retry-After header provided.</td>
+                  </tr>
+                  <tr class="border-b border-mist">
+                    <td class="py-3">502</td>
+                    <td class="py-3 font-serif">Bad Gateway</td>
+                    <td class="py-3 text-stone">Failed to fetch the requested URL</td>
+                  </tr>
+                  <tr class="border-b border-mist">
+                    <td class="py-3">504</td>
+                    <td class="py-3 font-serif">Gateway Timeout</td>
+                    <td class="py-3 text-stone">Upstream fetch timed out (30s limit)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t-2 border-ink bg-white">
+      <div class="max-w-6xl mx-auto px-6 py-12">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div>
+            <h5 class="font-sans font-bold text-lg mb-4">LECTITO</h5>
+            <p class="font-serif text-sm text-stone">A free tool for extracting readable content from the web.</p>
+          </div>
+          <div>
+            <h6 class="font-sans font-semibold text-xs uppercase tracking-wider mb-4 text-stone">Product</h6>
+            <ul class="space-y-2 text-sm">
+              <li><a href="index.html" class="text-ink hover:text-stone transition-colors font-serif">Extract</a></li>
+              <li><a href="library.html" class="text-ink hover:text-stone transition-colors font-serif">Library</a></li>
+            </ul>
+          </div>
+          <div>
+            <h6 class="font-sans font-semibold text-xs uppercase tracking-wider mb-4 text-stone">Developers</h6>
+            <ul class="space-y-2 text-sm">
+              <li><a href="#" class="text-ink hover:text-stone transition-colors font-serif">API Documentation</a></li>
+              <li><a href="#" class="text-ink hover:text-stone transition-colors font-serif">GitHub</a></li>
+            </ul>
+          </div>
+          <div>
+            <h6 class="font-sans font-semibold text-xs uppercase tracking-wider mb-4 text-stone">Legal</h6>
+            <ul class="space-y-2 text-sm">
+              <li><a href="#" class="text-ink hover:text-stone transition-colors font-serif">Privacy Policy</a></li>
+              <li><a href="#" class="text-ink hover:text-stone transition-colors font-serif">Terms of Service</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="mt-12 pt-8 border-t border-mist flex items-center justify-between">
+          <p class="font-serif text-xs text-fog">© 2026 Lectito. Open source under MIT License.</p>
+          <div class="flex items-center gap-2 text-xs font-mono text-fog">
+            <span class="w-2 h-2 bg-green-600 rounded-full"></span>
+            <span>API Status: Operational</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
