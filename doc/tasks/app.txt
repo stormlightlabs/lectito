@@ -198,25 +198,25 @@ Acceptance Criteria:
 MILESTONE F: Spam Filter
 ================================================================================
 
-[ ] Domain blocklist
+[x] Domain blocklist
     - Load from file (one domain per line, # comments)
     - Path configurable via BLOCKED_DOMAINS env var
     - Block localhost, 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12,
       192.168.0.0/16, ::1, link-local (SSRF prevention)
     - Also check blocked_domains table in Postgres
 
-[ ] URL validation
+[x] URL validation
     - Only allow http:// and https:// schemes
     - Block URLs with embedded credentials (user:pass@host)
     - Block URLs longer than 2048 characters
 
-[ ] Auto-ban on repeated 429s
+[x] Auto-ban on repeated 429s
     - Track consecutive 429s per IP
     - After 5 consecutive 429s within 10 minutes: insert ip_bans row
     - Ban duration: 1 hour (configurable)
     - Check ip_bans before rate limit check
 
-[ ] Admin API (auth-gated)
+[x] Admin API (auth-gated)
     - POST /api/v1/admin/block-domain { domain, reason }
     - DELETE /api/v1/admin/block-domain/:domain
     - POST /api/v1/admin/ban-ip { ip, reason, duration_hours }
@@ -230,25 +230,25 @@ Acceptance Criteria:
 MILESTONE G: Extract Endpoint
 ================================================================================
 
-[ ] POST /api/v1/extract
+[x] POST /api/v1/extract
     - Parse and validate request body
     - Run spam filter -> cache lookup -> fetch -> extract -> cache write
     - Map ExtractConfig from request options
     - Return structured JSON response with content + metadata
 
-[ ] GET /api/v1/extract
+[x] GET /api/v1/extract
     - Same logic, params from query string
     - URL must be percent-encoded
 
-[ ] Request timeout
+[x] Request timeout
     - FETCH_TIMEOUT_SECS for upstream fetch (default 30s)
     - Total request timeout 60s (tower timeout layer)
 
-[ ] CORS
+[x] CORS
     - Allow all origins (public API)
     - Expose rate limit headers
 
-[ ] Response compression
+[x] Response compression
     - gzip/br via tower-http CompressionLayer
 
 Acceptance Criteria:

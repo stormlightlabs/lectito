@@ -1,11 +1,10 @@
+use super::error::AppError;
 use axum::http::HeaderMap;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
 use url::{Url, form_urlencoded};
 use uuid::Uuid;
-
-use crate::error::AppError;
 
 const TRACKING_QUERY_PARAMS: &[&str] = &["fbclid", "gclid", "mc_cid", "mc_eid", "ref", "ref_src"];
 
