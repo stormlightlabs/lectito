@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/cli", "crates/core"]
+members = ["crates/cli", "crates/core", "crates/server"]
 
 [workspace.lints.clippy]
 bool_comparison = "deny"
