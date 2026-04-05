@@ -1,12 +1,12 @@
 {
-	"useTabs": true,
-	"singleQuote": true,
-	"trailingComma": "none",
-	"printWidth": 121,
-	"tabWidth": 2,
-	"bracketSameLine": true,
-	"objectWrap": "collapse",
-	"plugins": ["prettier-plugin-svelte", "prettier-plugin-tailwindcss"],
-	"overrides": [{ "files": "*.svelte", "options": { "parser": "svelte" } }],
-	"tailwindStylesheet": "./src/routes/layout.css"
+  "useTabs": false,
+  "singleQuote": true,
+  "trailingComma": "none",
+  "printWidth": 121,
+  "tabWidth": 2,
+  "bracketSameLine": true,
+  "objectWrap": "collapse",
+  "plugins": ["prettier-plugin-svelte", "prettier-plugin-tailwindcss"],
+  "overrides": [{ "files": "*.svelte", "options": { "parser": "svelte" } }],
+  "tailwindStylesheet": "./src/routes/layout.css"
 }
