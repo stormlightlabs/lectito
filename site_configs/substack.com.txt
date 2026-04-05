@@ -1,0 +1,5 @@
+title: //h1
+body: //article[@data-post-body]
+strip: //div[contains(@class, 'subscribe')]
+autodetect_on_failure: yes
+test_url: https://patternmatched.substack.com/p/software-as-fan-art

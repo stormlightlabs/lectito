@@ -1,0 +1,5 @@
+title: //h1
+body: //article[contains(@class, 'markdown-body')]
+strip: //aside
+autodetect_on_failure: yes
+test_url: https://gitlab.com/fdroid/fdroidclient/-/merge_requests/1350

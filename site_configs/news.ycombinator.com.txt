@@ -1,0 +1,4 @@
+title: //span[contains(@class, 'titleline')]
+body: //table[@class='fatitem']
+autodetect_on_failure: yes
+test_url: https://news.ycombinator.com/item?id=38646892

@@ -4,6 +4,7 @@
 //! various sources: HTTP/HTTPS URLs, local files, and standard input.
 
 use std::fs;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -21,6 +22,8 @@ pub struct FetchConfig {
     pub timeout: u64,
     /// Custom User-Agent string.
     pub user_agent: String,
+    /// Additional request headers to apply.
+    pub headers: HashMap<String, String>,
 }
 
 impl Default for FetchConfig {
@@ -28,6 +31,7 @@ impl Default for FetchConfig {
         Self {
             timeout: 30,
             user_agent: "Mozilla/5.0 (compatible; Lectito/1.0; +https://github.com/stormlightlabs/lectito)".to_string(),
+            headers: HashMap::new(),
         }
     }
 }
@@ -51,23 +55,26 @@ pub async fn fetch_url(url: &str, config: &FetchConfig) -> Result<String> {
         .build()
         .map_err(LectitoError::HttpError)?;
 
-    let response = client
+    let mut request = client
         .get(parsed_url)
         .header("User-Agent", &config.user_agent)
         .header(
             "Accept",
             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         )
-        .header("Accept-Language", "en-US,en;q=0.9")
-        .send()
-        .await
-        .map_err(|e| {
-            if e.is_timeout() {
-                LectitoError::Timeout { timeout: config.timeout }
-            } else {
-                LectitoError::HttpError(e)
-            }
-        })?;
+        .header("Accept-Language", "en-US,en;q=0.9");
+
+    for (name, value) in &config.headers {
+        request = request.header(name, value);
+    }
+
+    let response = request.send().await.map_err(|e| {
+        if e.is_timeout() {
+            LectitoError::Timeout { timeout: config.timeout }
+        } else {
+            LectitoError::HttpError(e)
+        }
+    })?;
 
     let content = response.text().await?;
 

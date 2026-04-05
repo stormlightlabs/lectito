@@ -125,6 +125,8 @@ pub mod readability;
 pub mod scoring;
 #[cfg(feature = "siteconfig")]
 pub mod siteconfig;
+#[doc(hidden)]
+pub mod siteextractors;
 
 pub use article::{Article, OutputFormat};
 pub use dom_tree::{DomNode, DomTree, build_dom_tree};

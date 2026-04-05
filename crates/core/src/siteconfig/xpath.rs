@@ -1,5 +1,7 @@
 use crate::error::{LectitoError, Result};
+use crate::parse::Document;
 use crate::siteconfig::directives::SiteConfig;
+use regex::Regex;
 use sxd_document::parser;
 use sxd_xpath::{Context, Factory, Value};
 
@@ -84,6 +86,63 @@ impl Default for XPathEvaluator {
     }
 }
 
+pub(crate) fn xpath_to_css_selector(xpath: &str) -> Option<String> {
+    static ID_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    static CLASS_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    static CLASS_CONTAINS_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    static ATTR_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+
+    let trimmed = xpath.trim();
+
+    if let Some(path) = trimmed.strip_prefix("//")
+        && !path.contains('[')
+        && !path.contains('/')
+        && path != "*"
+    {
+        return Some(path.to_string());
+    }
+
+    let id_re = ID_RE.get_or_init(|| Regex::new(r#"^//(\w+|\*)\[@id='([^']+)'\]$"#).unwrap());
+    if let Some(captures) = id_re.captures(trimmed) {
+        let tag = captures.get(1).map(|m| m.as_str()).unwrap_or("*");
+        let id = captures.get(2)?.as_str();
+        return Some(if tag == "*" { format!("#{id}") } else { format!("{tag}#{id}") });
+    }
+
+    let class_re = CLASS_RE.get_or_init(|| Regex::new(r#"^//(\w+|\*)\[@class='([^']+)'\]$"#).unwrap());
+    if let Some(captures) = class_re.captures(trimmed) {
+        let tag = captures.get(1).map(|m| m.as_str()).unwrap_or("*");
+        let class = captures.get(2)?.as_str().replace(' ', ".");
+        return Some(if tag == "*" { format!(".{class}") } else { format!("{tag}.{class}") });
+    }
+
+    let class_contains_re = CLASS_CONTAINS_RE
+        .get_or_init(|| Regex::new(r#"^//(\w+|\*)\[contains\(@class, '([^']+)'\)\]$"#).unwrap());
+    if let Some(captures) = class_contains_re.captures(trimmed) {
+        let tag = captures.get(1).map(|m| m.as_str()).unwrap_or("*");
+        let class = captures.get(2)?.as_str();
+        return Some(if tag == "*" {
+            format!(r#"[class*="{class}"]"#)
+        } else {
+            format!(r#"{tag}[class*="{class}"]"#)
+        });
+    }
+
+    let attr_re = ATTR_RE.get_or_init(|| Regex::new(r#"^//(\w+|\*)\[@([^=]+)='([^']+)'\]$"#).unwrap());
+    if let Some(captures) = attr_re.captures(trimmed) {
+        let tag = captures.get(1).map(|m| m.as_str()).unwrap_or("*");
+        let attr = captures.get(2)?.as_str();
+        let value = captures.get(3)?.as_str();
+        return Some(if tag == "*" {
+            format!(r#"[{attr}="{value}"]"#)
+        } else {
+            format!(r#"{tag}[{attr}="{value}"]"#)
+        });
+    }
+
+    None
+}
+
 /// Extension trait for SiteConfig to add XPath evaluation methods
 pub trait SiteConfigXPath {
     /// Extract title using configured XPath expressions
@@ -91,6 +150,10 @@ pub trait SiteConfigXPath {
 
     /// Extract body using configured XPath expressions
     fn extract_body(&self, html: &str) -> Result<Option<String>>;
+
+    /// Extract body HTML while preserving markup when the XPath can be mapped
+    /// to a CSS selector.
+    fn extract_body_html(&self, doc: &Document) -> Result<Option<String>>;
 
     /// Extract date using configured XPath expressions
     fn extract_date(&self, html: &str) -> Result<Option<String>>;
@@ -120,6 +183,26 @@ impl SiteConfigXPath for SiteConfig {
     fn extract_body(&self, html: &str) -> Result<Option<String>> {
         let evaluator = XPathEvaluator::new();
         evaluator.evaluate_strings_html(html, &self.body)
+    }
+
+    fn extract_body_html(&self, doc: &Document) -> Result<Option<String>> {
+        for xpath in &self.body {
+            if let Some(selector) = xpath_to_css_selector(xpath)
+                && let Ok(elements) = doc.select(&selector)
+                && !elements.is_empty()
+            {
+                return Ok(Some(
+                    elements
+                        .iter()
+                        .map(|element| element.outer_html())
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                ));
+            }
+        }
+
+        self.extract_body(&doc.as_string())
+            .map(|value| value.map(|body| format!("<div>{body}</div>")))
     }
 
     fn extract_date(&self, html: &str) -> Result<Option<String>> {
@@ -243,6 +326,25 @@ mod tests {
 
         let body = config.extract_body(html).unwrap();
         assert_eq!(body, Some("Main content here".to_string()));
+    }
+
+    #[test]
+    fn test_extract_body_html_preserves_markup() {
+        let html = r#"
+        <html>
+            <body>
+                <article id="content"><p>Main <strong>content</strong> here</p></article>
+            </body>
+        </html>
+        "#;
+
+        let doc = Document::parse(html).unwrap();
+        let mut config = SiteConfig::new();
+        config.body.push("//*[@id='content']".to_string());
+
+        let body = config.extract_body_html(&doc).unwrap().unwrap();
+        assert!(body.contains("<article"));
+        assert!(body.contains("<strong>content</strong>"));
     }
 
     #[test]

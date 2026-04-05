@@ -1010,59 +1010,10 @@ fn extract_with_site_config(
     doc: &Document, site_config: &SiteConfig, _config: &ExtractConfig,
 ) -> Result<ExtractedContent> {
     let html = doc.html().html();
-
-    let body_content = 'extracted: {
-        for xpath in &site_config.body {
-            if xpath.contains("[@id='")
-                && let Some(start) = xpath.find("[@id='")
-                && let Some(end) = xpath[start + 6..].find("']")
-            {
-                let id = &xpath[start + 6..start + 6 + end];
-                let selector_str = format!("#{}", id);
-                match scraper::Selector::parse(&selector_str) {
-                    Ok(_selector) => {
-                        if let Ok(elements) = doc.select(&selector_str)
-                            && !elements.is_empty()
-                        {
-                            break 'extracted elements.iter().map(|el| el.outer_html()).collect::<Vec<_>>().join("\n");
-                        }
-                    }
-                    Err(_) => continue,
-                }
-            }
-
-            if xpath.contains("[@class='")
-                && let Some(start) = xpath.find("[@class='")
-                && let Some(end) = xpath[start + 8..].find("']")
-            {
-                let class = &xpath[start + 8..start + 8 + end];
-                if let Some(tag_end) = xpath[2..].find('[') {
-                    let tag = &xpath[2..2 + tag_end];
-                    let selector_str = format!("{}.{}", tag, class);
-                    match scraper::Selector::parse(&selector_str) {
-                        Ok(_) => {
-                            if let Ok(elements) = doc.select(&selector_str)
-                                && !elements.is_empty()
-                            {
-                                break 'extracted elements
-                                    .iter()
-                                    .map(|el| el.outer_html())
-                                    .collect::<Vec<_>>()
-                                    .join("\n");
-                            }
-                        }
-                        Err(_) => continue,
-                    }
-                }
-            }
-        }
-
-        if let Some(body) = site_config.extract_body(&html)? {
-            body
-        } else {
-            return Err(LectitoError::NoContent);
-        }
-    };
+    let body_content = site_config
+        .extract_body_html(doc)?
+        .or_else(|| site_config.extract_body(&html).ok().flatten())
+        .ok_or(LectitoError::NoContent)?;
 
     let body_content = site_config.apply_strip_directives(&body_content)?;
 

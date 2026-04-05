@@ -40,6 +40,19 @@ impl ConfigLoader {
         Ok(SiteConfig::new())
     }
 
+    /// Resolve a merged configuration using global, URL/domain, and optional
+    /// fingerprint overlays in that order.
+    pub fn load_merged_for_url(&mut self, url: &str, html: Option<&str>) -> Result<SiteConfig> {
+        let mut merged = self.load_global()?;
+        merged.merge(&self.load_for_url(url)?);
+
+        if let Some(html) = html {
+            merged.merge(&self.load_for_html(html)?);
+        }
+
+        Ok(merged)
+    }
+
     /// Load configuration for a fingerprint hostname
     pub fn load_for_fingerprint(&mut self, hostname: &str) -> Result<SiteConfig> {
         if let Some(config) = self.cache.get(hostname) {
@@ -465,5 +478,34 @@ mod tests {
         assert_eq!(config.body.len(), 1);
 
         assert_eq!(config.tidy, Some(true));
+    }
+
+    #[test]
+    fn test_load_merged_for_url_applies_global_domain_and_fingerprint() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("global.txt"), "strip_id_or_class: global-strip\n").unwrap();
+        fs::write(
+            temp_dir.path().join("example.com.txt"),
+            "body: //article\nhttp_header(X-Test): example\n",
+        )
+        .unwrap();
+        fs::write(
+            temp_dir.path().join("fingerprint.wordpress.com.txt"),
+            "fingerprint: <meta name=\"generator\" content=\"WordPress | fingerprint.wordpress.com\nauthor: //span[@class='author']\n",
+        )
+        .unwrap();
+
+        let mut loader = ConfigLoaderBuilder::new().custom_dir(temp_dir.path()).build();
+        let config = loader
+            .load_merged_for_url(
+                "https://example.com/post",
+                Some(r#"<html><head><meta name="generator" content="WordPress 6.0"></head></html>"#),
+            )
+            .unwrap();
+
+        assert_eq!(config.strip_id_or_class, vec!["global-strip".to_string()]);
+        assert_eq!(config.body, vec!["//article".to_string()]);
+        assert_eq!(config.author, vec!["//span[@class='author']".to_string()]);
+        assert_eq!(config.http_headers.get("X-Test"), Some(&"example".to_string()));
     }
 }

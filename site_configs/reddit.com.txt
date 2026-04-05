@@ -1,0 +1,5 @@
+title: //h1
+body: //div[@data-post-body]
+strip: //div[contains(@class, 'side')]
+autodetect_on_failure: yes
+test_url: https://old.reddit.com/r/Dodgers/comments/1om82cp/highlight_yamamoto_induces_the_double_play_the/
