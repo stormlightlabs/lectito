@@ -7,6 +7,7 @@
 use super::extract::ExtractionDiagnostics;
 use super::formatters::markdown::MarkdownConfig;
 use super::formatters::markdown::convert_to_markdown;
+use super::formatters::text::html_to_text as format_html_to_text;
 use super::metadata::{clean_metadata_title, count_words};
 use super::postprocess::dedupe_title_headings;
 use super::{Document, Metadata};
@@ -181,8 +182,7 @@ impl Article {
 
 /// Convert HTML to plain text by removing tags
 fn html_to_text(html: &str) -> String {
-    let doc = Document::parse(html).unwrap_or_else(|_| Document::parse("<html></html>").unwrap());
-    doc.text_content()
+    format_html_to_text(html, true)
 }
 
 #[cfg(test)]
@@ -248,7 +248,7 @@ mod tests {
     fn test_html_to_text() {
         let html = "<p>Hello world</p><p>Second paragraph</p>";
         let text = html_to_text(html);
-        assert_eq!(text, "Hello worldSecond paragraph");
+        assert_eq!(text, "Hello world\n\nSecond paragraph");
     }
 
     #[test]

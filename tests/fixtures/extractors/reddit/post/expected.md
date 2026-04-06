@@ -36,25 +36,25 @@ Enjoy !
 
 ## Official
 
-*   [Rust 1.94.1 is out](http://www.reddit.com/r/rust/comments/1s470b7/rust_1941_is_out/) `↑383 | 8 comments`
+* [Rust 1.94.1 is out](http://www.reddit.com/r/rust/comments/1s470b7/rust_1941_is_out/) `↑383 | 8 comments`
 
 ## Project/Tooling Updates
 
-*   [Next target of Ubuntu's oxidization plan will be ntpd-rs](http://www.reddit.com/r/rust/comments/1s43bn4/next_target_of_ubuntus_oxidization_plan_will_be/) `↑207 | 38 comments`
-*   [octopos: xv6 based operating system for risc-v in rust](http://www.reddit.com/r/rust/comments/1s3gvdf/octopos_xv6_based_operating_system_for_riscv_in/) `↑23 | 1 comment`
-*   [Building a guitar trainer with embedded Rust](http://www.reddit.com/r/rust/comments/1s5vs2w/building_a_guitar_trainer_with_embedded_rust/) `↑74 | 2 comments`
-*   [jsongrep is faster than {jq, jmespath, jsonpath-rust, jql}](http://www.reddit.com/r/rust/comments/1rzxjv3/jsongrep_is_faster_than_jq_jmespath_jsonpathrust/) `↑106 | 33 comments`
+* [Next target of Ubuntu's oxidization plan will be ntpd-rs](http://www.reddit.com/r/rust/comments/1s43bn4/next_target_of_ubuntus_oxidization_plan_will_be/) `↑207 | 38 comments`
+* [octopos: xv6 based operating system for risc-v in rust](http://www.reddit.com/r/rust/comments/1s3gvdf/octopos_xv6_based_operating_system_for_riscv_in/) `↑23 | 1 comment`
+* [Building a guitar trainer with embedded Rust](http://www.reddit.com/r/rust/comments/1s5vs2w/building_a_guitar_trainer_with_embedded_rust/) `↑74 | 2 comments`
+* [jsongrep is faster than {jq, jmespath, jsonpath-rust, jql}](http://www.reddit.com/r/rust/comments/1rzxjv3/jsongrep_is_faster_than_jq_jmespath_jsonpathrust/) `↑106 | 33 comments`
 
 ## Observations/Thoughts
 
-*   [Breaking The AI Infra Monopoly With Rust- Tracel AI](http://www.reddit.com/r/rust/comments/1s935kk/breaking_the_ai_infra_monopoly_with_rust_tracel_ai/) `↑3 | 10 comments`
-*   [Rust memory safety in kernel space (osdev)](http://www.reddit.com/r/rust/comments/1s8hc6h/rust_memory_safety_in_kernel_space_osdev/) `↑46 | 6 comments`
-*   [Fixing our own problems in the Rust compiler](http://www.reddit.com/r/rust/comments/1s7pvpg/fixing_our_own_problems_in_the_rust_compiler/) `↑363 | 10 comments`
-*   [How C++ Finally Beats Rust at JSON Serialization - Daniel Lemire & Francisco Geiman Thiesen](http://www.reddit.com/r/rust/comments/1s2pf1z/how_c_finally_beats_rust_at_json_serialization/) `↑191 | 46 comments`
+* [Breaking The AI Infra Monopoly With Rust- Tracel AI](http://www.reddit.com/r/rust/comments/1s935kk/breaking_the_ai_infra_monopoly_with_rust_tracel_ai/) `↑3 | 10 comments`
+* [Rust memory safety in kernel space (osdev)](http://www.reddit.com/r/rust/comments/1s8hc6h/rust_memory_safety_in_kernel_space_osdev/) `↑46 | 6 comments`
+* [Fixing our own problems in the Rust compiler](http://www.reddit.com/r/rust/comments/1s7pvpg/fixing_our_own_problems_in_the_rust_compiler/) `↑363 | 10 comments`
+* [How C++ Finally Beats Rust at JSON Serialization - Daniel Lemire & Francisco Geiman Thiesen](http://www.reddit.com/r/rust/comments/1s2pf1z/how_c_finally_beats_rust_at_json_serialization/) `↑191 | 46 comments`
 
 ## Rust Walkthroughs
 
-*   [Adding WASM Plugins to Your App - Using Wasmi as a runtime and Zola as an example.](http://www.reddit.com/r/rust/comments/1s9tuad/adding_wasm_plugins_to_your_app_using_wasmi_as_a/) `↑1 | 0 comment`
+* [Adding WASM Plugins to Your App - Using Wasmi as a runtime and Zola as an example.](http://www.reddit.com/r/rust/comments/1s9tuad/adding_wasm_plugins_to_your_app_using_wasmi_as_a/) `↑1 | 0 comment`
 
 ### matthieum
 

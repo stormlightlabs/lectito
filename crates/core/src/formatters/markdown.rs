@@ -2,6 +2,7 @@ use crate::metadata::Metadata;
 use crate::parse::Document;
 use crate::postprocess::{TableKind, classify_table_element};
 use crate::{LectitoError, Result};
+use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 use std::collections::HashMap;
 
@@ -49,7 +50,10 @@ pub fn convert_to_markdown(html: &str, metadata: &Metadata, config: &MarkdownCon
 
     let prepared = prepare_markdown_html(html, config)?;
 
-    let markdown = apply_markdown_tokens(html_to_markdown(&prepared.html), &prepared.token_replacements);
+    let markdown = normalize_markdown_list_spacing(apply_markdown_tokens(
+        html_to_markdown(&prepared.html),
+        &prepared.token_replacements,
+    ));
     output.push_str(&markdown);
 
     if config.include_references {
@@ -324,6 +328,37 @@ fn apply_markdown_tokens(mut markdown: String, replacements: &HashMap<String, St
         markdown = markdown.replace(token, replacement);
     }
     markdown
+}
+
+fn normalize_markdown_list_spacing(markdown: String) -> String {
+    let unordered_list = Regex::new(r"^(\s*[*+-])\s{2,}(\S.*)$").unwrap();
+    let ordered_list = Regex::new(r"^(\s*\d+\.)\s{2,}(\S.*)$").unwrap();
+    let mut normalized_lines = Vec::new();
+    let mut in_fenced_code_block = false;
+
+    for line in markdown.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_fenced_code_block = !in_fenced_code_block;
+            normalized_lines.push(line.to_string());
+            continue;
+        }
+
+        if in_fenced_code_block {
+            normalized_lines.push(line.to_string());
+            continue;
+        }
+
+        let line = unordered_list.replace(line, "$1 $2").into_owned();
+        let line = ordered_list.replace(&line, "$1 $2").into_owned();
+        normalized_lines.push(line);
+    }
+
+    let mut normalized = normalized_lines.join("\n");
+    if markdown.ends_with('\n') {
+        normalized.push('\n');
+    }
+    normalized
 }
 
 fn anchor_contains_block_content(anchor: &crate::parse::Element<'_>) -> bool {
@@ -616,6 +651,37 @@ mod tests {
         assert!(result.is_ok());
         let markdown = result.unwrap();
         assert!(markdown.contains("![A photo](photo.jpg)"));
+    }
+
+    #[test]
+    fn test_html_to_markdown_normalizes_unordered_list_spacing() {
+        let html = r#"<ul><li>First item</li><li>Second item</li></ul>"#;
+        let markdown = convert_to_markdown(html, &Metadata::default(), &MarkdownConfig::default()).unwrap();
+
+        assert!(markdown.contains("* First item"));
+        assert!(markdown.contains("* Second item"));
+        assert!(!markdown.contains("*   First item"));
+        assert!(!markdown.contains("*   Second item"));
+    }
+
+    #[test]
+    fn test_html_to_markdown_normalizes_ordered_list_spacing() {
+        let html = r#"<ol><li>First item</li><li>Second item</li></ol>"#;
+        let markdown = convert_to_markdown(html, &Metadata::default(), &MarkdownConfig::default()).unwrap();
+
+        assert!(markdown.contains("1. First item"));
+        assert!(markdown.contains("2. Second item"));
+        assert!(!markdown.contains("1.   First item"));
+        assert!(!markdown.contains("2.   Second item"));
+    }
+
+    #[test]
+    fn test_normalize_markdown_list_spacing_skips_fenced_code_blocks() {
+        let markdown = "```\n*   keep\n1.   keep\n```\n\n*   fix\n1.   fix\n";
+        let normalized = normalize_markdown_list_spacing(markdown.to_string());
+
+        assert!(normalized.contains("```\n*   keep\n1.   keep\n```"));
+        assert!(normalized.contains("\n\n* fix\n1. fix\n"));
     }
 
     #[test]

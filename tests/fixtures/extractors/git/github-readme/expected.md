@@ -34,9 +34,9 @@ Lazurite is a cross-platform Bluesky client built with Flutter and Dart using Ma
 
 Local-only drafts and caching powered by Drift (SQLite).
 
-*   **Drafts:** Save posts locally and publish later.
-*   **Search History:** Persisted local search history.
-*   **Saved Feeds:** Manage and pin your favorite feeds.
+* **Drafts:** Save posts locally and publish later.
+* **Search History:** Persisted local search history.
+* **Saved Feeds:** Manage and pin your favorite feeds.
 
 ## Architecture
 
@@ -46,12 +46,12 @@ Local-only drafts and caching powered by Drift (SQLite).
 
 [](#stack)
 
-*   **Framework:** Flutter (M3)
-*   **State Management:** `flutter_bloc`
-*   **Database:** Drift (SQLite)
-*   **Networking:** Dio + `atproto`/`bluesky` packages
-*   **Navigation:** `go_router`
-*   **Data Serialization:** `freezed` + `json_serializable`
+* **Framework:** Flutter (M3)
+* **State Management:** `flutter_bloc`
+* **Database:** Drift (SQLite)
+* **Networking:** Dio + `atproto`/`bluesky` packages
+* **Navigation:** `go_router`
+* **Data Serialization:** `freezed` + `json_serializable`
 
 ### Directory Structure
 
@@ -59,18 +59,18 @@ Local-only drafts and caching powered by Drift (SQLite).
 
 The project follows a feature-first architecture layered with a core module:
 
-*   `lib/core/`: Shared infrastructure, database, router, and themes.
-*   `lib/features/`: Feature-specific logic (Auth, Feed, Search, Profile, etc.).
-    *   `<feature>/bloc/`: Business logic components.
-    *   `<feature>/presentation/`: UI screens and widgets.
-    *   `<feature>/data/`: (Optional) Feature-specific repositories or models.
+* `lib/core/`: Shared infrastructure, database, router, and themes.
+* `lib/features/`: Feature-specific logic (Auth, Feed, Search, Profile, etc.).
+    * `<feature>/bloc/`: Business logic components.
+    * `<feature>/presentation/`: UI screens and widgets.
+    * `<feature>/data/`: (Optional) Feature-specific repositories or models.
 
 ### Data Flow
 
 [](#data-flow)
 
-*   **Network:** Authenticated requests are routed through user PDS; public reads use the public AppView.
-*   **Database:** Drift manages local persistence for accounts, cached profiles/posts, settings, and drafts.
+* **Network:** Authenticated requests are routed through user PDS; public reads use the public AppView.
+* **Database:** Drift manages local persistence for accounts, cached profiles/posts, settings, and drafts.
 
 ### Routing
 
@@ -95,11 +95,11 @@ Lazurite uses `StatefulShellRoute` for persistent bottom navigation.
 
 Use `just` for common tasks:
 
-*   `just format` - Runs `dart format`
-*   `just lint` - Proxies `flutter analyze`
-*   `just test` - Executes the `flutter test` suite
-*   `just gen` - Triggers `build_runner` for code generation
-*   `just check` - Runs format, lint, and tests in sequence
+* `just format` - Runs `dart format`
+* `just lint` - Proxies `flutter analyze`
+* `just test` - Executes the `flutter test` suite
+* `just gen` - Triggers `build_runner` for code generation
+* `just check` - Runs format, lint, and tests in sequence
 
 For a quick start:
 
@@ -129,15 +129,15 @@ Powered by **Drift**, the following tables are currently implemented:
 
 [](#references)
 
-*   [Bluesky API Documentation](https://docs.bsky.app/)
-*   [AT Protocol Specification](https://atproto.com/)
-*   [Flutter Documentation](https://flutter.dev/docs)
+* [Bluesky API Documentation](https://docs.bsky.app/)
+* [AT Protocol Specification](https://atproto.com/)
+* [Flutter Documentation](https://flutter.dev/docs)
 
 ## Credits
 
 [](#credits)
 
-*   Typography inspiration from [Anisota](https://anisota.net/) by [Dame.is](https://dame.is).
-*   Custom theming inspired by [Witchsky](https://witchsky.app/).
-*   DevTools (AT Protocol Explorer) inspiration from [pdsls](https://pds.ls/)
-*   AT URI links pass through [aturi.to](https://aturi.to/)
+* Typography inspiration from [Anisota](https://anisota.net/) by [Dame.is](https://dame.is).
+* Custom theming inspired by [Witchsky](https://witchsky.app/).
+* DevTools (AT Protocol Explorer) inspiration from [pdsls](https://pds.ls/)
+* AT URI links pass through [aturi.to](https://aturi.to/)

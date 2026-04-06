@@ -1,3 +1,5 @@
+use crate::utils;
+
 use super::metadata::text_similarity;
 use super::parse::{Document, Element};
 use super::scoring::hash_only_link_coefficient;
@@ -502,7 +504,7 @@ fn standardize_callouts(html: &str) -> String {
             .cloned();
         let title = title_element
             .as_ref()
-            .map(|element| normalize_text(&element.text()))
+            .map(|element| utils::normalize_whitespace(&element.text()))
             .unwrap_or_else(|| callout_type.to_ascii_uppercase());
         let body_html = remove_nested_snippet(alert.inner_html(), title_element.map(|element| element.outer_html()));
         replacements.push((
@@ -532,7 +534,7 @@ fn standardize_callouts(html: &str) -> String {
             .cloned();
         let title = title_element
             .as_ref()
-            .map(|element| normalize_text(&element.text()))
+            .map(|element| utils::normalize_whitespace(&element.text()))
             .unwrap_or_else(|| {
                 let mut chars = callout_type.chars();
                 chars
@@ -582,7 +584,7 @@ fn normalize_math(html: &str) -> String {
     let mut replacements = Vec::new();
 
     for script in doc.select(r#"script[type^="math/"]"#).unwrap_or_default() {
-        let text = normalize_text(&script.text());
+        let text = utils::normalize_whitespace(&script.text());
         if !text.is_empty() {
             replacements.push((script.outer_html(), build_math_html(&text, "inline")));
         }
@@ -611,11 +613,11 @@ fn normalize_math(html: &str) -> String {
             .unwrap_or_default()
             .first()
         {
-            build_math_html(&normalize_text(&annotation.text()), display)
+            build_math_html(&utils::normalize_whitespace(&annotation.text()), display)
         } else if let Some(label) = element.attr("aria-label") {
             build_math_html(label, display)
         } else {
-            let text = normalize_text(&element.text());
+            let text = utils::normalize_whitespace(&element.text());
             if text.is_empty() {
                 continue;
             }
@@ -714,7 +716,7 @@ fn normalize_footnotes(html: &str) -> String {
             .attr("href")
             .and_then(normalize_reference_id)
             .or_else(|| reference.attr("id").and_then(normalize_reference_id))
-            .or_else(|| normalize_reference_id(&normalize_text(&reference.text())));
+            .or_else(|| normalize_reference_id(&utils::normalize_whitespace(&reference.text())));
         let Some(id) = raw_id else {
             continue;
         };
@@ -896,21 +898,17 @@ fn count_words(text: &str) -> usize {
     word_regex().find_iter(text).count()
 }
 
-fn normalize_text(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
 fn title_word_count(text: &str) -> usize {
-    normalize_text(text).split_whitespace().count()
+    utils::normalize_whitespace(text).split_whitespace().count()
 }
 
 fn should_strip_title_heading(text: &str, title: &str) -> bool {
-    let normalized = normalize_text(text);
+    let normalized = utils::normalize_whitespace(text);
     !normalized.is_empty() && text_similarity(&normalized, title) > 0.75
 }
 
 pub(crate) fn dedupe_title_headings(html: &str, title: Option<&str>) -> String {
-    let Some(title) = title.map(normalize_text).filter(|title| !title.is_empty()) else {
+    let Some(title) = title.map(utils::normalize_whitespace).filter(|title| !title.is_empty()) else {
         return html.to_string();
     };
 
@@ -924,7 +922,7 @@ pub(crate) fn dedupe_title_headings(html: &str, title: Option<&str>) -> String {
 
     for child in doc.select("#__lectito_title_root__ > *").unwrap_or_default() {
         let tag = child.tag_name();
-        let child_text = normalize_text(&child.text());
+        let child_text = utils::normalize_whitespace(&child.text());
         let child_words = title_word_count(&child_text);
 
         let remove_child = match tag.as_str() {
@@ -935,7 +933,7 @@ pub(crate) fn dedupe_title_headings(html: &str, title: Option<&str>) -> String {
                     .unwrap_or_default()
                     .first()
                     .cloned()
-                    .map(|heading| normalize_text(&heading.text()))
+                    .map(|heading| utils::normalize_whitespace(&heading.text()))
                     .unwrap_or_default();
                 !heading.is_empty()
                     && should_strip_title_heading(&heading, &title)
@@ -954,7 +952,7 @@ pub(crate) fn dedupe_title_headings(html: &str, title: Option<&str>) -> String {
         }
     }
 
-    let full_text = normalize_text(
+    let full_text = utils::normalize_whitespace(
         &doc.select("#__lectito_title_root__")
             .unwrap_or_default()
             .first()
@@ -966,7 +964,7 @@ pub(crate) fn dedupe_title_headings(html: &str, title: Option<&str>) -> String {
         .select("#__lectito_title_root__ h1, #__lectito_title_root__ h2")
         .unwrap_or_default()
     {
-        let heading_text = normalize_text(&heading.text());
+        let heading_text = utils::normalize_whitespace(&heading.text());
         if !should_strip_title_heading(&heading_text, &title) {
             continue;
         }
@@ -1043,13 +1041,13 @@ fn remove_content_patterns(html: &str) -> String {
         return html.to_string();
     }
 
-    let full_text = normalize_text(&root.text());
+    let full_text = utils::normalize_whitespace(&root.text());
     let mut snippets = Vec::new();
     let mut words_before = 0usize;
     let mut truncate_from: Option<String> = None;
 
     for child in &top_level {
-        let text = normalize_text(&child.text());
+        let text = utils::normalize_whitespace(&child.text());
         let words = count_words(&text);
         let tag = child.tag_name();
         let pos = full_text.find(&text).unwrap_or(usize::MAX);
@@ -1081,7 +1079,7 @@ fn remove_content_patterns(html: &str) -> String {
             root_selector, root_selector, root_selector, root_selector, root_selector
         );
         for heading in doc.select(&heading_selector).unwrap_or_default() {
-            let text = normalize_text(&heading.text());
+            let text = utils::normalize_whitespace(&heading.text());
             if !trailing_heading_regex().is_match(&text) {
                 continue;
             }
@@ -1099,7 +1097,7 @@ fn remove_content_patterns(html: &str) -> String {
         root_selector, root_selector, root_selector, root_selector
     );
     for element in doc.select(&candidate_selector).unwrap_or_default() {
-        let text = normalize_text(&element.text());
+        let text = utils::normalize_whitespace(&element.text());
         let words = count_words(&text);
         if words == 0 || words > 15 {
             continue;

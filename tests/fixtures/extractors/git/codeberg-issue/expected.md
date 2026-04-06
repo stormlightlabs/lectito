@@ -101,25 +101,25 @@ pub fn printUsageAndExit(Args: type, writer: *std.Io.Writer) noreturn {
 
 Notable differences from original issue and PR:
 
-*   `std.cli.Options`:
-    *   in the issue description, it had 2 fields: `help: bool` and `print_errors: bool`
-    *   in the PR, it had 3 fields: `writer: ?*std.Io.Writer`, `prog: ?[]const u8`, `exit: ?bool`
-    *   `prog` is now a declaration on `Args` named `arg0`
-        *   KISS principle: only use `Options` in `parse`, everything that needs `prog` accepts `Args` anyways, `prog` is usually the same thing always and can be determined at comptime, keeps the name localized to the `Args` struct, and if the user *does* decide they want multiple ways of parsing arg0, then they probably want multiple `Args` structs anyways...
-        *   also, it's renamed `arg0` because `prog` is ambiguous. i'm not opposed to `program_name` but that's also ambiguous and might result in the user intuitively putting `My Program` instead of `my_program`
-    *   it's now `exit: bool = false` to match `.terminal`'s for improved clarity. it was null in the PR to allow usage in other functions, but we don't need that anymore
-*   `std.cli.@"error"` is now split into 4 functions:
-    *   `printHelp` prints the help message of the program to the given writer
-    *   `printHelpAndExit` calls `printHelp` and then `std.process.exit(0)`. Notably, its signature denotes `noreturn`
-    *   `printUsage` prints the usage message of the program to the given writer
-        *   note that `parse` should already have printed which errors caused usage to be printed if `Options.writer != null`
-    *   `printUsageAndExit` calls `printUsage` and then `std.process.exit(1)`. Also returns `noreturn`
-*   `Args`:
-    *   named argument help messages are now in a declaration `help` on the `named` type
-        *   in the PR, this was originally done by concatenating field identifiers with `-help`. as mentioned, this will probably be removed from the language
-        *   in the issue comments, mlugg suggested using an anonymous struct, which i like - it allows type safety and typo detection (possibly both in a follow-up PR?)
-    *   not shown above, `Args` can also provide its own `help` and `usage` strings. This would replace auto-generated help/usage message if provided
-    *   `Args` may provide `arg0` as described above (instead of `.prog` in `Options`)
+* `std.cli.Options`:
+    * in the issue description, it had 2 fields: `help: bool` and `print_errors: bool`
+    * in the PR, it had 3 fields: `writer: ?*std.Io.Writer`, `prog: ?[]const u8`, `exit: ?bool`
+    * `prog` is now a declaration on `Args` named `arg0`
+        * KISS principle: only use `Options` in `parse`, everything that needs `prog` accepts `Args` anyways, `prog` is usually the same thing always and can be determined at comptime, keeps the name localized to the `Args` struct, and if the user *does* decide they want multiple ways of parsing arg0, then they probably want multiple `Args` structs anyways...
+        * also, it's renamed `arg0` because `prog` is ambiguous. i'm not opposed to `program_name` but that's also ambiguous and might result in the user intuitively putting `My Program` instead of `my_program`
+    * it's now `exit: bool = false` to match `.terminal`'s for improved clarity. it was null in the PR to allow usage in other functions, but we don't need that anymore
+* `std.cli.@"error"` is now split into 4 functions:
+    * `printHelp` prints the help message of the program to the given writer
+    * `printHelpAndExit` calls `printHelp` and then `std.process.exit(0)`. Notably, its signature denotes `noreturn`
+    * `printUsage` prints the usage message of the program to the given writer
+        * note that `parse` should already have printed which errors caused usage to be printed if `Options.writer != null`
+    * `printUsageAndExit` calls `printUsage` and then `std.process.exit(1)`. Also returns `noreturn`
+* `Args`:
+    * named argument help messages are now in a declaration `help` on the `named` type
+        * in the PR, this was originally done by concatenating field identifiers with `-help`. as mentioned, this will probably be removed from the language
+        * in the issue comments, mlugg suggested using an anonymous struct, which i like - it allows type safety and typo detection (possibly both in a follow-up PR?)
+    * not shown above, `Args` can also provide its own `help` and `usage` strings. This would replace auto-generated help/usage message if provided
+    * `Args` may provide `arg0` as described above (instead of `.prog` in `Options`)
 
 edit: updated to reflect a suggestion from matklad to flatten the `Args` namespace [andrew vetoed this](https://codeberg.org/ziglang/zig/issues/30677#issuecomment-9641471)
 
@@ -160,7 +160,7 @@ Hello!
 
 Next steps:
 
-*   Upgrading all cli's in the codebase
+* Upgrading all cli's in the codebase
 
 is anyone aware if there were still features missing on the [old PR](https://github.com/ziglang/zig/pull/24881) ?
 
@@ -178,8 +178,8 @@ What about taking a `getopt`-ish approach to allow users to reorder arguments? (
 
 I’ve been using variations of [`git.sr.ht/~phugen/util@e7598c6eab/item/src/util/getopt.zig`](https://git.sr.ht/~phugen/util/tree/e7598c6eab9df3e45db08c3b001922e65134b681/item/src/util/getopt.zig) in my toy projects and it works well:
 
-*   **Without subcommands:** Argument permutation is ideal—e.g., allowing `ls dir/ -la`.
-*   **With subcommands:** Stopping at the first positional argument is usually best to identify the subcommand. This also naturally enforces the restriction that flags appearing after a subcommand belong strictly to that subcommand.
+* **Without subcommands:** Argument permutation is ideal—e.g., allowing `ls dir/ -la`.
+* **With subcommands:** Stopping at the first positional argument is usually best to identify the subcommand. This also naturally enforces the restriction that flags appearing after a subcommand belong strictly to that subcommand.
 
 Also, is automatic help/usage generation strictly necessary? I think this is better served by application-specific code (controlling formatting and exit behavior). This is straightforward to handle manually after parsing:
 
@@ -224,13 +224,13 @@ I'm also interested! I spent some time yesterday revisiting an old half-done PR 
 
 Some design thoughts:
 
-*   I'm keeping to the original proposal ([https://github.com/ziglang/zig/issues/24601](https://github.com/ziglang/zig/issues/24601))
-*   How would you model an arbitrary number of positional args like `ls file1.txt file2.txt file3.txt`? The model of "positional" args with names seems helpful for avoiding bugs (`args.positional[4]` versus `args.positional.output`), but that model doesn't work here. I see a few options:
-    *   We could allow `.positional` to be either a `struct` or a `[]const []const u8`, although that feels too magical and doesn't allow a mix of named-positionals and unnamed-positionals.
-    *   We could collect trailing/unnamed positional args, separate from the named struct. (but its a bit tricky deciding how to name it and autogenerating help text)
-    *   We could declare that this case is out-of-scope for this minimal arg parser.
-    *   We could avoid named-positional args altogether (back to `positional: []const []const u8`). This seems less helpful and also make generating help text a bit harder.
-*   It feels odd to call `std.process.exit` based on an `.exit` config flag. It'd be nice to instead let `std/start.zig` catch `error.StdCliHelp` and `error.StdCliUsage` and gracefully print help text there. But that's not currently possible, since `std/start.zig` has no idea what the shape of your `Args` is -- this would need more integration with the juicy main proposal ([https://github.com/ziglang/zig/issues/24510](https://github.com/ziglang/zig/issues/24510))
+* I'm keeping to the original proposal ([https://github.com/ziglang/zig/issues/24601](https://github.com/ziglang/zig/issues/24601))
+* How would you model an arbitrary number of positional args like `ls file1.txt file2.txt file3.txt`? The model of "positional" args with names seems helpful for avoiding bugs (`args.positional[4]` versus `args.positional.output`), but that model doesn't work here. I see a few options:
+    * We could allow `.positional` to be either a `struct` or a `[]const []const u8`, although that feels too magical and doesn't allow a mix of named-positionals and unnamed-positionals.
+    * We could collect trailing/unnamed positional args, separate from the named struct. (but its a bit tricky deciding how to name it and autogenerating help text)
+    * We could declare that this case is out-of-scope for this minimal arg parser.
+    * We could avoid named-positional args altogether (back to `positional: []const []const u8`). This seems less helpful and also make generating help text a bit harder.
+* It feels odd to call `std.process.exit` based on an `.exit` config flag. It'd be nice to instead let `std/start.zig` catch `error.StdCliHelp` and `error.StdCliUsage` and gracefully print help text there. But that's not currently possible, since `std/start.zig` has no idea what the shape of your `Args` is -- this would need more integration with the juicy main proposal ([https://github.com/ziglang/zig/issues/24510](https://github.com/ziglang/zig/issues/24510))
 
 Here's a modified version of [@dotcarmen](/dotcarmen)'s example, which I used mainly to nail down my thoughts on help text:
 
@@ -431,12 +431,12 @@ Idk how to balance the goals here (easy to implement and maintain / friendly for
 
 Another design thing I'm running into again: there's an impossible tug-of-war of properties we want to satisfy:
 
-*   A. we want to allow mixing the order of named and positional args
-*   B. we want boolean named args to be special, indicating truthyness with just `--foo` and not requiring `--foo true` or `--foo=true`
-*   C. `--path ./my/file.txt` is nicer for filepath tab-completion (and familiarity), compared to `--path=./my/file.txt`
-*   D. we wish `--foo bar` was unambiguous somehow. As-is, is this a named boolean `foo` and unrelated positional `bar`, or is it a named `foo` with value `bar`?
-    *   we could require named non-bool args to use `=`, but that breaks C
-    *   we could require named bool args to have a value like other named args, but that breaks B
+* A. we want to allow mixing the order of named and positional args
+* B. we want boolean named args to be special, indicating truthyness with just `--foo` and not requiring `--foo true` or `--foo=true`
+* C. `--path ./my/file.txt` is nicer for filepath tab-completion (and familiarity), compared to `--path=./my/file.txt`
+* D. we wish `--foo bar` was unambiguous somehow. As-is, is this a named boolean `foo` and unrelated positional `bar`, or is it a named `foo` with value `bar`?
+    * we could require named non-bool args to use `=`, but that breaks C
+    * we could require named bool args to have a value like other named args, but that breaks B
 
 The original proposal satisfies A B C but not D, and has some good reasoning:
 
@@ -688,20 +688,20 @@ If we assume somewhat "standard" command line conventions, it's important to und
 
 If we look at what most conventional CLIs do, if an option `--foo` is defined to take a required value, then
 
-*   `--foo` followed by EOF is an error
-*   `--foo bar` and `--foo=bar` are both parsed as the option `--foo` with its value set to `bar`
+* `--foo` followed by EOF is an error
+* `--foo bar` and `--foo=bar` are both parsed as the option `--foo` with its value set to `bar`
 
 If `--foo` is defined to not take a value, then
 
-*   `--foo` followed by EOF is parsed as the valueless option `--foo`
-*   `--foo=bar` is an error
-*   `--foo bar` is parsed as the valueless option `--foo`, followed by a positional argument `bar`
+* `--foo` followed by EOF is parsed as the valueless option `--foo`
+* `--foo=bar` is an error
+* `--foo bar` is parsed as the valueless option `--foo`, followed by a positional argument `bar`
 
 Options that take optional values can be assigned a value using `=`, and will fall back to a default value otherwise. In other words, if `--foo` is defined to take an optional value, then
 
-*   `--foo` followed by EOF is parsed as the option `--foo` with its value set to some default value
-*   `--foo=bar` is parsed as the option `--foo` with its value set to `bar`
-*   `--foo bar` is parsed as the option `--foo` with its value set to some default value, followed by a positional argument `bar`
+* `--foo` followed by EOF is parsed as the option `--foo` with its value set to some default value
+* `--foo=bar` is parsed as the option `--foo` with its value set to `bar`
+* `--foo bar` is parsed as the option `--foo` with its value set to some default value, followed by a positional argument `bar`
 
 To back up my assertion that it's conventional to handle optional options this way, let's use `git tag` as an example:
 
@@ -751,18 +751,18 @@ const Args = struct {
 
 The parser could then handle the possible scenarios:
 
-*   `foo`:
-    *   if `--foo` is absent, `named.foo` is `"default"`
-    *   if `--foo=bar` or `--foo bar` is specified, `named.foo` is `"bar"`
-*   `bar`:
-    *   if `--bar` is absent, `named.bar` is `"default"`
-    *   if `--bar` is specified, `named.bar` is `null`
-    *   if `--bar=baz` is specified, `named.bar` is `"baz"`
+* `foo`:
+    * if `--foo` is absent, `named.foo` is `"default"`
+    * if `--foo=bar` or `--foo bar` is specified, `named.foo` is `"bar"`
+* `bar`:
+    * if `--bar` is absent, `named.bar` is `"default"`
+    * if `--bar` is specified, `named.bar` is `null`
+    * if `--bar=baz` is specified, `named.bar` is `"baz"`
 
 It *does* add some complexity:
 
-*   some named args would require `=`, while others would allow the value to be passed on a separate arg
-*   what if `bar: ?[:0]const u8 = null`? should this require `=` or is it fine to allow the value to be passed in a separate arg?
+* some named args would require `=`, while others would allow the value to be passed on a separate arg
+* what if `bar: ?[:0]const u8 = null`? should this require `=` or is it fine to allow the value to be passed in a separate arg?
 
 Personally, I don't see the benefit in requiring `=`, and I'm not sure I see the benefit in the compromise I just suggested. Many modern CLIs (written in Rust, Go, JS) don't require `=` but allow it. Notably, Zig's cli has a mix of requiring `=` and requiring the value to be specified in the next arg (for example `--zig-lib-dir` and `--build-runner` *require* the value to be the next arg). I don't think there's a reasonable solution that satisfies all 4 properties listed in [#30677 (comment)](https://codeberg.org/ziglang/zig/issues/30677#issuecomment-9609323), and, admittedly selfishly, I believe shell path tab-completion is too important to sacrifice in the name of eliminating ambiguities that... i don't believe cause problems very often? idk...
 
@@ -1091,9 +1091,9 @@ _ = try parse(init, .{}, struct {
 
 The distance between the declaration and 'options' is a bit unfortunate. But this is the best idea I have so far that maintains the properties:
 
-*   Do not reserve any potential option names
-*   Keep the api `fn parse(comptime T: type, ...) !T`
-*   Allow for short aliases
+* Do not reserve any potential option names
+* Keep the api `fn parse(comptime T: type, ...) !T`
+* Allow for short aliases
 
 ### dotcarmen
 
@@ -1215,16 +1215,16 @@ my initial reaction is "i think it's fine to allow it", but I think the uniformi
 
 neat! have you seen [my PR](https://codeberg.org/ziglang/zig/pulls/30725)? it adds quite a few more features which is why the file ends up being quite a bit larger:
 
-*   positional arguments
-*   multiple forms of arg iteration (`std.process.Args`, `[]const []const u8`, custom iterator)
-*   printing to any `std.Io.Terminal` instead of always printing to stderr (defaulting to stderr though)
-*   help text for arguments (and alignment for consistency)
-*   comptime-generated help and usage fmt strings
-*   default argument values
-*   if an argument fails to parse or a required argument is missing, optionally prints the error followed by usage, and optionally exits the program (exit code 0 for `--help`, exit code 1 for usage errors)
-*   enum arguments
-*   list-of int/float/enum/string arguments
-*   strings may also be `[:0]const u8`
+* positional arguments
+* multiple forms of arg iteration (`std.process.Args`, `[]const []const u8`, custom iterator)
+* printing to any `std.Io.Terminal` instead of always printing to stderr (defaulting to stderr though)
+* help text for arguments (and alignment for consistency)
+* comptime-generated help and usage fmt strings
+* default argument values
+* if an argument fails to parse or a required argument is missing, optionally prints the error followed by usage, and optionally exits the program (exit code 0 for `--help`, exit code 1 for usage errors)
+* enum arguments
+* list-of int/float/enum/string arguments
+* strings may also be `[:0]const u8`
 
 also, your library has leaks (you iterate args with the now-non-existent `std.process.argsWithAllocator`, but don't free the arg strings from the iterator, and dupe the strings for string argument fields). note that my PR suggests using an `ArenaAllocator` - I might end up changing this, but it's better to set users' expectations on memory management :)
 
@@ -1885,9 +1885,9 @@ Since I rewrote some parts of my own little args parsing library, I going to thr
 
 Its approach is a little different from many others presented here, as well as the from the points of the initial issue:
 
-*   no automatic help generation
-*   nothing needs to be declared ahead of time
-*   less than 200 lines of code
+* no automatic help generation
+* nothing needs to be declared ahead of time
+* less than 200 lines of code
 
 It heavily inspired by the similar named Rust crate `lexopt`
 

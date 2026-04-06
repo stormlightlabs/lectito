@@ -1,3 +1,5 @@
+use crate::utils;
+
 use super::Document;
 use regex::Regex;
 use serde::Serialize;
@@ -517,8 +519,8 @@ impl Document {
 }
 
 pub(crate) fn text_similarity(left: &str, right: &str) -> f64 {
-    let left_normalized = normalize_title_text(left);
-    let right_normalized = normalize_title_text(right);
+    let left_normalized = utils::normalize_whitespace(left);
+    let right_normalized = utils::normalize_whitespace(right);
 
     if left_normalized.is_empty() || right_normalized.is_empty() {
         return 0.0;
@@ -550,10 +552,6 @@ pub(crate) fn clean_metadata_title(title: Option<String>, site_name: Option<&str
     let cleaned = (!cleaned.is_empty()).then_some(cleaned);
     let detected_site_name = detected_site_name.filter(|value| !value.is_empty());
     (cleaned, detected_site_name)
-}
-
-fn normalize_title_text(value: &str) -> String {
-    value.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
 }
 
 fn title_similarity_tokens(value: &str) -> HashSet<String> {

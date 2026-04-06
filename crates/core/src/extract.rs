@@ -1,3 +1,5 @@
+use crate::utils;
+
 use super::dom_tree::DomTree;
 use super::metadata::count_words;
 use super::metadata::text_similarity;
@@ -768,12 +770,9 @@ struct SelectedBlock<'a> {
     order: usize,
 }
 
-fn normalize_block_text(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
 fn block_word_count(element: &Element<'_>) -> usize {
-    count_words(&normalize_block_text(&element.text()))
+    let normalized = utils::normalize_whitespace(&element.text());
+    count_words(&normalized)
 }
 
 fn block_preference_score(element: &Element<'_>) -> usize {
@@ -800,8 +799,8 @@ fn block_preference_score(element: &Element<'_>) -> usize {
 }
 
 fn should_drop_overlapping_block(current: &SelectedBlock<'_>, other: &SelectedBlock<'_>) -> bool {
-    let current_text = normalize_block_text(&current.element.text());
-    let other_text = normalize_block_text(&other.element.text());
+    let current_text = utils::normalize_whitespace(&current.element.text());
+    let other_text = utils::normalize_whitespace(&other.element.text());
 
     if current_text.is_empty() || other_text.is_empty() || current_text == other_text && current.order == other.order {
         return false;

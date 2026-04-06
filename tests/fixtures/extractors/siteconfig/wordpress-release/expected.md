@@ -20,7 +20,7 @@ For more information on this release, please visit the [HelpHub site](https://wo
 
 The security team addressed the following vulnerability in this release.
 
-*   A Remote Code Execution vulnerability that is not directly exploitable in core, however the security team feels that there is a potential for high severity when combined with some plugins, especially in multisite installs.
+* A Remote Code Execution vulnerability that is not directly exploitable in core, however the security team feels that there is a potential for high severity when combined with some plugins, especially in multisite installs.
 
 To help the security team and WordPressers around the world, you are encouraged to [responsibly report vulnerabilities](https://hackerone.com/wordpress?type=team). This allows vulnerabilities to be fixed in future releases.
 
