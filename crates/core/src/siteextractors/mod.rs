@@ -1,4 +1,4 @@
-use crate::{Document, FetchConfig, LectitoError, Metadata, Result};
+use crate::{Document, FetchConfig, LectitoError, Metadata, Result, utils};
 use std::future::Future;
 use std::pin::Pin;
 use url::Url;
@@ -301,7 +301,7 @@ fn render_reddit_thread(
 ) -> ExtractorOutcome {
     let post_body_html = post_body_html
         .map(|html| sanitize_extracted_html(&html))
-        .filter(|html| !normalize_ws(&strip_tags(html)).is_empty());
+        .filter(|html| !utils::normalize_whitespace(&strip_tags(html)).is_empty());
     let comments_html = sanitize_extracted_html(&comments_html);
 
     let mut html = String::new();
@@ -547,7 +547,7 @@ fn synthesize_thread(
         let description_text = strip_tags(&description_html);
         if let Some(first_comment_body) =
             first_text(doc, &["[data-comment-body]", ".comment-body", ".md", ".note-body"])
-            && normalize_ws(&first_comment_body) == normalize_ws(&description_text)
+            && utils::normalize_whitespace(&first_comment_body) == utils::normalize_whitespace(&description_text)
         {
             comments_html = remove_first_article(&comments_html);
         }
@@ -611,7 +611,7 @@ fn build_comment_thread_html(
         let Some(body_html) = body_html else {
             continue;
         };
-        if normalize_ws(&strip_tags(&body_html)).is_empty() {
+        if utils::normalize_whitespace(&strip_tags(&body_html)).is_empty() {
             continue;
         }
 
@@ -775,7 +775,7 @@ fn render_youtube_transcript(url: &Url, title: &str, transcript_json: &str) -> R
             }
         }
 
-        let line = normalize_ws(&line);
+        let line = utils::normalize_whitespace(&line);
         if line.is_empty() {
             continue;
         }
@@ -820,10 +820,6 @@ fn render_youtube_transcript(url: &Url, title: &str, transcript_json: &str) -> R
     Ok(html)
 }
 
-fn normalize_ws(value: &str) -> String {
-    value.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
 fn strip_tags(value: &str) -> String {
     static TAG_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     TAG_RE
@@ -841,7 +837,7 @@ fn escape_html(value: &str) -> String {
 }
 
 fn clean_thread_title(value: &str) -> String {
-    let value = normalize_ws(value);
+    let value = utils::normalize_whitespace(value);
     let value = value.strip_suffix("New issue").map(str::trim).unwrap_or(&value);
     value.to_string()
 }

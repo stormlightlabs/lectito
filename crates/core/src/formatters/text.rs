@@ -1,6 +1,6 @@
-use crate::Result;
 use crate::metadata::Metadata;
-use scraper::Html;
+use crate::{Result, utils};
+use scraper::{ElementRef, Html};
 
 const BLOCK_ELEMENTS: [&str; 13] = [
     "p",
@@ -56,17 +56,21 @@ pub fn convert_to_text(html: &str, metadata: &Metadata, config: &TextConfig) -> 
         output.push_str("\n\n");
     }
 
-    let text = if config.preserve_paragraphs {
-        extract_text_with_paragraphs(html)?
-    } else {
-        extract_plain_text(html)
-    };
+    let text = html_to_text(html, config.preserve_paragraphs);
 
     let final_text = if config.line_width > 0 { wrap_text(&text, config.line_width) } else { text };
 
     output.push_str(&final_text);
 
     Ok(output.trim().to_string())
+}
+
+pub(crate) fn html_to_text(html: &str, preserve_paragraphs: bool) -> String {
+    if preserve_paragraphs {
+        extract_text_with_paragraphs(html).unwrap_or_else(|_| extract_plain_text(html))
+    } else {
+        extract_plain_text(html)
+    }
 }
 
 /// Generate a header from metadata
@@ -104,54 +108,128 @@ fn generate_header(metadata: &Metadata) -> String {
 
 /// Extract plain text from HTML, stripping all tags
 fn extract_plain_text(html: &str) -> String {
-    let document = Html::parse_document(html);
-    document.root_element().text().collect::<String>()
+    html_to_text_with_blocks(html).join(" ")
 }
 
 /// Extract text from HTML while preserving paragraph structure
 fn extract_text_with_paragraphs(html: &str) -> Result<String> {
+    Ok(html_to_text_with_blocks(html).join("\n\n"))
+}
+
+fn html_to_text_with_blocks(html: &str) -> Vec<String> {
     let document = Html::parse_document(html);
+    let root = document
+        .select(&scraper::Selector::parse("body").unwrap())
+        .next()
+        .unwrap_or_else(|| document.root_element());
 
-    let mut output = String::new();
-    let mut last_was_block = false;
+    let mut blocks = Vec::<String>::new();
+    collect_text_blocks(root, &mut blocks);
 
-    for node in document.root_element().descendants() {
-        let element = match scraper::ElementRef::wrap(node) {
-            Some(el) => el,
-            None => {
-                if let Some(text) = node.value().as_text() {
-                    let trimmed = text.trim();
-                    if !trimmed.is_empty() {
-                        if last_was_block {
-                            output.push('\n');
-                            last_was_block = false;
-                        }
-                        output.push_str(trimmed);
-                        output.push(' ');
-                    }
-                }
-                continue;
-            }
-        };
-
-        let tag_name = element.value().name().to_lowercase();
-
-        if BLOCK_ELEMENTS.contains(&tag_name.as_str()) {
-            let text = element.text().collect::<String>();
-            let trimmed = text.trim();
-
-            if !trimmed.is_empty() {
-                if last_was_block {
-                    output.push_str("\n\n");
-                }
-                output.push_str(trimmed);
-                output.push('\n');
-                last_was_block = true;
-            }
+    if blocks.is_empty() {
+        let fallback = normalize_block_text(&root.text().collect::<String>());
+        if !fallback.is_empty() {
+            blocks.push(fallback);
         }
     }
 
-    Ok(output)
+    blocks
+}
+
+fn collect_text_blocks(element: ElementRef<'_>, blocks: &mut Vec<String>) {
+    let mut inline_buffer = String::new();
+    collect_text_segments(element, blocks, &mut inline_buffer);
+    flush_inline_buffer(&mut inline_buffer, blocks);
+}
+
+fn collect_text_segments(element: ElementRef<'_>, blocks: &mut Vec<String>, inline_buffer: &mut String) {
+    for child in element.children() {
+        if let Some(text) = child.value().as_text() {
+            append_inline_text(inline_buffer, &text.text);
+            continue;
+        }
+
+        let Some(child_element) = ElementRef::wrap(child) else {
+            continue;
+        };
+
+        if is_block_element(&child_element) {
+            flush_inline_buffer(inline_buffer, blocks);
+
+            if has_block_descendants(&child_element) {
+                collect_text_blocks(child_element, blocks);
+            } else {
+                push_text_block(&child_element.text().collect::<String>(), blocks);
+            }
+        } else {
+            collect_text_segments(child_element, blocks, inline_buffer);
+        }
+    }
+}
+
+fn push_text_block(text: &str, blocks: &mut Vec<String>) {
+    let text = normalize_block_text(text);
+    if text.is_empty() {
+        return;
+    }
+
+    if blocks
+        .last()
+        .is_some_and(|last| utils::normalize_whitespace(last) == utils::normalize_whitespace(&text))
+    {
+        return;
+    }
+
+    blocks.push(text);
+}
+
+fn flush_inline_buffer(inline_buffer: &mut String, blocks: &mut Vec<String>) {
+    if inline_buffer.trim().is_empty() {
+        inline_buffer.clear();
+        return;
+    }
+
+    push_text_block(inline_buffer, blocks);
+    inline_buffer.clear();
+}
+
+fn append_inline_text(buffer: &mut String, text: &str) {
+    if !buffer.is_empty() && !buffer.ends_with(char::is_whitespace) {
+        buffer.push(' ');
+    }
+    buffer.push_str(text);
+}
+
+fn has_block_descendants(element: &ElementRef<'_>) -> bool {
+    element
+        .descendants()
+        .skip(1)
+        .filter_map(ElementRef::wrap)
+        .any(|child| is_block_element(&child))
+}
+
+fn is_block_element(element: &ElementRef<'_>) -> bool {
+    BLOCK_ELEMENTS.contains(&element.value().name())
+}
+
+fn normalize_block_text(text: &str) -> String {
+    let mut normalized = String::new();
+    let mut previous_was_whitespace = false;
+
+    for ch in text.trim().chars() {
+        let is_breaking_whitespace = ch.is_whitespace() && ch != '\u{00A0}';
+        if is_breaking_whitespace {
+            if !previous_was_whitespace {
+                normalized.push(' ');
+                previous_was_whitespace = true;
+            }
+        } else {
+            normalized.push(ch);
+            previous_was_whitespace = false;
+        }
+    }
+
+    normalized.trim().to_string()
 }
 
 /// Wrap text to specified line width
@@ -277,8 +355,21 @@ mod tests {
         let result = extract_text_with_paragraphs(html);
         assert!(result.is_ok());
         let text = result.unwrap();
-        assert!(text.contains("Main Title"));
-        assert!(text.contains("Content goes here"));
+        assert_eq!(text, "Main Title\n\nContent goes here.");
+    }
+
+    #[test]
+    fn test_extract_text_with_mixed_container_content() {
+        let html = r#"
+            <article>
+                <div>Here's a demo: <a href="https://example.com">https://example.com</a><p>Second block.</p></div>
+            </article>
+        "#;
+
+        let result = extract_text_with_paragraphs(html);
+        assert!(result.is_ok());
+        let text = result.unwrap();
+        assert_eq!(text, "Here's a demo: https://example.com\n\nSecond block.");
     }
 
     #[test]

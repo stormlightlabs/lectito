@@ -6,10 +6,10 @@
 
 ## [](#goals)Goals
 
-*   upgrade the color system without using dynamic color
-*   upgrade basic components (FAB, bottom app bar, etc.)
-*   does not introduce breakage
-*   minimal changes
+* upgrade the color system without using dynamic color
+* upgrade basic components (FAB, bottom app bar, etc.)
+* does not introduce breakage
+* minimal changes
 
 ## [](#colors)Colors
 
