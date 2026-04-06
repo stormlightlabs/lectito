@@ -1,8 +1,15 @@
-use crate::parse::Document;
+use super::metadata::text_similarity;
+use super::parse::{Document, Element};
 use regex::Regex;
 use std::collections::HashSet;
 use std::sync::OnceLock;
 use url::Url;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TableKind {
+    Data,
+    Layout,
+}
 
 /// Configuration for HTML post-processing cleanup
 #[derive(Debug, Clone)]
@@ -66,6 +73,7 @@ pub fn postprocess_html(html: &str, config: &PostProcessConfig) -> String {
 
     if config.standardize_html {
         processed = standardize_html(&processed);
+        processed = rewrite_tables(&processed);
     }
 
     processed = strip_unwanted_attributes(&processed, config.keep_classes);
@@ -129,6 +137,162 @@ fn escape_html(value: &str) -> String {
         .replace('>', "&gt;")
         .replace('"', "&quot;")
         .replace('\'', "&#39;")
+}
+
+fn table_selector_attrs(table: &Element<'_>) -> String {
+    [
+        table.attr("class").unwrap_or(""),
+        table.attr("id").unwrap_or(""),
+        table.attr("role").unwrap_or(""),
+        table.attr("summary").unwrap_or(""),
+    ]
+    .join(" ")
+    .to_lowercase()
+}
+
+fn table_cell_span(cell: &Element<'_>, attr: &str) -> usize {
+    cell.attr(attr)
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(1)
+}
+
+fn table_dimensions(table: &Element<'_>) -> (usize, usize) {
+    let rows = table.select("tr").unwrap_or_default();
+    let row_count = rows.len();
+    let max_cols = rows
+        .iter()
+        .map(|row| {
+            row.select("th, td")
+                .unwrap_or_default()
+                .iter()
+                .map(|cell| table_cell_span(cell, "colspan"))
+                .sum::<usize>()
+        })
+        .max()
+        .unwrap_or(0);
+
+    (row_count, max_cols)
+}
+
+pub(crate) fn classify_table_element(table: &Element<'_>) -> TableKind {
+    let mut data_signals = 0usize;
+    let mut layout_signals = 0usize;
+
+    let role = table.attr("role").unwrap_or("");
+    if matches!(role, "presentation" | "none") {
+        layout_signals += 3;
+    }
+    if matches!(role, "table" | "grid" | "treegrid") {
+        data_signals += 2;
+    }
+
+    let attrs = table_selector_attrs(table);
+    if attrs.contains("layout") || attrs.contains("wrapper") || attrs.contains("grid") {
+        layout_signals += 1;
+    }
+    if attrs.contains("schedule") || attrs.contains("standings") || attrs.contains("stats") {
+        data_signals += 1;
+    }
+
+    let captions = table.select("caption").unwrap_or_default();
+    let thead = table.select("thead").unwrap_or_default();
+    let tfoot = table.select("tfoot").unwrap_or_default();
+    let headers = table.select("th").unwrap_or_default();
+    let nested_tables = table.select("table").unwrap_or_default().len().saturating_sub(1);
+    let (row_count, col_count) = table_dimensions(table);
+    let cell_count = row_count.saturating_mul(col_count);
+
+    if !captions.is_empty() {
+        data_signals += 2;
+    }
+    if !thead.is_empty() || !tfoot.is_empty() {
+        data_signals += 2;
+    }
+    if !headers.is_empty() {
+        data_signals += 2;
+    }
+    if headers
+        .iter()
+        .any(|cell| cell.attr("scope").is_some() || cell.attr("abbr").is_some())
+        || table
+            .select("td[headers], th[headers]")
+            .ok()
+            .is_some_and(|cells| !cells.is_empty())
+    {
+        data_signals += 1;
+    }
+
+    if row_count >= 2 && col_count >= 2 {
+        data_signals += 2;
+    }
+    if row_count >= 4 && col_count >= 2 {
+        data_signals += 1;
+    }
+    if cell_count >= 8 {
+        data_signals += 1;
+    }
+
+    if nested_tables > 0 {
+        layout_signals += 2;
+    }
+    if row_count <= 1 || col_count <= 1 {
+        layout_signals += 1;
+    }
+    if table
+        .attr("width")
+        .and_then(|value| value.parse::<usize>().ok())
+        .is_some_and(|value| value > 400)
+        || table
+            .attr("align")
+            .is_some_and(|value| value.eq_ignore_ascii_case("center"))
+    {
+        layout_signals += 1;
+    }
+    if headers.is_empty() && captions.is_empty() && thead.is_empty() && tfoot.is_empty() && cell_count <= 4 {
+        layout_signals += 1;
+    }
+
+    if data_signals >= layout_signals { TableKind::Data } else { TableKind::Layout }
+}
+
+fn unwrap_layout_table(table: &Element<'_>) -> String {
+    let mut parts = Vec::new();
+
+    for row in table.select("tr").unwrap_or_default() {
+        for cell in row.select("th, td").unwrap_or_default() {
+            let cell_html = rewrite_tables(&cell.inner_html()).trim().to_string();
+            if !cell_html.is_empty() {
+                parts.push(cell_html);
+            }
+        }
+    }
+
+    if parts.is_empty() {
+        let fallback = rewrite_tables(&table.inner_html());
+        fallback.trim().to_string()
+    } else {
+        parts.join("\n")
+    }
+}
+
+fn rewrite_tables(html: &str) -> String {
+    if !html.contains("<table") {
+        return html.to_string();
+    }
+
+    let Ok(doc) = Document::parse(html) else {
+        return html.to_string();
+    };
+
+    let mut replacements = Vec::new();
+    for table in doc.select("table").unwrap_or_default() {
+        if classify_table_element(&table) == TableKind::Layout {
+            replacements.push((table.outer_html(), unwrap_layout_table(&table)));
+        }
+    }
+
+    replace_html_snippets(html.to_string(), replacements)
 }
 
 fn allowed_attributes() -> &'static HashSet<&'static str> {
@@ -735,6 +899,104 @@ fn normalize_text(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+fn title_word_count(text: &str) -> usize {
+    normalize_text(text).split_whitespace().count()
+}
+
+fn should_strip_title_heading(text: &str, title: &str) -> bool {
+    let normalized = normalize_text(text);
+    !normalized.is_empty() && text_similarity(&normalized, title) > 0.75
+}
+
+pub(crate) fn dedupe_title_headings(html: &str, title: Option<&str>) -> String {
+    let Some(title) = title.map(normalize_text).filter(|title| !title.is_empty()) else {
+        return html.to_string();
+    };
+
+    let wrapped = format!(r#"<div id="__lectito_title_root__">{}</div>"#, html);
+    let Ok(doc) = Document::parse(&wrapped) else {
+        return html.to_string();
+    };
+
+    let mut snippets = Vec::new();
+    let title_words = title_word_count(&title);
+
+    for child in doc.select("#__lectito_title_root__ > *").unwrap_or_default() {
+        let tag = child.tag_name();
+        let child_text = normalize_text(&child.text());
+        let child_words = title_word_count(&child_text);
+
+        let remove_child = match tag.as_str() {
+            "h1" | "h2" => should_strip_title_heading(&child_text, &title),
+            "header" => {
+                let heading = child
+                    .select("h1, h2")
+                    .unwrap_or_default()
+                    .first()
+                    .cloned()
+                    .map(|heading| normalize_text(&heading.text()))
+                    .unwrap_or_default();
+                !heading.is_empty()
+                    && should_strip_title_heading(&heading, &title)
+                    && child_words <= title_words.saturating_add(12).max(20)
+            }
+            _ => false,
+        };
+
+        if remove_child {
+            snippets.push(child.outer_html());
+            continue;
+        }
+
+        if child_words > 20 {
+            break;
+        }
+    }
+
+    let full_text = normalize_text(
+        &doc.select("#__lectito_title_root__")
+            .unwrap_or_default()
+            .first()
+            .map(|root| root.text())
+            .unwrap_or_default(),
+    );
+
+    for heading in doc
+        .select("#__lectito_title_root__ h1, #__lectito_title_root__ h2")
+        .unwrap_or_default()
+    {
+        let heading_text = normalize_text(&heading.text());
+        if !should_strip_title_heading(&heading_text, &title) {
+            continue;
+        }
+
+        let text_position = full_text.find(&heading_text).unwrap_or(usize::MAX);
+        let words_before =
+            if text_position == usize::MAX { usize::MAX } else { title_word_count(&full_text[..text_position]) };
+
+        if words_before <= 20 {
+            let heading_html = heading.outer_html();
+            if !snippets.iter().any(|snippet| snippet == &heading_html) {
+                snippets.push(heading_html);
+            }
+        }
+    }
+
+    if snippets.is_empty() {
+        return html.to_string();
+    }
+
+    let result = remove_snippets(wrapped, snippets);
+    if let Ok(doc) = Document::parse(&result)
+        && let Ok(mut nodes) = doc.select("#__lectito_title_root__")
+        && let Some(root) = nodes.drain(..).next()
+    {
+        root.inner_html()
+    } else {
+        html.to_string()
+    }
+}
+
 fn remove_snippets(mut html: String, mut snippets: Vec<String>) -> String {
     snippets.sort_by_key(|b| std::cmp::Reverse(b.len()));
     for snippet in snippets {
@@ -1252,6 +1514,25 @@ mod tests {
         let result = clean_nested_divs(html);
         assert!(result.contains("Content"));
         assert!(result.contains("<div>"));
+    }
+
+    #[test]
+    fn test_dedupe_title_headings_removes_nested_h1() {
+        let html =
+            r#"<article><h1>Standings 2026</h1><p>Body copy with enough detail to remain after cleanup.</p></article>"#;
+        let result = dedupe_title_headings(html, Some("Standings 2026"));
+
+        assert!(!result.contains("<h1>Standings 2026</h1>"));
+        assert!(result.contains("Body copy with enough detail"));
+    }
+
+    #[test]
+    fn test_dedupe_title_headings_removes_nested_h2() {
+        let html = r#"<article><h2>The Last Interview</h2><p>Body copy with enough detail to remain after cleanup.</p></article>"#;
+        let result = dedupe_title_headings(html, Some("The Last Interview"));
+
+        assert!(!result.contains("<h2>The Last Interview</h2>"));
+        assert!(result.contains("Body copy with enough detail"));
     }
 
     #[test]

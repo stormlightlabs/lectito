@@ -532,7 +532,7 @@ Acceptance Criteria:
 - Rate limit and error handling clearly documented
 
 ================================================================================
-MILESTONE L: Testing & Polish
+MILESTONE L: Parking Lot
 ================================================================================
 
 [ ] Server integration tests
@@ -554,6 +554,10 @@ MILESTONE L: Testing & Polish
     - README section for server setup
     - .env.example with all config vars documented
     - [x] API docs (OpenAPI/Swagger or hosted docs page)
+
+[ ] Domain Whitelist for "Public Library"
+    - Cache should still work for any URL, but only display "Library" entries for approved domains
+      for safety & security
 
 Acceptance Criteria:
 - All tests pass in CI

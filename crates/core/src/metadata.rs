@@ -1,6 +1,7 @@
-use crate::Document;
+use super::Document;
 use regex::Regex;
 use serde::Serialize;
+use std::collections::HashSet;
 use url::Url;
 
 /// Represents all extracted metadata from a document
@@ -425,7 +426,7 @@ impl Document {
             }
         }
 
-        if let Some(title) = self.first_json_ld_string(&["headline"]) {
+        if let Some(title) = self.extract_json_ld_title() {
             return Some(title);
         }
 
@@ -481,6 +482,12 @@ impl Document {
         None
     }
 
+    fn extract_json_ld_title(&self) -> Option<String> {
+        self.extract_json_ld_values()
+            .iter()
+            .find_map(find_json_ld_title_candidate)
+    }
+
     fn resolve_url(&self, value: &str) -> Option<String> {
         normalize_url_value(self.base_url(), value)
     }
@@ -506,6 +513,130 @@ impl Document {
         }
 
         None
+    }
+}
+
+pub(crate) fn text_similarity(left: &str, right: &str) -> f64 {
+    let left_normalized = normalize_title_text(left);
+    let right_normalized = normalize_title_text(right);
+
+    if left_normalized.is_empty() || right_normalized.is_empty() {
+        return 0.0;
+    }
+    if left_normalized == right_normalized {
+        return 1.0;
+    }
+
+    let left_tokens = title_similarity_tokens(&left_normalized);
+    let right_tokens = title_similarity_tokens(&right_normalized);
+    if left_tokens.is_empty() || right_tokens.is_empty() {
+        return 0.0;
+    }
+
+    let intersection = left_tokens.intersection(&right_tokens).count();
+    if intersection == 0 {
+        return 0.0;
+    }
+
+    (2.0 * intersection as f64) / (left_tokens.len() + right_tokens.len()) as f64
+}
+
+pub(crate) fn clean_metadata_title(title: Option<String>, site_name: Option<&str>) -> (Option<String>, Option<String>) {
+    let Some(title) = title else {
+        return (None, None);
+    };
+
+    let (cleaned, detected_site_name) = clean_title(&title, site_name);
+    let cleaned = (!cleaned.is_empty()).then_some(cleaned);
+    let detected_site_name = detected_site_name.filter(|value| !value.is_empty());
+    (cleaned, detected_site_name)
+}
+
+fn normalize_title_text(value: &str) -> String {
+    value.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
+}
+
+fn title_similarity_tokens(value: &str) -> HashSet<String> {
+    let mut tokens = HashSet::new();
+    let mut current = String::new();
+
+    for ch in value.chars() {
+        if ch.is_alphanumeric() {
+            current.push(ch);
+        } else if !current.is_empty() {
+            tokens.insert(std::mem::take(&mut current));
+        }
+    }
+
+    if !current.is_empty() {
+        tokens.insert(current);
+    }
+
+    tokens
+}
+
+fn choose_title_candidate(preferred: Option<String>, fallback: Option<String>) -> Option<String> {
+    match (preferred, fallback) {
+        (Some(preferred), Some(fallback)) => {
+            if text_similarity(&preferred, &fallback) > 0.75 {
+                if fallback.chars().count() > preferred.chars().count() { Some(fallback) } else { Some(preferred) }
+            } else {
+                Some(preferred)
+            }
+        }
+        (Some(preferred), None) => Some(preferred),
+        (None, Some(fallback)) => Some(fallback),
+        (None, None) => None,
+    }
+}
+
+fn json_ld_object_looks_title_like(map: &serde_json::Map<String, serde_json::Value>) -> bool {
+    if map.contains_key("headline") {
+        return true;
+    }
+
+    if let Some(types) = map.get("@type") {
+        let type_matches = match types {
+            serde_json::Value::String(value) => {
+                value.to_ascii_lowercase().contains("article") || value.eq_ignore_ascii_case("webpage")
+            }
+            serde_json::Value::Array(values) => values
+                .iter()
+                .filter_map(|value| value.as_str())
+                .any(|value| value.to_ascii_lowercase().contains("article") || value.eq_ignore_ascii_case("webpage")),
+            _ => false,
+        };
+        if type_matches {
+            return true;
+        }
+    }
+
+    map.contains_key("mainEntityOfPage")
+        || map.contains_key("articleBody")
+        || map.contains_key("datePublished")
+        || map.contains_key("publisher")
+}
+
+fn find_json_ld_title_candidate(value: &serde_json::Value) -> Option<String> {
+    match value {
+        serde_json::Value::Object(map) => {
+            if json_ld_object_looks_title_like(map) {
+                let headline = map.get("headline").and_then(json_ld_value_as_string);
+                let name = map.get("name").and_then(json_ld_value_as_string);
+                if let Some(title) = choose_title_candidate(headline, name) {
+                    return Some(title);
+                }
+            }
+
+            for nested in map.values() {
+                if let Some(found) = find_json_ld_title_candidate(nested) {
+                    return Some(found);
+                }
+            }
+            None
+        }
+        serde_json::Value::Array(items) => items.iter().find_map(find_json_ld_title_candidate),
+        _ => None,
     }
 }
 
@@ -577,7 +708,7 @@ fn clean_title(title: &str, site_name: Option<&str>) -> (String, Option<String>)
 
     if let Some((cleaned, detected_site_name)) = try_separator_split(
         trimmed_title,
-        &Regex::new(r"\s+[|/·]\s+").unwrap(),
+        &Regex::new(r"\s*[|/·]\s*").unwrap(),
         false,
         |title_words, site_words| site_words <= 3 && title_words >= 2 && title_words >= site_words.saturating_mul(2),
     ) {
@@ -836,6 +967,50 @@ mod tests {
         let doc = Document::parse(html).unwrap();
         assert_eq!(doc.extract_title(), Some("Understanding borrow checking".to_string()));
         assert_eq!(doc.extract_site_name(), Some("MDN".to_string()));
+    }
+
+    #[test]
+    fn test_text_similarity_scores_token_overlap() {
+        assert!(text_similarity("The Last Interview", "The Last Interview - Nautilus") > 0.75);
+        assert!(text_similarity("Baseball standings", "Quarterly investor letter") < 0.4);
+    }
+
+    #[test]
+    fn test_choose_title_candidate_prefers_longer_duplicate_variant() {
+        let chosen = choose_title_candidate(
+            Some("The Last Interview".to_string()),
+            Some("The Last Interview - Nautilus".to_string()),
+        );
+
+        assert_eq!(chosen.as_deref(), Some("The Last Interview - Nautilus"));
+    }
+
+    #[test]
+    fn test_extract_title_uses_json_ld_headline_name_pair() {
+        let html = r#"
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <script type="application/ld+json">
+                {
+                    "@context": "https://schema.org",
+                    "@type": "NewsArticle",
+                    "headline": "The Last Interview - Nautilus",
+                    "name": "The Last Interview",
+                    "publisher": {
+                        "@type": "Organization",
+                        "name": "Nautilus"
+                    }
+                }
+                </script>
+            </head>
+            <body></body>
+            </html>
+        "#;
+
+        let doc = Document::parse(html).unwrap();
+        assert_eq!(doc.extract_title(), Some("The Last Interview".to_string()));
+        assert_eq!(doc.extract_site_name(), Some("Nautilus".to_string()));
     }
 
     #[test]
