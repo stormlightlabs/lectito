@@ -1,42 +1,40 @@
 # CLI Usage
 
-Complete reference for the `lectito` command-line tool.
+Reference for the `lectito` command-line tool.
 
 ## Basic Syntax
 
 ```bash
-lectito [OPTIONS] <INPUT>
+lectito [OPTIONS] [INPUT]
 ```
 
-The `INPUT` can be:
+`INPUT` can be:
 
-- A URL (starts with `http://` or `https://`)
-- A local file path
+- a URL starting with `http://` or `https://`
+- a local file path
 - `-` to read from stdin
 
-## Examples
+## Common Examples
 
-### URL Extraction
+### Extract from a URL
 
 ```bash
 lectito https://example.com/article
 ```
 
-### Local File
+### Extract from a File
 
 ```bash
 lectito article.html
 ```
 
-### Stdin Pipe
+### Read from stdin
 
 ```bash
 curl https://example.com | lectito -
-cat page.html | lectito -
-wget -qO- https://example.com | lectito -
 ```
 
-## Options
+## Output Options
 
 ### `-o, --output <FILE>`
 
@@ -48,182 +46,147 @@ lectito https://example.com/article -o article.md
 
 ### `-f, --format <FORMAT>`
 
-Specify output format. Available formats:
+Output format. Available values:
 
-| Format             | Description                         |
-| ------------------ | ----------------------------------- |
-| `markdown` or `md` | Markdown (default)                  |
-| `json`             | Structured JSON                     |
-| `text` or `txt`    | Plain text                          |
-| `html`             | Cleaned HTML                        |
-
-```bash
-lectito https://example.com/article -f json
-```
-
-### `--timeout <SECONDS>`
-
-HTTP request timeout in seconds (default: 30).
+| Format             | Description     |
+| ------------------ | --------------- |
+| `markdown` or `md` | Markdown output |
+| `html`             | Cleaned HTML    |
+| `text` or `txt`    | Plain text      |
+| `json`             | Structured JSON |
 
 ```bash
-lectito https://example.com/article --timeout 60
+lectito https://example.com/article --format text
 ```
 
-### `--user-agent <USER_AGENT>`
+### `--json`
 
-Custom User-Agent header.
+Force structured JSON output regardless of `--format`.
 
 ```bash
-lectito https://example.com/article --user-agent "MyBot/1.0"
+lectito https://example.com/article --json
 ```
 
-### `--config <PATH>`
+### `--references`
 
-Path to site configuration file (TOML format).
+Include a reference table in Markdown output or a references array in JSON output.
 
 ```bash
-lectito https://example.com/article --config site-config.toml
+lectito https://example.com/article --references
 ```
+
+### `--frontmatter`
+
+Include TOML frontmatter in Markdown output.
+
+```bash
+lectito https://example.com/article --frontmatter
+```
+
+### `-m, --metadata-only`
+
+Output metadata only.
+
+```bash
+lectito https://example.com/article --metadata-only
+```
+
+### `--metadata-format <FORMAT>`
+
+Metadata output format for `--metadata-only`. Supported values: `toml`, `json`.
+
+```bash
+lectito https://example.com/article --metadata-only --metadata-format json
+```
+
+## Extraction Options
+
+### `--timeout <SECS>`
+
+HTTP timeout in seconds. Default: `30`.
+
+### `--user-agent <UA>`
+
+Custom User-Agent for HTTP requests.
+
+### `-c, --config-dir <DIR>`
+
+Directory containing site configuration files.
+
+### `--char-threshold <NUM>`
+
+Minimum character threshold for content candidates. Default: `500`.
+
+### `--max-elements <NUM>`
+
+Maximum number of top candidates to track. Default: `5`.
+
+### `--no-images`
+
+Strip images from output.
 
 ### `-v, --verbose`
 
-Enable verbose debug logging.
+Enable verbose logging and timing output.
+
+## Shell Completions
+
+### `--completions <SHELL>`
+
+Generate a completion script for `bash`, `zsh`, `fish`, or `powershell`.
 
 ```bash
-lectito https://example.com/article -v
+lectito --completions zsh
 ```
 
-### `-h, --help`
-
-Display help information.
+## Help and Version
 
 ```bash
 lectito --help
-```
-
-### `-V, --version`
-
-Display version information.
-
-```bash
 lectito --version
 ```
 
-## Common Workflows
+## Output Shapes
 
-### Extract and Save Article
+### Markdown
 
-```bash
-lectito https://example.com/article -o articles/article.md
-```
-
-### Batch Processing Multiple URLs
-
-```bash
-while read url; do
-    lectito "$url" -o "articles/$(date +%s).md"
-done < urls.txt
-```
-
-### Extract to JSON for Processing
-
-```bash
-lectito https://example.com/article --format json | jq '.metadata.title'
-```
-
-### Extract from Multiple Files
-
-```bash
-for file in articles/*.html; do
-    lectito "$file" -o "processed/$(basename "$file" .html).md"
-done
-```
-
-### Custom Timeout for Slow Sites
-
-```bash
-lectito https://slow-site.com/article --timeout 120
-```
-
-## Output Formats
-
-### Markdown (Default)
-
-Output includes TOML frontmatter with metadata (when `--frontmatter` is used):
-
-```markdown
-+++
-title = "Article Title"
-author = "John Doe"
-date = "2025-01-17"
-excerpt = "A brief description..."
-+++
-
-# Article Title
-
-Article content here...
-```
+With `--frontmatter`, Markdown output starts with TOML frontmatter and then the extracted body.
 
 ### JSON
 
-Structured output with all metadata:
+`--format json` and `--json` emit structured output with:
 
-```json
-{
-    "metadata": {
-        "title": "Article Title",
-        "author": "John Doe",
-        "date": "2025-01-17",
-        "excerpt": "A brief description..."
-    },
-    "content": "<div>...</div>",
-    "text_content": "Article content here...",
-    "word_count": 500
-}
-```
+- `metadata`
+- `content.markdown`
+- `content.text`
+- `content.html`
+- optional `references`
 
-### Plain Text
+### Metadata-Only
 
-Just the article text without formatting:
+`--metadata-only` emits either:
 
-```text
-Article Title
+- TOML metadata
+- JSON metadata
 
-Article content here...
-```
+without the extracted body.
 
-## Exit Codes
+## Common Workflows
 
-| Code | Meaning                                    |
-| ---- | ------------------------------------------ |
-| 0    | Success                                    |
-| 1    | Error (invalid URL, network failure, etc.) |
-
-## Error Handling
-
-The CLI will print error messages to stderr:
+### Save a Markdown export
 
 ```bash
-lectito https://invalid-domain-xyz.com
-# Error: failed to fetch URL: dns error: failed to lookup address information
+lectito https://example.com/article --frontmatter --references -o article.md
 ```
 
-For content that isn't readable:
+### Get JSON for downstream processing
 
 ```bash
-lectito https://example.com/page
-# Error: content not readable: score 15.2 < threshold 20.0
+lectito https://example.com/article --json | jq '.metadata.title'
 ```
 
-## Tips
+### Extract text without images
 
-1. **Use timeouts**: Set appropriate timeouts to avoid hanging
-2. **Batch operations**: Process multiple URLs in parallel
-3. **Save to file**: Use `-o` to avoid terminal rendering overhead
-4. **JSON for parsing**: Use JSON output when processing with other tools
-
-## Next Steps
-
-- [Configuration](../library/configuration.md) - Advanced configuration options
-- [Output Formats](../library/output-formats.md) - Detailed format documentation
-- [Concepts](../concepts/how-it-works.md) - Understanding the algorithm
+```bash
+lectito https://example.com/article --format text --no-images
+```

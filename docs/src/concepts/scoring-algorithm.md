@@ -6,9 +6,11 @@ Detailed explanation of how Lectito scores HTML elements to identify article con
 
 The scoring algorithm assigns a numeric score to each HTML element, indicating how likely it is to contain the main article content. Higher scores indicate better content candidates.
 
+The exact weights evolve as the extractor improves, so treat this page as a guide to the scoring logic, not a frozen ABI.
+
 ## Score Formula
 
-The final score for each element is calculated as:
+At a high level, the score still looks like this:
 
 ```text
 element_score = (base_tag_score
@@ -18,193 +20,98 @@ element_score = (base_tag_score
                × (1 - link_density)
 ```
 
-Let's break down each component.
-
 ## Base Tag Score
 
 Different HTML tags have different inherent scores, reflecting their likelihood of containing content:
 
-| Tag            | Score | Rationale                                 |
-| -------------- | ----- | ----------------------------------------- |
-| `<article>`    | +10   | Semantic article container                |
-| `<section>`    | +8    | Logical content section                   |
-| `<div>`        | +5    | Generic container, often used for content |
-| `<blockquote>` | +3    | Quoted content                            |
-| `<pre>`        | 0     | Preformatted text, neutral                |
-| `<td>`         | +3    | Table cell                                |
-| `<address>`    | -3    | Contact info, unlikely to be main content |
-| `<ol>`/`<ul>`  | -3    | Lists and metadata                        |
-| `<li>`         | -3    | List item                                 |
-| `<header>`     | -5    | Header, not main content                  |
-| `<footer>`     | -5    | Footer, not main content                  |
-| `<nav>`        | -5    | Navigation                                |
-| `<th>`         | -5    | Table header                              |
-| `<h1>`-`<h6>`  | -5    | Headings, not content themselves          |
-| `<form>`       | -3    | Forms, not content                        |
-| `<main>`       | 0     | Container scored via bonus                |
+| Tag            | Typical Bias      | Rationale                                 |
+| -------------- | ----------------- | ----------------------------------------- |
+| `<article>`    | Positive          | Semantic article container                |
+| `<section>`    | Positive          | Logical content section                   |
+| `<div>`        | Positive          | Generic container, often used for content |
+| `<blockquote>` | Slightly positive | Quoted content                            |
+| `<pre>`        | Neutral           | Preformatted text                         |
+| `<header>`     | Negative          | Header, not main content                  |
+| `<footer>`     | Negative          | Footer, not main content                  |
+| `<nav>`        | Negative          | Navigation                                |
+| `<form>`       | Negative          | Forms, not content                        |
 
 ## Class/ID Weight
 
-Class and ID attributes strongly indicate element purpose:
+Class and ID attributes strongly indicate element purpose.
 
-### Positive Patterns
-
-These patterns indicate content elements:
-
-```regex
-(?i)(article|body|content|entry|hentry|h-entry|main|page|post|text|blog|story)
-```
-
-**Weight**: +25 points
+Positive patterns bias the scorer toward article-like containers. Negative patterns bias it away from sidebars, menus, comments, related-story blocks, and similar chrome.
 
 Examples:
 
-- `class="article-content"`
-- `id="main-content"`
-- `class="post-body"`
-
-### Negative Patterns
-
-These patterns indicate non-content elements:
-
-```text
-(?i)(banner|breadcrumbs?|combx|comment|community|disqus|extra|foot|header|menu|related|remark|rss|shoutbox|sidebar|sponsor|ad-break|agegate|pagination|pager|popup)
-```
-
-**Weight**: -25 points
-
-Examples:
-
-- `class="sidebar"`
-- `id="footer"`
-- `class="navigation"`
+- Positive: `class="article-content"`, `id="main-content"`
+- Negative: `class="sidebar"`, `id="footer"`, `class="navigation"`
 
 ## Content Density Score
 
-Rewards elements with substantial text content:
+The scorer rewards elements with substantial text content:
 
-### Character Density
+- more readable text
+- more punctuation and sentence structure
+- less boilerplate
 
-1 point per 100 characters, maximum 3 points.
-
-```rs
-char_score = (text_length / 100).min(3)
-```
-
-### Punctuation Density
-
-1 point per 5 commas/periods, maximum 3 points.
-
-```rs
-punct_score = (comma_count / 5).min(3)
-```
-
-Total content density:
-
-```rs
-content_density = char_score + punct_score
-```
-
-**Rationale**: Real article content has more text and punctuation than navigation or metadata.
-
-## Container Bonus
-
-Elements that are typical article containers receive a small boost:
-
-- `<article>`, `<section>`, `<main>`: +2
-
-This bias helps select semantic containers when scores are close.
+Real article content tends to have more continuous prose than navigation or metadata.
 
 ## Link Density Penalty
 
-Penalizes elements with too many links:
+Nodes packed with links are usually navigation, metadata, or related-story rails, not the article body.
 
 ```text
-link_density = (length of all <a> tag text) / (total text length)
-final_score = raw_score × (1 - link_density)
+link_density = linked_text / total_text
 ```
 
-**Examples**:
+Higher link density reduces the final score.
 
-- Text "Click here": link density = 100% (10/10)
-- Text "See the [article](link) for details": link density = 33% (7/21)
-- Text "Article content with no links": link density = 0%
+## Branch-Specific Heuristics
 
-**Rationale**: Navigation menus, lists of links, and metadata have high link density. Real content has low link density.
+The current branch adds a few important refinements on top of the classic Readability-style score:
 
-## Complete Example
+### Entry-Point Bias
 
-Consider this HTML:
+Common article containers such as `article`, `main`, and well-known content wrappers get an early structural advantage before raw text density decides the winner.
 
-```html
-<div class="article-content">
-    <h1>Article Title</h1>
-    <p>
-        This is a substantial paragraph with plenty of text, including multiple
-        sentences, and commas, to demonstrate how content density scoring works.
-    </p>
-    <p>
-        Another paragraph with even more text, details, and information to
-        increase the character count.
-    </p>
-</div>
-```
+### Sibling Aggregation
 
-### Step-by-Step Scoring
+When several nearby candidates score well, Lectito can walk upward and treat them as one article body instead of picking only a single subtree.
 
-#### 1 Base Tag Score
+### Table Handling
 
-`<div>`: +5
+Layout tables and data tables are treated differently. Data tables should survive extraction. Layout tables should not dominate it.
 
-#### 2 Class/ID Weight
+### Retry Strategy
 
-`class="article-content"` contains "article" and "content": +25
-
-#### 3 Content Density
-
-- Text length: ~220 characters
-- Character score: min(220/100, 3) = 2
-- Commas: 4
-- Punctuation score: min(4/5, 3) = 0
-- Total: 2 points
-
-#### 4 Link Density
-
-No links: link density = 0
-
-#### 5 Final Score
-
-```rs
-(5 + 25 + 2) × (1 - 0) = 32
-```
-
-This element would score 32, well above the default threshold of 20.
+If the first pass extracts too little text, Lectito retries with progressively looser settings before it gives up.
 
 ## Thresholds
 
-Two thresholds determine if content is readable:
+Two thresholds still matter most:
 
 ### Score Threshold
 
-Minimum score for extraction (default: 20.0).
+Minimum score for extraction.
 
-If no element scores above this, extraction fails with `LectitoError::NotReaderable`.
+If no element scores high enough, extraction fails with `LectitoError::NotReadable`.
 
 ### Character Threshold
 
-Minimum character count (default: 500).
+Minimum character count for meaningful content.
 
-Even with high score, content must have enough text to be meaningful.
+Even with a strong score, content must still be large enough to count as readable.
 
 ## Scoring Edge Cases
 
 ### Empty Elements
 
-Elements with no text receive score of 0 and are ignored.
+Elements with no text receive a negligible score and are ignored.
 
 ### Nested Elements
 
-Both parent and child elements are scored. The highest-scoring element at any level is selected.
+Both parent and child elements are scored. The best candidate can appear at any level of the tree.
 
 ### Sibling Elements
 
@@ -212,71 +119,16 @@ Adjacent elements with similar scores may be grouped as part of the same article
 
 ### Negative Scores
 
-Elements can have negative scores (e.g., navigation). They're excluded from selection.
+Elements that look like navigation or chrome can end up with negative scores and fall out of contention.
 
 ## Configuration Affecting Scoring
 
 Adjust scoring behavior with `ReadabilityConfig`:
 
-```rs
-use lectito_core::ReadabilityConfig;
-
-let config = ReadabilityConfig::builder()
-    .min_score(25.0)           // Higher threshold
-    .char_threshold(1000)      // Require more content
-    .min_content_length(200)   // Longer minimum text
-    .build();
-```
+- `min_score`
+- `char_threshold`
+- `nb_top_candidates`
+- `max_elems_to_parse`
+- `remove_unlikely`
 
 See [Configuration](../library/configuration.md) for details.
-
-## Practical Implications
-
-### Why Articles Score Well
-
-- Semantic tags (`<article>`)
-- Descriptive classes (`article-content`)
-- Substantial text (high character count)
-- Punctuation (commas, periods)
-- Few links (low link density)
-
-### Why Navigation Scores Poorly
-
-- Generic or negative classes (`sidebar`, `navigation`)
-- Little text (just link labels)
-- Many links (high link density)
-- Short content (fails character threshold)
-
-### Why Comments May Score Poorly
-
-- Often in negative classed containers (`comments`)
-- Short individual comments
-- Many links (usernames, replies)
-- Variable quality
-
-## Site Configuration
-
-When automatic scoring fails, provide XPath rules:
-
-```toml
-# example.com.toml
-[[fingerprints]]
-pattern = "example.com"
-
-[[fingerprints.extract]]
-title = "//h1[@class='article-title']"
-content = "//div[@class='article-body']"
-```
-
-See [Configuration](../library/configuration.md) for details.
-
-## References
-
-- Original Readability.js: [Mozilla Readability](https://github.com/mozilla/readability)
-- Algorithm inspiration: [Arc90 Readability](https://code.google.com/archive/p/arc90labs-readability/)
-
-## Next Steps
-
-- [How It Works](how-it-works.md) - Overall extraction pipeline
-- [Configuration](../library/configuration.md) - Customizing behavior
-- [Basic Usage](../library/basic-usage.md) - Using the API

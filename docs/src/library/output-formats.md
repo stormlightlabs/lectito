@@ -4,18 +4,19 @@ Work with different output formats: Markdown, JSON, text, and HTML.
 
 ## Overview
 
-The `Article` struct provides methods for converting to different formats:
+The `Article` struct provides several ways to render extracted content:
 
-| Method          | Format                    | Requires Feature |
-| --------------- | ------------------------- | ---------------- |
-| `to_markdown()` | Markdown with frontmatter | `markdown`       |
-| `to_json()`     | Structured JSON           | Always available |
-| `to_text()`     | Plain text                | Always available |
-| `content` field | Cleaned HTML              | Always available |
+| Method | Format | Requires Feature |
+| ------ | ------ | ---------------- |
+| `to_markdown()` | Markdown | `markdown` |
+| `to_markdown_with_config()` | Markdown with custom options | `markdown` |
+| `to_json()` | Serialized `Article` JSON | Always available |
+| `to_text()` | Plain text | Always available |
+| `content` field | Cleaned HTML | Always available |
 
 ## Markdown
 
-Convert article to Markdown with YAML frontmatter:
+Convert an article to Markdown:
 
 ```rs
 use lectito_core::parse;
@@ -31,52 +32,52 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Output Format
+### Markdown Configuration
 
-```markdown
-+++
-title = "Article Title"
-author = "John Doe"
-published_date = "2025-01-17"
-excerpt = "A brief description of the article"
-word_count = 500
-+++
-
-# Article Title
-
-Article content here...
-
-Paragraph with **bold** and _italic_ text.
-```
-
-### Customizing Markdown
-
-Use `MarkdownFormatter` for more control:
+Use `MarkdownConfig` for frontmatter, references, and image handling:
 
 ```rs
-use lectito_core::{parse, MarkdownFormatter, MarkdownConfig};
+use lectito_core::{parse, MarkdownConfig};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let html = "<html>...</html>";
     let article = parse(html)?;
 
     let config = MarkdownConfig {
-        frontmatter: true,
-        // Add more options as available
+        include_frontmatter: true,
+        include_references: true,
+        strip_images: false,
+        include_title_heading: true,
     };
 
-    let formatter = MarkdownFormatter::new(config);
-    let markdown = formatter.format(&article)?;
-
+    let markdown = article.to_markdown_with_config(&config)?;
     println!("{}", markdown);
 
     Ok(())
 }
 ```
 
+### Frontmatter Fields
+
+When `include_frontmatter` is enabled, Lectito can emit fields such as:
+
+```toml
++++
+title = "Article Title"
+author = "John Doe"
+date = "2025-01-17"
+site = "Example"
+image = "https://example.com/image.jpg"
+favicon = "https://example.com/favicon.ico"
+excerpt = "A brief description of the article"
+word_count = 500
+reading_time_minutes = 2.5
++++
+```
+
 ## JSON
 
-Get structured JSON with all metadata:
+`Article::to_json()` returns a serialized view of the article itself:
 
 ```rs
 use lectito_core::parse;
@@ -96,36 +97,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```json
 {
-    "metadata": {
-        "title": "Article Title",
-        "author": "John Doe",
-        "published_date": "2025-01-17",
-        "excerpt": "A brief description",
-        "language": "en"
-    },
-    "content": "<div>Cleaned HTML content...</div>",
-    "text_content": "Plain text content...",
-    "word_count": 500,
-    "readability_score": 35.5
-}
-```
-
-### Parsing JSON
-
-```rs
-use lectito_core::parse;
-use serde_json::Value;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let html = "<html>...</html>";
-    let article = parse(html)?;
-
-    let json = article.to_json()?;
-    let value: Value = serde_json::from_str(&json)?;
-
-    println!("Title: {}", value["metadata"]["title"]);
-
-    Ok(())
+  "content": "<div>Cleaned HTML content...</div>",
+  "text_content": "Plain text content...",
+  "metadata": {
+    "title": "Article Title",
+    "author": "John Doe",
+    "date": "2025-01-17",
+    "excerpt": "A brief description",
+    "site_name": "Example",
+    "language": "en"
+  },
+  "length": 1234,
+  "word_count": 500,
+  "reading_time": 2.5,
+  "source_url": "https://example.com/article",
+  "confidence": 0.92
 }
 ```
 
@@ -147,14 +133,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Output Format
-
-Plain text includes:
-
-- Headings as lines with `#` prefixes
-- Paragraphs separated by blank lines
-- List items with `*` or `1.` prefixes
-- No HTML tags or markdown syntax
+Plain text preserves the readable text content without HTML tags.
 
 ## HTML
 
@@ -167,7 +146,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let html = "<html>...</html>";
     let article = parse(html)?;
 
-    // Cleaned HTML is in the `content` field
     let cleaned_html = &article.content;
     println!("{}", cleaned_html);
 
@@ -175,109 +153,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### HTML Characteristics
-
 The cleaned HTML:
 
-- Removes clutter (navigation, sidebars, ads)
-- Keeps main content structure
-- Preserves images (if `preserve_images` is true)
-- Removes most scripts and styles
-- Maintains heading hierarchy
+- removes clutter such as navigation and ads
+- keeps the main content structure
+- preserves images when `preserve_images` is enabled
+- preserves supported embeds when `preserve_video_embeds` is enabled
 
 ## Choosing a Format
 
-| Format       | Use Case                                |
-| ------------ | --------------------------------------- |
-| **Markdown** | Blog posts, documentation, static sites |
-| **JSON**     | APIs, databases, further processing     |
-| **Text**     | Analysis, indexing, simple display      |
-| **HTML**     | Web display, further HTML processing    |
-
-## Format Conversion Examples
-
-### Markdown to File
-
-```rs
-use lectito_core::parse;
-use std::fs;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let html = "<html>...</html>";
-    let article = parse(html)?;
-
-    let markdown = article.to_markdown()?;
-    fs::write("article.md", markdown)?;
-
-    Ok(())
-}
-```
-
-### JSON for API Response
-
-```rs
-use lectito_core::parse;
-use warp::Filter;
-
-async fn extract_article(body: String) -> Result<impl warp::Reply, warp::Rejection> {
-    let article = parse(&body).unwrap();
-    let json = article.to_json().unwrap();
-    Ok(warp::reply::json(&json))
-}
-```
-
-### Text for Analysis
-
-```rs
-use lectito_core::parse;
-
-fn analyze_text(html: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let article = parse(html)?;
-    let text = article.to_text();
-
-    // Analyze word frequency
-    let words: Vec<&str> = text.split_whitespace().collect();
-    println!("Word count: {}", words.len());
-
-    // Count sentences
-    let sentences = text.split(&['.', '!', '?'][..]).count();
-    println!("Sentence count: {}", sentences);
-
-    Ok(())
-}
-```
-
-### HTML for Display
-
-```rs
-use lectito_core::parse;
-
-fn display_article(html: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let article = parse(html)?;
-
-    // Use in a template
-    let rendered = format!(
-        r#"
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>{}</title>
-        </head>
-        <body>
-            <article>{}</article>
-        </body>
-        </html>
-        "#,
-        article.metadata.title.unwrap_or_default(),
-        article.content
-    );
-
-    Ok(())
-}
-```
-
-## Next Steps
-
-- [Configuration](configuration.md) - Advanced configuration options
-- [Basic Usage](basic-usage.md) - Core usage patterns
-- [Concepts](../concepts/how-it-works.md) - Understanding the algorithm
+| Format | Use Case |
+| ------ | -------- |
+| **Markdown** | Blog posts, docs, static publishing |
+| **JSON** | APIs, storage, downstream processing |
+| **Text** | Analysis, indexing, search |
+| **HTML** | Web display or further HTML processing |

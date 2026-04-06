@@ -137,7 +137,7 @@ use lectito_core::{parse, LectitoError};
 
 match parse("<html>...</html>") {
     Ok(article) => println!("Title: {:?}", article.metadata.title.unwrap()),
-    Err(LectitoError::NotReaderable { score, threshold }) => {
+    Err(LectitoError::NotReadable { score, threshold }) => {
         eprintln!("Content not readable: score {} < threshold {}", score, threshold);
     }
     Err(e) => eprintln!("Error: {}", e),
