@@ -33,6 +33,7 @@ use crate::error::AppError;
 use crate::rate_limit::{self, ClientRateLimitContext, LimitsResponse};
 
 const OPENAPI_TEMPLATE: &str = include_str!("openapi.json");
+const SWAGGER_HTML: &str = include_str!("swagger.html");
 const CACHE_UPSERT_SQL: &str = "INSERT INTO extracted_articles
     (id, url, url_hash, format, content, metadata, fetched_at, expires_at, hit_count)
  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0)
@@ -638,13 +639,15 @@ async fn resolve_static_target(web_dir: &Path, requested: &Path, asset_like: boo
         Ok(metadata) if metadata.is_file() => Ok(candidate),
         Ok(_) if !asset_like => Ok(web_dir.join("index.html")),
         Ok(_) => Err(AppError::NotFound("Static asset not found".to_string())),
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound && !asset_like => Ok(web_dir.join("index.html")),
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            Err(AppError::NotFound("Static asset not found".to_string()))
-        }
-        Err(err) => Err(AppError::Internal(format!(
-            "Failed to read static file metadata: {err}"
-        ))),
+        Err(err) => match err.kind() {
+            std::io::ErrorKind::NotFound => match asset_like {
+                true => Err(AppError::NotFound("Static asset not found".to_string())),
+                false => Ok(web_dir.join("index.html")),
+            },
+            _ => Err(AppError::Internal(format!(
+                "Failed to read static file metadata: {err}"
+            ))),
+        },
     }
 }
 
@@ -706,45 +709,7 @@ fn content_type_for_path(path: &Path) -> &'static str {
 }
 
 fn swagger_ui_html() -> String {
-    r#"<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Lectito API Docs</title>
-    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
-    <style>
-      body {
-        margin: 0;
-        background: #f4f0e8;
-      }
-
-      .topbar {
-        display: none;
-      }
-
-      #swagger-ui {
-        max-width: 1200px;
-        margin: 0 auto;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="swagger-ui"></div>
-    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
-    <script>
-      window.ui = SwaggerUIBundle({
-        url: '/api-docs/openapi.json',
-        dom_id: '#swagger-ui',
-        deepLinking: true,
-        presets: [SwaggerUIBundle.presets.apis],
-        layout: 'BaseLayout'
-      });
-    </script>
-  </body>
-</html>
-"#
-    .to_string()
+    SWAGGER_HTML.to_string()
 }
 
 fn openapi_spec(version: &str) -> Value {
