@@ -8,8 +8,9 @@ use super::extract::ExtractionDiagnostics;
 use super::formatters::markdown::MarkdownConfig;
 use super::formatters::markdown::convert_to_markdown;
 use super::formatters::text::html_to_text as format_html_to_text;
-use super::metadata::{clean_metadata_title, count_words};
+use super::metadata::clean_metadata_title;
 use super::postprocess::dedupe_title_headings;
+use super::utils;
 use super::{Document, Metadata};
 use super::{LectitoError, Result};
 use serde::Serialize;
@@ -96,7 +97,7 @@ impl Article {
     pub fn new(content: String, metadata: Metadata, source_url: Option<String>) -> Self {
         let text_content = html_to_text(&content);
         let length = content.chars().count();
-        let word_count = count_words(&text_content);
+        let word_count = utils::count_words(&text_content);
         let reading_time = word_count as f64 / 200.0;
 
         Self {
@@ -249,14 +250,6 @@ mod tests {
         let html = "<p>Hello world</p><p>Second paragraph</p>";
         let text = html_to_text(html);
         assert_eq!(text, "Hello world\n\nSecond paragraph");
-    }
-
-    #[test]
-    fn test_count_words() {
-        assert_eq!(count_words("hello world"), 2);
-        assert_eq!(count_words("one"), 1);
-        assert_eq!(count_words(""), 0);
-        assert_eq!(count_words("a b c d e"), 5);
     }
 
     #[test]

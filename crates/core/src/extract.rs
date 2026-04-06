@@ -1,13 +1,11 @@
-use crate::utils;
-
 use super::dom_tree::DomTree;
-use super::metadata::count_words;
 use super::metadata::text_similarity;
 use super::parse::{Document, Element};
 use super::postprocess::{PostProcessConfig, TableKind, classify_table_element, postprocess_html};
 use super::preprocess::hidden_reason;
-use super::scoring::{ScoreConfig, ScoreResult, calculate_score};
+use super::scoring::{ScoreConfig, ScoreResult, calculate_score, link_density};
 use super::siteconfig::{SiteConfig, SiteConfigProcessing, SiteConfigXPath};
+use super::utils;
 use super::{LectitoError, Result, preprocess};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -310,7 +308,7 @@ fn should_remove_partial_selector_candidate(element: &Element<'_>) -> bool {
 
     let text_len = element.text().chars().count();
     let paragraph_count = element.select("p").map(|els| els.len()).unwrap_or(0);
-    let ld = crate::scoring::link_density(element);
+    let ld = link_density(element);
 
     if text_len > 1800 || paragraph_count > 5 {
         return false;
@@ -484,7 +482,7 @@ fn identify_entry_point_candidates<'a>(doc: &'a Document, score_config: &ScoreCo
         };
 
         for element in elements {
-            let words = count_words(&element.text());
+            let words = utils::count_words(&element.text());
             if element.tag_name() != "body" && words < MIN_ENTRY_POINT_WORDS {
                 continue;
             }
@@ -520,13 +518,7 @@ fn propagate_scores<'a>(candidates: &mut Vec<Candidate<'a>>, doc: &'a Document, 
 
     for candidate in candidates.iter() {
         let cand_html = candidate.element.outer_html();
-        let key = if cand_html.len() > 200 {
-            let truncated = truncate_at_char_boundary(&cand_html, 200);
-            format!("{}-{}", candidate.element.tag_name(), truncated)
-        } else {
-            format!("{}-{}", candidate.element.tag_name(), cand_html)
-        };
-        processed_elements.insert(key);
+        processed_elements.insert(candidate_lookup_key(&candidate.element.tag_name(), &cand_html));
     }
 
     for candidate in candidates.iter() {
@@ -535,62 +527,28 @@ fn propagate_scores<'a>(candidates: &mut Vec<Candidate<'a>>, doc: &'a Document, 
         let candidate_tag = candidate.element.tag_name();
 
         if let Some(parent_node) = dom_tree.get_parent_by_html(&candidate_html, &candidate_tag) {
-            let parent_html = &parent_node.html;
-            let parent_tag = &parent_node.tag_name;
-            let parent_key = if parent_html.len() > 200 {
-                let truncated = truncate_at_char_boundary(parent_html, 200);
-                format!("{}-{}", parent_tag, truncated)
-            } else {
-                format!("{}-{}", parent_tag, parent_html)
-            };
-
-            if !processed_elements.contains(&parent_key)
-                && let Ok(parent_elements) = doc.select(parent_tag)
-            {
-                for parent_elem in parent_elements {
-                    if parent_elem.outer_html() == *parent_html {
-                        let parent_score_result = calculate_score(&parent_elem, &score_config);
-                        let boosted_score = parent_score_result.final_score + candidate_score / 2.0;
-
-                        let mut boosted_result = parent_score_result.clone();
-                        boosted_result.final_score = boosted_score;
-
-                        additional_candidates.push(Candidate::new(parent_elem, boosted_result));
-                        processed_elements.insert(parent_key);
-                        break;
-                    }
-                }
-            }
+            promote_ancestor_candidate(
+                doc,
+                &mut processed_elements,
+                &mut additional_candidates,
+                (&parent_node.tag_name, &parent_node.html),
+                candidate_score,
+                2.0,
+                &score_config,
+            );
 
             if let Some(parent_id) = parent_node.parent_id
                 && let Some(grandparent_node) = dom_tree.get_parent(parent_id)
             {
-                let grandparent_html = &grandparent_node.html;
-                let grandparent_tag = &grandparent_node.tag_name;
-                let grandparent_key = if grandparent_html.len() > 200 {
-                    let truncated = truncate_at_char_boundary(grandparent_html, 200);
-                    format!("{}-{}", grandparent_tag, truncated)
-                } else {
-                    format!("{}-{}", grandparent_tag, grandparent_html)
-                };
-
-                if !processed_elements.contains(&grandparent_key)
-                    && let Ok(grandparent_elements) = doc.select(grandparent_tag)
-                {
-                    for grandparent_elem in grandparent_elements {
-                        if grandparent_elem.outer_html() == *grandparent_html {
-                            let grandparent_score_result = calculate_score(&grandparent_elem, &score_config);
-                            let boosted_score = grandparent_score_result.final_score + candidate_score / 3.0;
-
-                            let mut boosted_result = grandparent_score_result.clone();
-                            boosted_result.final_score = boosted_score;
-
-                            additional_candidates.push(Candidate::new(grandparent_elem, boosted_result));
-                            processed_elements.insert(grandparent_key);
-                            break;
-                        }
-                    }
-                }
+                promote_ancestor_candidate(
+                    doc,
+                    &mut processed_elements,
+                    &mut additional_candidates,
+                    (&grandparent_node.tag_name, &grandparent_node.html),
+                    candidate_score,
+                    3.0,
+                    &score_config,
+                );
             }
         }
     }
@@ -598,11 +556,40 @@ fn propagate_scores<'a>(candidates: &mut Vec<Candidate<'a>>, doc: &'a Document, 
     candidates.extend(additional_candidates);
 }
 
-/// Select the top candidate from the list
+fn candidate_lookup_key(tag_name: &str, html: &str) -> String {
+    if html.len() > 200 {
+        let truncated = truncate_at_char_boundary(html, 200);
+        format!("{tag_name}-{truncated}")
+    } else {
+        format!("{tag_name}-{html}")
+    }
+}
+
+fn promote_ancestor_candidate<'a>(
+    doc: &'a Document, processed_elements: &mut HashSet<String>, additional_candidates: &mut Vec<Candidate<'a>>,
+    ancestor: (&str, &str), candidate_score: f64, boost_divisor: f64, score_config: &ScoreConfig,
+) {
+    let (tag_name, html) = ancestor;
+    let key = candidate_lookup_key(tag_name, html);
+    if processed_elements.contains(&key) {
+        return;
+    }
+
+    let Some(element) = element_for_node(doc, tag_name, html) else {
+        return;
+    };
+
+    let mut boosted_result = calculate_score(&element, score_config);
+    boosted_result.final_score += candidate_score / boost_divisor;
+    additional_candidates.push(Candidate::new(element, boosted_result));
+    processed_elements.insert(key);
+}
+
+/// Select the top candidate from the list.
 ///
-/// Returns the highest scoring candidate if it meets the minimum threshold,
-/// otherwise returns a NotReadable error.
-fn select_top_candidate<'a>(candidates: &'a [Candidate<'a>], config: &ExtractConfig) -> Result<&'a Candidate<'a>> {
+/// Returns an owned candidate so later pipeline stages can move the candidate list
+/// without holding references into it.
+fn select_top_candidate<'a>(candidates: &[Candidate<'a>], config: &ExtractConfig) -> Result<Candidate<'a>> {
     if candidates.is_empty() {
         return Err(LectitoError::NoContent);
     }
@@ -610,6 +597,7 @@ fn select_top_candidate<'a>(candidates: &'a [Candidate<'a>], config: &ExtractCon
     let top_candidate = candidates
         .iter()
         .max_by(|a, b| compare_candidates(a, b).unwrap_or(std::cmp::Ordering::Equal))
+        .map(copy_candidate)
         .unwrap();
 
     if top_candidate.score() < config.min_score_threshold {
@@ -714,13 +702,13 @@ fn aggregate_clustered_candidates<'a>(
         return None;
     }
 
-    let top_words = count_words(&top_candidate.element.text()).max(1);
-    let ancestor_words = count_words(&ancestor.text());
+    let top_words = utils::count_words(&top_candidate.element.text()).max(1);
+    let ancestor_words = utils::count_words(&ancestor.text());
     if ancestor_words * 5 < top_words * 6 {
         return None;
     }
 
-    let link_density = crate::scoring::link_density(&ancestor);
+    let link_density = link_density(&ancestor);
     if link_density > 0.45 {
         return None;
     }
@@ -770,9 +758,19 @@ struct SelectedBlock<'a> {
     order: usize,
 }
 
+struct CandidateSelection<'a> {
+    candidates: Vec<Candidate<'a>>,
+    top_candidate: Candidate<'a>,
+    dom_tree: Option<DomTree>,
+}
+
+fn copy_candidate<'a>(candidate: &Candidate<'a>) -> Candidate<'a> {
+    Candidate::new(candidate.element.clone(), candidate.score_result.clone())
+}
+
 fn block_word_count(element: &Element<'_>) -> usize {
     let normalized = utils::normalize_whitespace(&element.text());
-    count_words(&normalized)
+    utils::count_words(&normalized)
 }
 
 fn block_preference_score(element: &Element<'_>) -> usize {
@@ -813,8 +811,8 @@ fn should_drop_overlapping_block(current: &SelectedBlock<'_>, other: &SelectedBl
         return other_pref > current_pref || (other_pref == current_pref && other.order < current.order);
     }
 
-    let current_words = count_words(&current_text);
-    let other_words = count_words(&other_text);
+    let current_words = utils::count_words(&current_text);
+    let other_words = utils::count_words(&other_text);
     if current_words == 0 || other_words == 0 || other_words < current_words {
         return false;
     }
@@ -872,7 +870,7 @@ fn candidate_diagnostics(candidates: &[Candidate<'_>], limit: usize) -> Vec<Cand
             class: candidate.score_result.class.clone(),
             id: candidate.score_result.id.clone(),
             text_chars: candidate.element.text().chars().count(),
-            word_count: count_words(&candidate.element.text()),
+            word_count: utils::count_words(&candidate.element.text()),
             base_score: candidate.score_result.base_score,
             class_weight: candidate.score_result.class_weight,
             content_density: candidate.score_result.content_density,
@@ -933,11 +931,11 @@ fn build_extraction_diagnostics(
     removal_log: Vec<RemovalLogEntry>,
 ) -> ExtractionDiagnostics {
     let page_text = source_doc.text_content();
-    let page_word_count = count_words(&page_text);
+    let page_word_count = utils::count_words(&page_text);
     let content_text = Document::parse(content)
         .map(|doc| doc.text_content())
         .unwrap_or_default();
-    let content_word_count = count_words(&content_text);
+    let content_word_count = utils::count_words(&content_text);
     let top_score = top_candidate.score();
     let second_score = candidates
         .iter()
@@ -964,8 +962,8 @@ fn build_extraction_diagnostics(
 }
 
 fn select_preferred_entry_candidate<'a>(
-    entry_candidates: &'a [EntryPointCandidate<'a>], dom_tree: Option<&DomTree>,
-) -> Option<&'a EntryPointCandidate<'a>> {
+    entry_candidates: &[EntryPointCandidate<'a>], dom_tree: Option<&DomTree>,
+) -> Option<EntryPointCandidate<'a>> {
     if entry_candidates.is_empty() {
         return None;
     }
@@ -981,10 +979,10 @@ fn select_preferred_entry_candidate<'a>(
 
     let top = ordered[0];
     let Some(dom_tree) = dom_tree else {
-        return Some(top);
+        return Some(copy_entry_candidate(top));
     };
     let Some(top_id) = node_id_for_element(&top.candidate.element, dom_tree) else {
-        return Some(top);
+        return Some(copy_entry_candidate(top));
     };
 
     let preferred = ordered
@@ -1024,7 +1022,18 @@ fn select_preferred_entry_candidate<'a>(
                 })
         });
 
-    preferred.map(|(candidate, _)| candidate).or(Some(top))
+    preferred
+        .map(|(candidate, _)| copy_entry_candidate(candidate))
+        .or_else(|| Some(copy_entry_candidate(top)))
+}
+
+fn copy_entry_candidate<'a>(candidate: &EntryPointCandidate<'a>) -> EntryPointCandidate<'a> {
+    EntryPointCandidate {
+        candidate: copy_candidate(&candidate.candidate),
+        selector_index: candidate.selector_index,
+        word_count: candidate.word_count,
+        content_score: candidate.content_score,
+    }
 }
 
 fn should_prefer_scored_descendant(
@@ -1048,7 +1057,7 @@ fn should_prefer_scored_descendant(
     }
 
     let entry_words = entry_candidate.word_count.max(1);
-    let scored_words = count_words(&scored_candidate.element.text());
+    let scored_words = utils::count_words(&scored_candidate.element.text());
     scored_words >= MIN_ENTRY_POINT_WORDS && scored_words * 10 >= entry_words * 6
 }
 
@@ -1073,12 +1082,12 @@ fn select_table_layout_candidate<'a>(doc: &'a Document, score_config: &ScoreConf
             continue;
         };
         for element in elements {
-            let words = count_words(&element.text());
+            let words = utils::count_words(&element.text());
             if words < MIN_ENTRY_POINT_WORDS {
                 continue;
             }
 
-            let link_density = crate::scoring::link_density(&element);
+            let link_density = link_density(&element);
             if link_density > 0.45 {
                 continue;
             }
@@ -1135,7 +1144,7 @@ fn select_siblings<'a>(
                 let text_len = text.chars().count();
 
                 if text_len > 80 {
-                    let link_density = crate::scoring::link_density(&candidate.element);
+                    let link_density = link_density(&candidate.element);
                     if link_density < 0.25 {
                         siblings.push(candidate.element.clone());
                     }
@@ -1165,7 +1174,7 @@ fn select_siblings<'a>(
             if text_len < 10 {
                 continue;
             }
-            let link_density = crate::scoring::link_density(&header);
+            let link_density = link_density(&header);
             if link_density > 0.3 {
                 continue;
             }
@@ -1183,7 +1192,7 @@ fn select_siblings<'a>(
     {
         let heading_text = heading.text().trim().to_string();
         if heading_text.len() > 5 {
-            let link_density = crate::scoring::link_density(heading);
+            let link_density = link_density(heading);
             let top_text = top_candidate.element.text();
             if link_density <= 0.3
                 && !top_text.contains(&heading_text)
@@ -1198,46 +1207,28 @@ fn select_siblings<'a>(
     siblings
 }
 
-/// Extract the main content from a document
-///
-/// This is the main entry point for content extraction. It:
-/// 1. Identifies candidate elements
-/// 2. Propagates scores to ancestors
-/// 3. Selects the top candidate
-/// 4. Includes relevant siblings
-/// 5. Post-processes the extracted content
-/// 6. Returns the cleaned content
-pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<ExtractedContent> {
-    let prepared = prepare_scoring_document(doc, config);
-    let filtered_doc = prepared.document.as_ref();
-    let mut working_doc = filtered_doc.unwrap_or(doc);
-    let score_config = ScoreConfig::default();
-    let mut entry_candidates = identify_entry_point_candidates(working_doc, &score_config);
-
-    let mut candidates = identify_candidates(working_doc, config, &score_config);
-
-    if candidates.is_empty() && filtered_doc.is_some() {
-        working_doc = doc;
-        entry_candidates = identify_entry_point_candidates(working_doc, &score_config);
-        candidates = identify_candidates(working_doc, config, &score_config);
+fn collect_candidates_from_doc<'a>(
+    doc: &'a Document, config: &ExtractConfig, score_config: &ScoreConfig,
+) -> Result<CandidateSelection<'a>> {
+    let entry_candidates = identify_entry_point_candidates(doc, score_config);
+    let mut candidates = identify_candidates(doc, config, score_config);
+    if candidates.is_empty() {
+        return Err(LectitoError::NoContent);
     }
 
-    let dom_tree = crate::build_dom_tree(&working_doc.as_string()).ok();
+    let dom_tree = crate::build_dom_tree(&doc.as_string()).ok();
     if let Some(tree) = dom_tree.as_ref() {
-        propagate_scores(&mut candidates, working_doc, tree);
+        propagate_scores(&mut candidates, doc, tree);
     }
 
     candidates.sort_by(|a, b| b.score().partial_cmp(&a.score()).unwrap_or(std::cmp::Ordering::Equal));
     let aggregated_candidate = dom_tree
         .as_ref()
-        .and_then(|tree| aggregate_clustered_candidates(working_doc, &candidates, tree, &score_config));
+        .and_then(|tree| aggregate_clustered_candidates(doc, &candidates, tree, score_config));
 
     candidates.truncate(config.max_top_candidates);
-    let table_layout_candidate = select_table_layout_candidate(working_doc, &score_config);
-    let scored_top_candidate = match (
-        select_top_candidate(&candidates, config).ok().cloned(),
-        aggregated_candidate,
-    ) {
+    let table_layout_candidate = select_table_layout_candidate(doc, score_config);
+    let scored_top_candidate = match (select_top_candidate(&candidates, config).ok(), aggregated_candidate) {
         (Some(scored), Some(aggregated)) => Some(
             if compare_candidates(&aggregated, &scored).is_some_and(|order| order.is_gt()) {
                 aggregated
@@ -1253,71 +1244,134 @@ pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<Extract
         .filter(|candidate| candidate.score() >= config.min_score_threshold)
         .filter(|candidate| entry_candidate_meets_threshold(candidate, config));
 
-    let top_candidate = match (
-        preferred_entry_candidate,
-        scored_top_candidate.as_ref(),
-        table_layout_candidate.as_ref(),
-    ) {
+    let top_candidate = match (preferred_entry_candidate, scored_top_candidate, table_layout_candidate) {
         (Some(entry_candidate), Some(scored_candidate), _)
-            if should_prefer_scored_descendant(entry_candidate, scored_candidate, dom_tree.as_ref()) =>
+            if should_prefer_scored_descendant(&entry_candidate, &scored_candidate, dom_tree.as_ref()) =>
         {
-            scored_candidate.clone()
+            scored_candidate
         }
-        (Some(entry_candidate), _, _) => entry_candidate.candidate.clone(),
-        (None, Some(scored_candidate), _) => scored_candidate.clone(),
-        (None, None, Some(table_candidate)) if table_candidate.score() >= config.min_score_threshold => {
-            table_candidate.clone()
-        }
-        _ => select_top_candidate(&candidates, config)?.clone(),
+        (Some(entry_candidate), _, _) => entry_candidate.candidate,
+        (None, Some(scored_candidate), _) => scored_candidate,
+        (None, None, Some(table_candidate)) if table_candidate.score() >= config.min_score_threshold => table_candidate,
+        _ => select_top_candidate(&candidates, config)?,
     };
-    let siblings = select_siblings(working_doc, &top_candidate, &candidates, config, dom_tree.as_ref());
+
+    Ok(CandidateSelection { candidates, top_candidate, dom_tree })
+}
+
+fn assemble_selected_blocks<'a>(
+    doc: &'a Document, selection: &CandidateSelection<'a>, config: &ExtractConfig,
+) -> Vec<SelectedBlock<'a>> {
+    let siblings = select_siblings(
+        doc,
+        &selection.top_candidate,
+        &selection.candidates,
+        config,
+        selection.dom_tree.as_ref(),
+    );
+    let (heading_blocks, body_blocks): (Vec<_>, Vec<_>) = siblings
+        .into_iter()
+        .partition(|element| matches!(element.tag_name().as_str(), "header" | "h1"));
+
     let mut selected_blocks = Vec::new();
     let mut order = 0usize;
 
-    for sibling in siblings {
-        if matches!(sibling.tag_name().as_str(), "header" | "h1") {
-            selected_blocks.push(SelectedBlock { element: sibling, order });
-            order += 1;
-        }
+    for element in heading_blocks {
+        selected_blocks.push(SelectedBlock { element, order });
+        order += 1;
     }
 
-    selected_blocks.push(SelectedBlock { element: top_candidate.element.clone(), order });
+    selected_blocks.push(SelectedBlock { element: selection.top_candidate.element.clone(), order });
     order += 1;
 
-    for sibling in select_siblings(working_doc, &top_candidate, &candidates, config, dom_tree.as_ref()) {
-        if !matches!(sibling.tag_name().as_str(), "header" | "h1") {
-            selected_blocks.push(SelectedBlock { element: sibling, order });
-            order += 1;
-        }
+    for element in body_blocks {
+        selected_blocks.push(SelectedBlock { element, order });
+        order += 1;
     }
 
-    let selected_blocks = prune_overlapping_blocks(selected_blocks);
+    prune_overlapping_blocks(selected_blocks)
+}
 
-    let mut content = String::new();
-    for block in &selected_blocks {
-        if !content.is_empty() {
-            content.push('\n');
-        }
-        content.push_str(&block.element.outer_html());
-    }
+fn render_selected_blocks(doc: &Document, selected_blocks: &[SelectedBlock<'_>]) -> String {
+    let mut content = selected_blocks
+        .iter()
+        .map(|block| block.element.outer_html())
+        .collect::<Vec<_>>()
+        .join("\n");
 
     if let Some(title) = doc.title() {
-        let has_h1 = content.contains("<h1");
-        let content_text = Document::parse(&content).map(|d| d.text_content()).unwrap_or_default();
-        if !has_h1 && !content_text.contains(&title) {
-            let safe_title = escape_html(&title);
-            content = format!("<h1>{}</h1>\n{}", safe_title, content);
-        }
+        content = ensure_title_heading(content, &title);
     }
 
-    let content = postprocess_html(&content, &config.postprocess);
+    content
+}
 
-    let primary_candidate = find_selected_candidate(&selected_blocks, &candidates).unwrap_or(&top_candidate);
+fn ensure_title_heading(content: String, title: &str) -> String {
+    let has_h1 = content.contains("<h1");
+    let content_text = Document::parse(&content)
+        .map(|doc| doc.text_content())
+        .unwrap_or_default();
+    if has_h1 || content_text.contains(title) {
+        return content;
+    }
+
+    let safe_title = utils::escape_html(title);
+    format!("<h1>{safe_title}</h1>\n{content}")
+}
+
+fn finalize_extraction_result(
+    source_doc: &Document, config: &ExtractConfig, selection: CandidateSelection<'_>,
+    selected_blocks: Vec<SelectedBlock<'_>>, removal_log: Vec<RemovalLogEntry>,
+) -> ExtractedContent {
+    let content = postprocess_html(
+        &render_selected_blocks(source_doc, &selected_blocks),
+        &config.postprocess,
+    );
+    let primary_candidate =
+        find_selected_candidate(&selected_blocks, &selection.candidates).unwrap_or(&selection.top_candidate);
     let element_count = selected_blocks.len();
-    let diagnostics = build_extraction_diagnostics(doc, &content, primary_candidate, &candidates, prepared.removal_log);
+    let diagnostics = build_extraction_diagnostics(
+        source_doc,
+        &content,
+        primary_candidate,
+        &selection.candidates,
+        removal_log,
+    );
     let confidence = confidence_from_diagnostics(&diagnostics);
 
-    Ok(ExtractedContent { content, top_score: top_candidate.score(), element_count, confidence, diagnostics })
+    ExtractedContent { content, top_score: selection.top_candidate.score(), element_count, confidence, diagnostics }
+}
+
+/// Extract the main content from a document
+///
+/// This is the main entry point for content extraction. It:
+/// 1. Identifies candidate elements
+/// 2. Propagates scores to ancestors
+/// 3. Selects the top candidate
+/// 4. Includes relevant siblings
+/// 5. Post-processes the extracted content
+/// 6. Returns the cleaned content
+pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<ExtractedContent> {
+    let prepared = prepare_scoring_document(doc, config);
+    let score_config = ScoreConfig::default();
+    let mut working_doc = prepared.document.as_ref().unwrap_or(doc);
+    let selection = match collect_candidates_from_doc(working_doc, config, &score_config) {
+        Ok(selection) => selection,
+        Err(LectitoError::NoContent) if prepared.document.is_some() => {
+            working_doc = doc;
+            collect_candidates_from_doc(working_doc, config, &score_config)?
+        }
+        Err(error) => return Err(error),
+    };
+    let selected_blocks = assemble_selected_blocks(working_doc, &selection, config);
+
+    Ok(finalize_extraction_result(
+        doc,
+        config,
+        selection,
+        selected_blocks,
+        prepared.removal_log,
+    ))
 }
 
 fn parent_id_for(element: &Element<'_>, dom_tree: &DomTree) -> Option<usize> {
@@ -1356,15 +1410,6 @@ fn truncate_at_char_boundary(s: &str, max_len: usize) -> &str {
     &s[..safe_len]
 }
 
-fn escape_html(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#39;")
-}
-
 fn compare_candidates<'a>(a: &Candidate<'a>, b: &Candidate<'a>) -> Option<std::cmp::Ordering> {
     let score_order = a.score().partial_cmp(&b.score())?;
     if score_order != std::cmp::Ordering::Equal {
@@ -1389,6 +1434,38 @@ fn candidate_priority(tag_name: &str) -> u8 {
         "div" => 2,
         _ => 1,
     }
+}
+
+fn build_single_block_extraction(
+    doc: &Document, content: String, content_text: Option<String>, top_score: f64, site_extractor: Option<&str>,
+) -> ExtractedContent {
+    let content_text = content_text.unwrap_or_else(|| {
+        Document::parse(&content)
+            .map(|doc| doc.text_content())
+            .unwrap_or_default()
+    });
+    let page_text = doc.text_content();
+    let page_word_count = utils::count_words(&page_text);
+    let content_word_count = utils::count_words(&content_text);
+    let diagnostics = ExtractionDiagnostics {
+        page_word_count,
+        page_text_chars: page_text.chars().count(),
+        content_word_count,
+        content_text_chars: content_text.chars().count(),
+        content_word_ratio: content_word_count as f64 / page_word_count.max(1) as f64,
+        top_candidate_score: Some(top_score),
+        second_candidate_score: None,
+        score_spread: None,
+        top_candidate_link_density: None,
+        candidate_scores: Vec::new(),
+        removal_log: Vec::new(),
+        pass_history: Vec::new(),
+        selected_pass: None,
+        site_extractor: site_extractor.map(|value| value.to_string()),
+    };
+    let confidence = confidence_from_diagnostics(&diagnostics);
+
+    ExtractedContent { content, top_score, element_count: 1, confidence, diagnostics }
 }
 
 /// Extract content from the largest hidden element subtree (Pass 3 of multi-pass retry).
@@ -1418,7 +1495,7 @@ pub(crate) fn extract_largest_hidden_subtree(doc: &Document) -> Option<Extracted
                 continue;
             }
             let text = el.text();
-            let word_count = count_words(&text);
+            let word_count = utils::count_words(&text);
             if word_count > best_word_count {
                 best_word_count = word_count;
                 best_html = el.outer_html();
@@ -1430,36 +1507,13 @@ pub(crate) fn extract_largest_hidden_subtree(doc: &Document) -> Option<Extracted
         return None;
     }
 
-    let content_text = Document::parse(&best_html)
-        .map(|doc| doc.text_content())
-        .unwrap_or_default();
-    let page_text = doc.text_content();
-    let page_word_count = count_words(&page_text);
-    let diagnostics = ExtractionDiagnostics {
-        page_word_count,
-        page_text_chars: page_text.chars().count(),
-        content_word_count: best_word_count,
-        content_text_chars: content_text.chars().count(),
-        content_word_ratio: best_word_count as f64 / page_word_count.max(1) as f64,
-        top_candidate_score: Some(best_word_count as f64),
-        second_candidate_score: None,
-        score_spread: None,
-        top_candidate_link_density: None,
-        candidate_scores: Vec::new(),
-        removal_log: Vec::new(),
-        pass_history: Vec::new(),
-        selected_pass: None,
-        site_extractor: None,
-    };
-    let confidence = confidence_from_diagnostics(&diagnostics);
-
-    Some(ExtractedContent {
-        content: best_html,
-        top_score: best_word_count as f64,
-        element_count: 1,
-        confidence,
-        diagnostics,
-    })
+    Some(build_single_block_extraction(
+        doc,
+        best_html,
+        None,
+        best_word_count as f64,
+        None,
+    ))
 }
 
 /// Extract content from schema.org structured data (final fallback in multi-pass retry).
@@ -1476,28 +1530,13 @@ pub(crate) fn extract_schema_org_article(doc: &Document) -> Option<ExtractedCont
             && !el.text().trim().is_empty()
         {
             let content = el.outer_html();
-            let content_text = el.text();
-            let page_text = doc.text_content();
-            let page_word_count = count_words(&page_text);
-            let content_word_count = count_words(&content_text);
-            let diagnostics = ExtractionDiagnostics {
-                page_word_count,
-                page_text_chars: page_text.chars().count(),
-                content_word_count,
-                content_text_chars: content_text.chars().count(),
-                content_word_ratio: content_word_count as f64 / page_word_count.max(1) as f64,
-                top_candidate_score: Some(100.0),
-                second_candidate_score: None,
-                score_spread: None,
-                top_candidate_link_density: None,
-                candidate_scores: Vec::new(),
-                removal_log: Vec::new(),
-                pass_history: Vec::new(),
-                selected_pass: None,
-                site_extractor: None,
-            };
-            let confidence = confidence_from_diagnostics(&diagnostics);
-            return Some(ExtractedContent { content, top_score: 100.0, element_count: 1, confidence, diagnostics });
+            return Some(build_single_block_extraction(
+                doc,
+                content,
+                Some(el.text()),
+                100.0,
+                None,
+            ));
         }
     }
 
@@ -1515,34 +1554,14 @@ pub(crate) fn extract_schema_org_article(doc: &Document) -> Option<ExtractedCont
             if let Some(body_text) = value.get(*field).and_then(|v| v.as_str()) {
                 let trimmed = body_text.trim();
                 if !trimmed.is_empty() {
-                    let content = format!("<div>{}</div>", escape_html(trimmed));
-                    let page_text = doc.text_content();
-                    let page_word_count = count_words(&page_text);
-                    let content_word_count = count_words(trimmed);
-                    let diagnostics = ExtractionDiagnostics {
-                        page_word_count,
-                        page_text_chars: page_text.chars().count(),
-                        content_word_count,
-                        content_text_chars: trimmed.chars().count(),
-                        content_word_ratio: content_word_count as f64 / page_word_count.max(1) as f64,
-                        top_candidate_score: Some(100.0),
-                        second_candidate_score: None,
-                        score_spread: None,
-                        top_candidate_link_density: None,
-                        candidate_scores: Vec::new(),
-                        removal_log: Vec::new(),
-                        pass_history: Vec::new(),
-                        selected_pass: None,
-                        site_extractor: None,
-                    };
-                    let confidence = confidence_from_diagnostics(&diagnostics);
-                    return Some(ExtractedContent {
+                    let content = format!("<div>{}</div>", utils::escape_html(trimmed));
+                    return Some(build_single_block_extraction(
+                        doc,
                         content,
-                        top_score: 100.0,
-                        element_count: 1,
-                        confidence,
-                        diagnostics,
-                    });
+                        Some(trimmed.to_string()),
+                        100.0,
+                        None,
+                    ));
                 }
             }
         }
@@ -1588,33 +1607,13 @@ fn extract_with_site_config(
     // TODO: we should use this
     let _title = site_config.extract_title(&html)?.or_else(|| doc.title());
 
-    let element_count = 1;
-    let top_score = 100.0;
-    let page_text = doc.text_content();
-    let content_text = Document::parse(&body_content)
-        .map(|doc| doc.text_content())
-        .unwrap_or_default();
-    let page_word_count = count_words(&page_text);
-    let content_word_count = count_words(&content_text);
-    let diagnostics = ExtractionDiagnostics {
-        page_word_count,
-        page_text_chars: page_text.chars().count(),
-        content_word_count,
-        content_text_chars: content_text.chars().count(),
-        content_word_ratio: content_word_count as f64 / page_word_count.max(1) as f64,
-        top_candidate_score: Some(top_score),
-        second_candidate_score: None,
-        score_spread: None,
-        top_candidate_link_density: None,
-        candidate_scores: Vec::new(),
-        removal_log: Vec::new(),
-        pass_history: Vec::new(),
-        selected_pass: None,
-        site_extractor: Some("site-config".to_string()),
-    };
-    let confidence = confidence_from_diagnostics(&diagnostics);
-
-    Ok(ExtractedContent { content: body_content, element_count, top_score, confidence, diagnostics })
+    Ok(build_single_block_extraction(
+        doc,
+        body_content,
+        None,
+        100.0,
+        Some("site-config"),
+    ))
 }
 
 #[cfg(test)]

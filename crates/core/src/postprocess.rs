@@ -1,8 +1,7 @@
-use crate::utils;
-
 use super::metadata::text_similarity;
 use super::parse::{Document, Element};
 use super::scoring::hash_only_link_coefficient;
+use super::utils;
 use regex::Regex;
 use std::collections::HashSet;
 use std::sync::OnceLock;
@@ -131,15 +130,6 @@ fn strip_images(html: &str) -> String {
 fn strip_classes(html: &str) -> String {
     let re = Regex::new(r#"\s+class=["'][^"']*["']"#).unwrap();
     re.replace_all(html, "").to_string()
-}
-
-fn escape_html(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#39;")
 }
 
 fn table_selector_attrs(table: &Element<'_>) -> String {
@@ -395,7 +385,7 @@ fn normalize_language(value: &str) -> Option<String> {
     (!cleaned.is_empty()).then_some(cleaned)
 }
 
-fn detect_code_language(pre: &crate::parse::Element<'_>, code: Option<&crate::parse::Element<'_>>) -> Option<String> {
+fn detect_code_language(pre: &Element<'_>, code: Option<&Element<'_>>) -> Option<String> {
     let candidates = [
         pre.attr("data-lang"),
         pre.attr("data-language"),
@@ -469,7 +459,7 @@ fn build_callout_html(callout_type: &str, title: &str, body_html: &str) -> Strin
     let heading = if title.is_empty() {
         String::new()
     } else {
-        format!(r#"<p><strong>{}</strong></p>"#, escape_html(title))
+        format!(r#"<p><strong>{}</strong></p>"#, utils::escape_html(title))
     };
     format!(
         r#"<blockquote data-callout="{}">{}{}</blockquote>"#,
@@ -561,7 +551,7 @@ fn ensure_math_xmlns(math_html: String) -> String {
 }
 
 fn build_math_html(content: &str, display: &str) -> String {
-    let escaped = escape_html(content);
+    let escaped = utils::escape_html(content);
     format!(
         r#"<math xmlns="http://www.w3.org/1998/Math/MathML" display="{}" data-latex="{}">{}</math>"#,
         display, escaped, escaped
@@ -655,11 +645,11 @@ fn build_footnote_ref_html(id: &str, label: &str) -> String {
         r##"<sup id="fnref:{}"><a href="#fn:{}">[{}]</a></sup>"##,
         id,
         id,
-        escape_html(label)
+        utils::escape_html(label)
     )
 }
 
-fn standardize_footnote_item(item: &crate::parse::Element<'_>, position: usize) -> String {
+fn standardize_footnote_item(item: &Element<'_>, position: usize) -> String {
     let raw_id = item
         .attr("id")
         .and_then(normalize_reference_id)
@@ -834,11 +824,6 @@ fn content_root_selector() -> &'static str {
     "#__lectito_content_root__"
 }
 
-fn word_regex() -> &'static Regex {
-    static REGEX: OnceLock<Regex> = OnceLock::new();
-    REGEX.get_or_init(|| Regex::new(r"\b[\w'-]+\b").unwrap())
-}
-
 fn boundary_date_regex() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
@@ -892,10 +877,6 @@ fn boilerplate_regex() -> &'static Regex {
         )
         .unwrap()
     })
-}
-
-fn count_words(text: &str) -> usize {
-    word_regex().find_iter(text).count()
 }
 
 fn title_word_count(text: &str) -> usize {
@@ -1048,7 +1029,7 @@ fn remove_content_patterns(html: &str) -> String {
 
     for child in &top_level {
         let text = utils::normalize_whitespace(&child.text());
-        let words = count_words(&text);
+        let words = utils::count_words(&text);
         let tag = child.tag_name();
         let pos = full_text.find(&text).unwrap_or(usize::MAX);
 
@@ -1084,7 +1065,7 @@ fn remove_content_patterns(html: &str) -> String {
                 continue;
             }
             if let Some(pos) = full_text.find(&text)
-                && count_words(&full_text[..pos]) >= 8
+                && utils::count_words(&full_text[..pos]) >= 8
             {
                 truncate_from = Some(heading.outer_html());
                 break;
@@ -1098,7 +1079,7 @@ fn remove_content_patterns(html: &str) -> String {
     );
     for element in doc.select(&candidate_selector).unwrap_or_default() {
         let text = utils::normalize_whitespace(&element.text());
-        let words = count_words(&text);
+        let words = utils::count_words(&text);
         if words == 0 || words > 15 {
             continue;
         }
@@ -1239,7 +1220,7 @@ fn remove_doc_chrome_text_blocks(html: &str) -> String {
         result = element_re
             .replace_all(&result, |caps: &regex::Captures| {
                 let inner_html = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-                let text = strip_tags(inner_html);
+                let text = utils::strip_tags(inner_html);
                 let trimmed = text.trim();
                 let word_count = trimmed.split_whitespace().count();
                 if trimmed.len() <= 200 && word_count <= 10 && text_pattern.is_match(trimmed) {
@@ -1277,7 +1258,7 @@ fn remove_high_link_density_nodes(html: &str, max_density: f64) -> String {
                 }
 
                 let inner_html = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-                let text_content = strip_tags(inner_html);
+                let text_content = utils::strip_tags(inner_html);
                 let text_length = text_content.chars().count();
 
                 if text_length == 0 {
@@ -1419,12 +1400,6 @@ fn fix_relative_urls(html: &str, base_url: &Url) -> String {
     if output.is_empty() { html.to_string() } else { output }
 }
 
-/// Strip HTML tags from a string, keeping only text content
-fn strip_tags(html: &str) -> String {
-    let re = Regex::new(r"<[^>]*>").unwrap();
-    re.replace_all(html, "").to_string()
-}
-
 /// Extract the total length of link text from HTML
 fn extract_link_text_length(html: &str) -> f64 {
     let link_re = Regex::new(r#"(?is)<a\b[^>]*>(.*?)</a>"#).unwrap();
@@ -1437,7 +1412,7 @@ fn extract_link_text_length(html: &str) -> f64 {
                 .captures(full)
                 .and_then(|href_cap| href_cap.get(1).map(|m| m.as_str()));
             let text = cap.get(1).map(|m| m.as_str()).unwrap_or("");
-            strip_tags(text).chars().count() as f64 * hash_only_link_coefficient(href)
+            utils::strip_tags(text).chars().count() as f64 * hash_only_link_coefficient(href)
         })
         .sum()
 }
@@ -1620,13 +1595,6 @@ mod tests {
 
         assert!(!result.contains("[if IE]"));
         assert!(result.contains("Content"));
-    }
-
-    #[test]
-    fn test_strip_tags() {
-        let html = r#"<p>This is <strong>bold</strong> text</p>"#;
-        let result = strip_tags(html);
-        assert_eq!(result, "This is bold text");
     }
 
     #[test]

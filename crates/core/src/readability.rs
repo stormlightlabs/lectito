@@ -4,12 +4,13 @@
 //! The main entry point is the [`Readability`] struct, along with convenience functions
 //! like [`parse`] and [`fetch_and_parse`].
 
+use crate::utils;
+
 use super::article::Article;
 use super::extract::ExtractConfig;
 use super::extract::{ExtractionDiagnostics, ExtractionPassDiagnostic, pass_reliability_factor};
 use super::extract::{extract_content_with_config, extract_largest_hidden_subtree, extract_schema_org_article};
 use super::fetch::{FetchConfig, fetch_url};
-use super::metadata::count_words;
 use super::parse::Document;
 use super::preprocess::PreprocessConfig;
 use super::scoring::{ScoreConfig, calculate_score};
@@ -30,6 +31,22 @@ struct BestAttempt {
     article: Article,
     selected_pass: String,
     site_extractor: Option<String>,
+}
+
+#[derive(Clone, Copy)]
+enum RetryPassMode {
+    Generic,
+    LargestHiddenSubtree,
+    SchemaOrg,
+}
+
+#[derive(Clone)]
+struct RetryPassSpec {
+    name: &'static str,
+    strategy: &'static str,
+    preprocess: PreprocessConfig,
+    min_score: f64,
+    mode: RetryPassMode,
 }
 
 /// Configuration for the Readability builder.
@@ -234,7 +251,7 @@ impl Readability {
             .try_site_extractor_async(&doc, &parsed_url, &request_config, merged_site_config.as_ref())
             .await?
         {
-            return Ok(article);
+            return Ok(self.finalize_site_extractor_article(article, &doc));
         }
 
         self.parse_with_retry_and_site_config(&html, Some(url), merged_site_config)
@@ -267,309 +284,147 @@ impl Readability {
         let base_url = url
             .map(|u| Url::parse(u).map_err(|e| LectitoError::InvalidUrl(e.to_string())))
             .transpose()?;
-        let page_words = 0usize;
         let mut pass_history = Vec::new();
         let mut best: Option<BestAttempt> = None;
 
-        let preprocess0 = PreprocessConfig {
-            base_url: base_url.clone(),
-            remove_unlikely: self.config.remove_unlikely,
-            preserve_video_embeds: self.config.preserve_video_embeds,
-            ..Default::default()
+        let pass0 = RetryPassSpec {
+            name: "pass-0-default",
+            strategy: "default heuristics",
+            preprocess: PreprocessConfig {
+                base_url: base_url.clone(),
+                remove_unlikely: self.config.remove_unlikely,
+                preserve_video_embeds: self.config.preserve_video_embeds,
+                ..Default::default()
+            },
+            min_score: self.config.min_score,
+            mode: RetryPassMode::Generic,
         };
+        let pass1 = RetryPassSpec {
+            name: "pass-1-relaxed-selectors",
+            strategy: "disable unlikely-candidate removal",
+            preprocess: PreprocessConfig {
+                base_url: base_url.clone(),
+                remove_unlikely: false,
+                preserve_video_embeds: self.config.preserve_video_embeds,
+                ..Default::default()
+            },
+            min_score: self.config.min_score,
+            mode: RetryPassMode::Generic,
+        };
+        let pass2 = RetryPassSpec {
+            name: "pass-2-hidden-disabled",
+            strategy: "disable hidden-element removal",
+            preprocess: PreprocessConfig {
+                base_url: base_url.clone(),
+                remove_unlikely: false,
+                remove_hidden: false,
+                preserve_video_embeds: self.config.preserve_video_embeds,
+                ..Default::default()
+            },
+            min_score: self.config.min_score,
+            mode: RetryPassMode::Generic,
+        };
+        let pass3 = RetryPassSpec {
+            name: "pass-3-hidden-subtree",
+            strategy: "largest hidden subtree fallback",
+            preprocess: pass2.preprocess.clone(),
+            min_score: self.config.min_score,
+            mode: RetryPassMode::LargestHiddenSubtree,
+        };
+        let pass4 = RetryPassSpec {
+            name: "pass-4-no-score-threshold",
+            strategy: "remove score threshold",
+            preprocess: pass2.preprocess.clone(),
+            min_score: 0.0,
+            mode: RetryPassMode::Generic,
+        };
+        let pass5 = RetryPassSpec {
+            name: "pass-5-schema-org",
+            strategy: "schema.org articleBody/text fallback",
+            preprocess: PreprocessConfig {
+                base_url: base_url.clone(),
+                remove_scripts: false,
+                remove_unlikely: false,
+                remove_hidden: false,
+                preserve_video_embeds: self.config.preserve_video_embeds,
+                ..Default::default()
+            },
+            min_score: self.config.min_score,
+            mode: RetryPassMode::SchemaOrg,
+        };
+
         if let Ok(raw_doc) = Document::parse_with_base_url(html, base_url.clone())
             && let Some(url) = url
             && let Ok(parsed_url) = Url::parse(url)
             && let Some(article) = self.try_site_extractor(&raw_doc, &parsed_url, site_config.as_ref())?
         {
-            let pass = build_pass_diagnostic(
-                "site-extractor",
-                "site extractor override",
-                Some(&article),
-                self.config.min_score,
-                &preprocess0,
-                true,
-                None,
-            );
-            pass_history.push(pass);
-            return Ok(finalize_article_assessment(
-                article,
-                "site-extractor",
-                &pass_history,
-                parsed_url.domain().map(str::to_string),
-                page_words,
-            ));
+            return Ok(self.finalize_site_extractor_article(article, &raw_doc));
         }
 
-        match self.try_extract_pass(html, url, &preprocess0, self.config.min_score, site_config.as_ref()) {
-            Ok(article) if article.word_count >= RETRY_WORD_THRESHOLD => {
-                pass_history.push(build_pass_diagnostic(
-                    "pass-0-default",
-                    "default heuristics",
-                    Some(&article),
-                    self.config.min_score,
-                    &preprocess0,
-                    false,
-                    None,
-                ));
-                return Ok(finalize_article_assessment(
-                    article,
-                    "pass-0-default",
-                    &pass_history,
-                    None,
-                    page_words,
-                ));
-            }
-            Ok(article) => {
-                pass_history.push(build_pass_diagnostic(
-                    "pass-0-default",
-                    "default heuristics",
-                    Some(&article),
-                    self.config.min_score,
-                    &preprocess0,
-                    false,
-                    None,
-                ));
-                update_best(&mut best, article, "pass-0-default", None);
-            }
-            Err(error) => pass_history.push(build_pass_diagnostic(
-                "pass-0-default",
-                "default heuristics",
-                None,
-                self.config.min_score,
-                &preprocess0,
-                false,
-                Some(error.to_string()),
-            )),
-        }
-
-        let preprocess1 = PreprocessConfig {
-            base_url: base_url.clone(),
-            remove_unlikely: false,
-            preserve_video_embeds: self.config.preserve_video_embeds,
-            ..Default::default()
-        };
-        match self.try_extract_pass(html, url, &preprocess1, self.config.min_score, site_config.as_ref()) {
-            Ok(article) if article.word_count >= RETRY_WORD_THRESHOLD => {
-                pass_history.push(build_pass_diagnostic(
-                    "pass-1-relaxed-selectors",
-                    "disable unlikely-candidate removal",
-                    Some(&article),
-                    self.config.min_score,
-                    &preprocess1,
-                    false,
-                    None,
-                ));
-                return Ok(finalize_article_assessment(
-                    article,
-                    "pass-1-relaxed-selectors",
-                    &pass_history,
-                    None,
-                    page_words,
-                ));
-            }
-            Ok(article) => {
-                pass_history.push(build_pass_diagnostic(
-                    "pass-1-relaxed-selectors",
-                    "disable unlikely-candidate removal",
-                    Some(&article),
-                    self.config.min_score,
-                    &preprocess1,
-                    false,
-                    None,
-                ));
-                update_best(&mut best, article, "pass-1-relaxed-selectors", None);
-            }
-            Err(error) => pass_history.push(build_pass_diagnostic(
-                "pass-1-relaxed-selectors",
-                "disable unlikely-candidate removal",
-                None,
-                self.config.min_score,
-                &preprocess1,
-                false,
-                Some(error.to_string()),
-            )),
-        }
-
-        let preprocess2 = PreprocessConfig {
-            base_url: base_url.clone(),
-            remove_unlikely: false,
-            remove_hidden: false,
-            preserve_video_embeds: self.config.preserve_video_embeds,
-            ..Default::default()
-        };
-        if let Ok(pass2_doc) = Document::parse_with_preprocessing_config(html, &preprocess2) {
-            match self.extract_from_doc(&pass2_doc, url, self.config.min_score, site_config.as_ref()) {
-                Ok(article) if article.word_count >= RETRY_WORD_THRESHOLD => {
-                    pass_history.push(build_pass_diagnostic(
-                        "pass-2-hidden-disabled",
-                        "disable hidden-element removal",
-                        Some(&article),
-                        self.config.min_score,
-                        &preprocess2,
-                        false,
-                        None,
-                    ));
-                    return Ok(finalize_article_assessment(
-                        article,
-                        "pass-2-hidden-disabled",
-                        &pass_history,
-                        None,
-                        page_words,
-                    ));
-                }
-                Ok(article) => {
-                    pass_history.push(build_pass_diagnostic(
-                        "pass-2-hidden-disabled",
-                        "disable hidden-element removal",
-                        Some(&article),
-                        self.config.min_score,
-                        &preprocess2,
-                        false,
-                        None,
-                    ));
-                    update_best(&mut best, article, "pass-2-hidden-disabled", None);
-                }
-                Err(error) => pass_history.push(build_pass_diagnostic(
-                    "pass-2-hidden-disabled",
-                    "disable hidden-element removal",
-                    None,
-                    self.config.min_score,
-                    &preprocess2,
-                    false,
-                    Some(error.to_string()),
-                )),
-            }
-
-            if let Some(extracted) = extract_largest_hidden_subtree(&pass2_doc) {
-                let mut article =
-                    Article::from_document_deduped(&pass2_doc, extracted.content, url.map(|u| u.to_string()));
-                article.set_extraction_assessment(extracted.confidence, extracted.diagnostics);
-                if article.word_count >= RETRY_WORD_THRESHOLD {
-                    pass_history.push(build_pass_diagnostic(
-                        "pass-3-hidden-subtree",
-                        "largest hidden subtree fallback",
-                        Some(&article),
-                        self.config.min_score,
-                        &preprocess2,
-                        false,
-                        None,
-                    ));
-                    return Ok(finalize_article_assessment(
-                        article,
-                        "pass-3-hidden-subtree",
-                        &pass_history,
-                        None,
-                        page_words,
-                    ));
-                }
-                pass_history.push(build_pass_diagnostic(
-                    "pass-3-hidden-subtree",
-                    "largest hidden subtree fallback",
-                    Some(&article),
-                    self.config.min_score,
-                    &preprocess2,
-                    false,
-                    None,
-                ));
-                update_best(&mut best, article, "pass-3-hidden-subtree", None);
-            }
-
-            match self.extract_from_doc(&pass2_doc, url, 0.0, site_config.as_ref()) {
-                Ok(article) if article.word_count >= RETRY_WORD_THRESHOLD => {
-                    pass_history.push(build_pass_diagnostic(
-                        "pass-4-no-score-threshold",
-                        "remove score threshold",
-                        Some(&article),
-                        0.0,
-                        &preprocess2,
-                        false,
-                        None,
-                    ));
-                    return Ok(finalize_article_assessment(
-                        article,
-                        "pass-4-no-score-threshold",
-                        &pass_history,
-                        None,
-                        page_words,
-                    ));
-                }
-                Ok(article) => {
-                    pass_history.push(build_pass_diagnostic(
-                        "pass-4-no-score-threshold",
-                        "remove score threshold",
-                        Some(&article),
-                        0.0,
-                        &preprocess2,
-                        false,
-                        None,
-                    ));
-                    update_best(&mut best, article, "pass-4-no-score-threshold", None);
-                }
-                Err(error) => pass_history.push(build_pass_diagnostic(
-                    "pass-4-no-score-threshold",
-                    "remove score threshold",
-                    None,
-                    0.0,
-                    &preprocess2,
-                    false,
-                    Some(error.to_string()),
-                )),
-            }
-        } else {
-            pass_history.push(build_pass_diagnostic(
-                "pass-2-hidden-disabled",
-                "disable hidden-element removal",
-                None,
-                self.config.min_score,
-                &preprocess2,
-                false,
-                Some("failed to parse preprocessed HTML".to_string()),
-            ));
-        }
-
-        let schema_preprocess = PreprocessConfig {
-            base_url: base_url.clone(),
-            remove_scripts: false,
-            remove_unlikely: false,
-            remove_hidden: false,
-            preserve_video_embeds: self.config.preserve_video_embeds,
-            ..Default::default()
-        };
-        if let Ok(schema_doc) = Document::parse_with_preprocessing_config(html, &schema_preprocess)
-            && let Some(extracted) = extract_schema_org_article(&schema_doc)
+        if let Some(result) =
+            self.run_retry_pass_from_html(html, url, site_config.as_ref(), &pass0, &mut pass_history, &mut best)
         {
-            let mut article =
-                Article::from_document_deduped(&schema_doc, extracted.content, url.map(|u| u.to_string()));
-            article.set_extraction_assessment(extracted.confidence, extracted.diagnostics);
-            if article.word_count >= RETRY_WORD_THRESHOLD {
+            return result;
+        }
+
+        if let Some(result) =
+            self.run_retry_pass_from_html(html, url, site_config.as_ref(), &pass1, &mut pass_history, &mut best)
+        {
+            return result;
+        }
+
+        match Document::parse_with_preprocessing_config(html, &pass2.preprocess) {
+            Ok(pass2_doc) => {
+                if let Some(result) = self.run_retry_pass(
+                    &pass2_doc,
+                    url,
+                    site_config.as_ref(),
+                    &pass2,
+                    &mut pass_history,
+                    &mut best,
+                ) {
+                    return result;
+                }
+
+                if let Some(result) = self.run_retry_pass(
+                    &pass2_doc,
+                    url,
+                    site_config.as_ref(),
+                    &pass3,
+                    &mut pass_history,
+                    &mut best,
+                ) {
+                    return result;
+                }
+
+                if let Some(result) = self.run_retry_pass(
+                    &pass2_doc,
+                    url,
+                    site_config.as_ref(),
+                    &pass4,
+                    &mut pass_history,
+                    &mut best,
+                ) {
+                    return result;
+                }
+            }
+            Err(_) => {
                 pass_history.push(build_pass_diagnostic(
-                    "pass-5-schema-org",
-                    "schema.org articleBody/text fallback",
-                    Some(&article),
-                    self.config.min_score,
-                    &schema_preprocess,
+                    pass2.name,
+                    pass2.strategy,
+                    None,
+                    pass2.min_score,
+                    &pass2.preprocess,
                     false,
-                    None,
-                ));
-                return Ok(finalize_article_assessment(
-                    article,
-                    "pass-5-schema-org",
-                    &pass_history,
-                    None,
-                    page_words,
+                    Some("failed to parse preprocessed HTML".to_string()),
                 ));
             }
-            pass_history.push(build_pass_diagnostic(
-                "pass-5-schema-org",
-                "schema.org articleBody/text fallback",
-                Some(&article),
-                self.config.min_score,
-                &schema_preprocess,
-                false,
-                None,
-            ));
-            update_best(&mut best, article, "pass-5-schema-org", None);
+        }
+
+        if let Some(result) =
+            self.run_retry_pass_from_html(html, url, site_config.as_ref(), &pass5, &mut pass_history, &mut best)
+        {
+            return result;
         }
 
         best.map(|attempt| {
@@ -578,19 +433,83 @@ impl Readability {
                 &attempt.selected_pass,
                 &pass_history,
                 attempt.site_extractor,
-                page_words,
+                0,
             )
         })
         .ok_or(LectitoError::NotReadable { score: 0.0, threshold: self.config.min_score })
     }
 
-    /// Run a single extraction pass with explicit preprocessing and scoring settings.
-    fn try_extract_pass(
-        &self, html: &str, url: Option<&str>, preprocess_config: &PreprocessConfig, min_score: f64,
-        site_config: Option<&SiteConfig>,
-    ) -> Result<Article> {
-        let doc = Document::parse_with_preprocessing_config(html, preprocess_config)?;
-        self.extract_from_doc(&doc, url, min_score, site_config)
+    fn run_retry_pass_from_html(
+        &self, html: &str, url: Option<&str>, site_config: Option<&SiteConfig>, spec: &RetryPassSpec,
+        pass_history: &mut Vec<ExtractionPassDiagnostic>, best: &mut Option<BestAttempt>,
+    ) -> Option<Result<Article>> {
+        match Document::parse_with_preprocessing_config(html, &spec.preprocess) {
+            Ok(doc) => self.run_retry_pass(&doc, url, site_config, spec, pass_history, best),
+            Err(error) => {
+                pass_history.push(build_pass_diagnostic(
+                    spec.name,
+                    spec.strategy,
+                    None,
+                    spec.min_score,
+                    &spec.preprocess,
+                    false,
+                    Some(error.to_string()),
+                ));
+                None
+            }
+        }
+    }
+
+    fn run_retry_pass(
+        &self, doc: &Document, url: Option<&str>, site_config: Option<&SiteConfig>, spec: &RetryPassSpec,
+        pass_history: &mut Vec<ExtractionPassDiagnostic>, best: &mut Option<BestAttempt>,
+    ) -> Option<Result<Article>> {
+        let result = match spec.mode {
+            RetryPassMode::Generic => self.extract_from_doc(doc, url, spec.min_score, site_config).map(Some),
+            RetryPassMode::LargestHiddenSubtree => Ok(extract_largest_hidden_subtree(doc)
+                .map(|extracted| self.build_extracted_article(doc, extracted, url, None, true))),
+            RetryPassMode::SchemaOrg => Ok(extract_schema_org_article(doc)
+                .map(|extracted| self.build_extracted_article(doc, extracted, url, None, true))),
+        };
+
+        match result {
+            Ok(Some(article)) => {
+                pass_history.push(build_pass_diagnostic(
+                    spec.name,
+                    spec.strategy,
+                    Some(&article),
+                    spec.min_score,
+                    &spec.preprocess,
+                    false,
+                    None,
+                ));
+                if article.word_count >= RETRY_WORD_THRESHOLD {
+                    return Some(Ok(finalize_article_assessment(
+                        article,
+                        spec.name,
+                        pass_history,
+                        None,
+                        0,
+                    )));
+                }
+
+                update_best(best, article, spec.name, None);
+                None
+            }
+            Ok(None) => None,
+            Err(error) => {
+                pass_history.push(build_pass_diagnostic(
+                    spec.name,
+                    spec.strategy,
+                    None,
+                    spec.min_score,
+                    &spec.preprocess,
+                    false,
+                    Some(error.to_string()),
+                ));
+                None
+            }
+        }
     }
 
     /// Run content extraction on an already-parsed document with a specific score threshold.
@@ -617,19 +536,67 @@ impl Readability {
         let extracted = extract_content_with_config(doc, &extract_config, site_config)?;
         if let Some(site_config) = site_config {
             let metadata_patch = build_site_config_metadata_patch(site_config, doc);
-            let mut article = Article::from_document_with_metadata(
-                doc,
-                extracted.content,
-                url.map(|u| u.to_string()),
-                &metadata_patch,
-            );
-            article.set_extraction_assessment(extracted.confidence, extracted.diagnostics);
-            Ok(article)
+            Ok(self.build_extracted_article(doc, extracted, url, Some(&metadata_patch), false))
         } else {
-            let mut article = Article::from_document_deduped(doc, extracted.content, url.map(|u| u.to_string()));
-            article.set_extraction_assessment(extracted.confidence, extracted.diagnostics);
-            Ok(article)
+            Ok(self.build_extracted_article(doc, extracted, url, None, true))
         }
+    }
+
+    fn build_article(
+        &self, doc: &Document, content_html: String, url: Option<&str>, metadata_patch: Option<&crate::Metadata>,
+        dedupe_title: bool, assessment: Option<(f64, ExtractionDiagnostics)>,
+    ) -> Article {
+        let source_url = url.map(|value| value.to_string());
+        let mut article = if let Some(metadata_patch) = metadata_patch {
+            Article::from_document_with_metadata(doc, content_html, source_url, metadata_patch)
+        } else if dedupe_title {
+            Article::from_document_deduped(doc, content_html, source_url)
+        } else {
+            Article::from_document(doc, content_html, source_url)
+        };
+
+        if let Some((confidence, diagnostics)) = assessment {
+            article.set_extraction_assessment(confidence, diagnostics);
+        }
+
+        article
+    }
+
+    fn build_extracted_article(
+        &self, doc: &Document, extracted: crate::ExtractedContent, url: Option<&str>,
+        metadata_patch: Option<&crate::Metadata>, dedupe_title: bool,
+    ) -> Article {
+        self.build_article(
+            doc,
+            extracted.content,
+            url,
+            metadata_patch,
+            dedupe_title,
+            Some((extracted.confidence, extracted.diagnostics)),
+        )
+    }
+
+    fn finalize_site_extractor_article(&self, article: Article, doc: &Document) -> Article {
+        let page_word_count = utils::count_words(&doc.text_content());
+        finalize_article_assessment(
+            article,
+            "site-extractor",
+            &[ExtractionPassDiagnostic {
+                name: "site-extractor".to_string(),
+                strategy: "site extractor override".to_string(),
+                succeeded: true,
+                word_count: page_word_count,
+                top_score: None,
+                confidence: Some(0.98),
+                min_score_threshold: self.config.min_score,
+                remove_unlikely: self.config.remove_unlikely,
+                remove_hidden: true,
+                used_site_extractor: true,
+                error: None,
+            }],
+            Some("matched".to_string()),
+            page_word_count,
+        )
     }
 
     /// Checks if content appears readable without full extraction.
@@ -742,49 +709,20 @@ impl Readability {
                 if selected_html.trim().is_empty() {
                     return Err(LectitoError::NoContent);
                 }
-                Ok(finalize_article_assessment(
-                    Article::from_document_with_metadata(doc, selected_html, Some(url.to_string()), &site_config_patch),
-                    "site-extractor",
-                    &[ExtractionPassDiagnostic {
-                        name: "site-extractor".to_string(),
-                        strategy: "site extractor override".to_string(),
-                        succeeded: true,
-                        word_count: count_words(&doc.text_content()),
-                        top_score: None,
-                        confidence: Some(0.98),
-                        min_score_threshold: self.config.min_score,
-                        remove_unlikely: self.config.remove_unlikely,
-                        remove_hidden: true,
-                        used_site_extractor: true,
-                        error: None,
-                    }],
-                    Some("matched".to_string()),
-                    count_words(&doc.text_content()),
+                Ok(self.build_article(
+                    doc,
+                    selected_html,
+                    Some(url.as_str()),
+                    Some(&site_config_patch),
+                    false,
+                    None,
                 ))
             }
             ExtractorOutcome::Html(outcome) => {
                 let content_html = outcome.content_html;
                 let metadata_patch = outcome.metadata_patch;
                 let merged_patch = site_config_patch.with_patch(&metadata_patch);
-                Ok(finalize_article_assessment(
-                    Article::from_document_with_metadata(doc, content_html, Some(url.to_string()), &merged_patch),
-                    "site-extractor",
-                    &[ExtractionPassDiagnostic {
-                        name: "site-extractor".to_string(),
-                        strategy: "site extractor override".to_string(),
-                        succeeded: true,
-                        word_count: count_words(&doc.text_content()),
-                        top_score: None,
-                        confidence: Some(0.98),
-                        min_score_threshold: self.config.min_score,
-                        remove_unlikely: self.config.remove_unlikely,
-                        remove_hidden: true,
-                        used_site_extractor: true,
-                        error: None,
-                    }],
-                    Some("matched".to_string()),
-                    count_words(&doc.text_content()),
-                ))
+                Ok(self.build_article(doc, content_html, Some(url.as_str()), Some(&merged_patch), false, None))
             }
         }
     }

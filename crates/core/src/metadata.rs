@@ -271,7 +271,7 @@ impl Document {
     /// Calculate word count from text content
     pub fn calculate_word_count(&self) -> usize {
         let text = self.text_content();
-        count_words(&text)
+        utils::count_words(&text)
     }
 
     /// Calculate reading time in minutes (assuming 200 words per minute)
@@ -455,7 +455,7 @@ impl Document {
                     .and_then(|base_url| base_url.domain().map(|domain| domain.to_string()))
             });
 
-        candidate.filter(|value| count_words(value) <= 6)
+        candidate.filter(|value| utils::count_words(value) <= 6)
     }
 
     /// Extract and parse JSON-LD from script tags
@@ -646,10 +646,9 @@ fn clean_title(title: &str, site_name: Option<&str>) -> (String, Option<String>)
 
     let separators = r"\s*(?:[|\-–—/·])\s*";
 
-    if let Some(site_name) = site_name
-        .map(str::trim)
-        .filter(|value| !value.is_empty() && !value.eq_ignore_ascii_case(trimmed_title) && count_words(value) <= 6)
-    {
+    if let Some(site_name) = site_name.map(str::trim).filter(|value| {
+        !value.is_empty() && !value.eq_ignore_ascii_case(trimmed_title) && utils::count_words(value) <= 6
+    }) {
         let site_name_escaped = regex::escape(site_name);
         for pattern in [
             format!(r"{separators}{site_name_escaped}$"),
@@ -674,7 +673,7 @@ fn clean_title(title: &str, site_name: Option<&str>) -> (String, Option<String>)
                 let mut cut_index = last_start;
                 for (start, end) in positions.iter().rev().skip(1) {
                     let segment = trimmed_title[*end..cut_index].trim();
-                    if count_words(segment) > 3 {
+                    if utils::count_words(segment) > 3 {
                         break;
                     }
                     cut_index = *start;
@@ -691,7 +690,7 @@ fn clean_title(title: &str, site_name: Option<&str>) -> (String, Option<String>)
                 let mut cut_index = first_end;
                 for (start, end) in positions.iter().skip(1) {
                     let segment = trimmed_title[cut_index..*start].trim();
-                    if count_words(segment) > 3 {
+                    if utils::count_words(segment) > 3 {
                         break;
                     }
                     cut_index = *end;
@@ -744,7 +743,9 @@ where
     let (last_start, last_end) = positions[positions.len() - 1];
     let suffix_title = title[..last_start].trim();
     let suffix_site = title[last_end..].trim();
-    if !suffix_title.is_empty() && !suffix_site.is_empty() && guard(count_words(suffix_title), count_words(suffix_site))
+    if !suffix_title.is_empty()
+        && !suffix_site.is_empty()
+        && guard(utils::count_words(suffix_title), utils::count_words(suffix_site))
     {
         return Some((suffix_title.to_string(), suffix_site.to_string()));
     }
@@ -756,7 +757,9 @@ where
     let (first_start, first_end) = positions[0];
     let prefix_site = title[..first_start].trim();
     let prefix_title = title[first_end..].trim();
-    if !prefix_title.is_empty() && !prefix_site.is_empty() && guard(count_words(prefix_title), count_words(prefix_site))
+    if !prefix_title.is_empty()
+        && !prefix_site.is_empty()
+        && guard(utils::count_words(prefix_title), utils::count_words(prefix_site))
     {
         return Some((prefix_title.to_string(), prefix_site.to_string()));
     }
@@ -822,43 +825,6 @@ fn normalize_url_value(base_url: Option<&Url>, value: &str) -> Option<String> {
         .or_else(|| base_url.and_then(|base| base.join(trimmed).ok()))
         .map(|url| url.to_string())
         .or_else(|| Some(trimmed.to_string()))
-}
-
-fn is_cjk_character(ch: char) -> bool {
-    matches!(
-        ch,
-        '\u{3040}'..='\u{309F}'
-            | '\u{30A0}'..='\u{30FF}'
-            | '\u{3400}'..='\u{4DBF}'
-            | '\u{4E00}'..='\u{9FFF}'
-            | '\u{F900}'..='\u{FAFF}'
-            | '\u{AC00}'..='\u{D7AF}'
-    )
-}
-
-/// Count words in text, handling CJK scripts that do not use spaces between words.
-pub(crate) fn count_words(text: &str) -> usize {
-    let mut cjk_count = 0usize;
-    let mut word_count = 0usize;
-    let mut in_word = false;
-
-    for ch in text.chars() {
-        if is_cjk_character(ch) {
-            cjk_count += 1;
-            in_word = false;
-        } else if ch.is_alphanumeric() {
-            if !in_word {
-                word_count += 1;
-                in_word = true;
-            }
-        } else if matches!(ch, '\'' | '’' | '-') && in_word {
-            continue;
-        } else {
-            in_word = false;
-        }
-    }
-
-    cjk_count + word_count
 }
 
 #[cfg(test)]
@@ -1158,17 +1124,6 @@ mod tests {
 
         assert_eq!(metadata.title, Some("Test Page Title".to_string()));
         assert_eq!(metadata.author, Some("Jane Smith".to_string()));
-    }
-
-    #[test]
-    fn test_count_words() {
-        assert_eq!(count_words("hello world"), 2);
-        assert_eq!(count_words("one"), 1);
-        assert_eq!(count_words(""), 0);
-        assert_eq!(count_words("a b c d e"), 5);
-        assert_eq!(count_words("word's with-apostrophe"), 2);
-        assert_eq!(count_words("日本語abc"), 4);
-        assert_eq!(count_words("漢字かなカナ"), 6);
     }
 
     #[test]

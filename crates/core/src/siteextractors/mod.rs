@@ -312,20 +312,20 @@ fn render_reddit_thread(
 ) -> ExtractorOutcome {
     let post_body_html = post_body_html
         .map(|html| sanitize_extracted_html(&html))
-        .filter(|html| !utils::normalize_whitespace(&strip_tags(html)).is_empty());
+        .filter(|html| !utils::normalize_whitespace(&utils::strip_tags(html)).is_empty());
     let comments_html = sanitize_extracted_html(&comments_html);
 
     let mut html = String::new();
     html.push_str("<article class=\"site-extractor reddit-thread\">");
-    html.push_str(&format!("<h1>{}</h1>", escape_html(&title)));
+    html.push_str(&format!("<h1>{}</h1>", utils::escape_html(&title)));
     if let Some(author) = &author {
-        html.push_str(&format!("<p><strong>{}</strong></p>", escape_html(author)));
+        html.push_str(&format!("<p><strong>{}</strong></p>", utils::escape_html(author)));
     }
     if let Some(date) = &date {
         html.push_str(&format!(
             "<time datetime=\"{}\">{}</time>",
-            escape_html(date),
-            escape_html(date)
+            utils::escape_html(date),
+            utils::escape_html(date)
         ));
     }
     if let Some(post_body_html) = post_body_html {
@@ -375,7 +375,7 @@ impl SiteExtractor for HackerNewsExtractor {
 
         let mut html = String::new();
         html.push_str("<article class=\"site-extractor hacker-news-thread\">");
-        html.push_str(&format!("<h1>{}</h1>", escape_html(&title)));
+        html.push_str(&format!("<h1>{}</h1>", utils::escape_html(&title)));
         if !comments_html.is_empty() {
             html.push_str("<section><h2>Comments</h2>");
             html.push_str(&comments_html);
@@ -450,7 +450,7 @@ impl SiteExtractor for SubstackExtractor {
 
         let mut html = String::new();
         html.push_str("<article class=\"site-extractor substack-note\">");
-        html.push_str(&format!("<h1>{}</h1>", escape_html(&title)));
+        html.push_str(&format!("<h1>{}</h1>", utils::escape_html(&title)));
         if !comments_html.is_empty() {
             html.push_str("<section><h2>Thread</h2>");
             html.push_str(&comments_html);
@@ -555,7 +555,7 @@ fn synthesize_thread(
     ));
 
     if !description_html.is_empty() {
-        let description_text = strip_tags(&description_html);
+        let description_text = utils::strip_tags(&description_html);
         if let Some(first_comment_body) =
             first_text(doc, &["[data-comment-body]", ".comment-body", ".md", ".note-body"])
             && utils::normalize_whitespace(&first_comment_body) == utils::normalize_whitespace(&description_text)
@@ -566,11 +566,11 @@ fn synthesize_thread(
 
     let mut html = String::new();
     html.push_str("<article class=\"site-extractor thread\">");
-    html.push_str(&format!("<h1>{}</h1>", escape_html(&title)));
+    html.push_str(&format!("<h1>{}</h1>", utils::escape_html(&title)));
     html.push_str(&format!(
         "<p><a href=\"{}\">{}</a></p>",
-        escape_html(url.as_str()),
-        escape_html(url.as_str())
+        utils::escape_html(url.as_str()),
+        utils::escape_html(url.as_str())
     ));
     if !description_html.is_empty() {
         html.push_str("<section><h2>Description</h2>");
@@ -622,20 +622,20 @@ fn build_comment_thread_html(
         let Some(body_html) = body_html else {
             continue;
         };
-        if utils::normalize_whitespace(&strip_tags(&body_html)).is_empty() {
+        if utils::normalize_whitespace(&utils::strip_tags(&body_html)).is_empty() {
             continue;
         }
 
         let mut item = String::new();
         item.push_str("<article class=\"comment\">");
         if let Some(author) = &author {
-            item.push_str(&format!("<h3>{}</h3>", escape_html(author)));
+            item.push_str(&format!("<h3>{}</h3>", utils::escape_html(author)));
         }
         if let Some(time) = &time {
             item.push_str(&format!(
                 "<time datetime=\"{}\">{}</time>",
-                escape_html(time),
-                escape_html(time)
+                utils::escape_html(time),
+                utils::escape_html(time)
             ));
         }
         item.push_str("<div class=\"comment-body\">");
@@ -815,38 +815,22 @@ fn render_youtube_transcript(url: &Url, title: &str, transcript_json: &str) -> R
 
     let mut html = String::new();
     html.push_str("<article class=\"site-extractor youtube-transcript\">");
-    html.push_str(&format!("<h1>{}</h1>", escape_html(title)));
+    html.push_str(&format!("<h1>{}</h1>", utils::escape_html(title)));
     html.push_str("<section><h2>Transcript</h2>");
     for (start_ms, text) in paragraphs {
         let seconds = start_ms / 1000;
         html.push_str(&format!(
             "<p><a href=\"{}&t={}s\">[{:#02}:{:#02}]</a> {}</p>",
-            escape_html(url.as_str()),
+            utils::escape_html(url.as_str()),
             seconds,
             seconds / 60,
             seconds % 60,
-            escape_html(&text)
+            utils::escape_html(&text)
         ));
     }
     html.push_str("</section></article>");
 
     Ok(html)
-}
-
-fn strip_tags(value: &str) -> String {
-    static TAG_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    TAG_RE
-        .get_or_init(|| regex::Regex::new(r"<[^>]+>").unwrap())
-        .replace_all(value, " ")
-        .to_string()
-}
-
-fn escape_html(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
 }
 
 fn clean_thread_title(value: &str) -> String {
