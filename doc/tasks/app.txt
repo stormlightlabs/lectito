@@ -74,6 +74,160 @@ MILESTONE A: Algorithm Improvements
     - Substack extractor (notes/posts)
     - Audit, fix & improve site_configs
 
+[x] Lazy-loaded image resolution
+    - Scan data-src, data-srcset, data-original, data-lazy-src attributes
+    - Promote to src/srcset before scoring (single streaming lol_html pass)
+    - Unwrap <noscript> images to replace placeholder <img> (base64 <133B)
+    - Stop removing all <noscript> blindly; check for image content first
+    - Add PreprocessConfig toggle: resolve_lazy_images (default true)
+    Fixtures:
+      https://www.nationalgeographic.com/animals/article/worlds-largest-owl
+      https://www.rollingstone.com/music/music-lists/best-albums-of-all-time/
+      https://www.smithsonianmag.com/history/the-true-story-of-thanksgiving/
+      https://www.theatlantic.com/technology/archive/2024/03/ai-chatbots/
+    Fixture capture note (2026-04-05):
+      - Rolling Stone was snapshotted from its live destination:
+        https://www.rollingstone.com/music/music-lists/best-albums-of-all-time-1062063/
+      - National Geographic fixture URL returned 404
+      - Smithsonian fixture URL returned 403
+      - The Atlantic fixture URL returned 404
+
+[x] BR chain and phrasing content normalization
+    - Convert 2+ consecutive <br> into <p>, collecting phrasing content
+    - Convert inline-only <div> nodes into <p> tags
+    - Convert <font> tags to <span>
+    - Run as pre-scoring lol_html pass
+    Fixtures:
+      https://www.poetryfoundation.org/poems/48860/the-raven
+      https://catb.org/jargon/html/index.html (jargon file, <font> heavy)
+      https://norvig.com/21-days.html
+      https://www.mit.edu/~xela/tao.html
+    Fixture capture note (2026-04-05):
+      - Norvig and MIT Tao were snapshotted directly
+      - Poetry Foundation fixture URL returned 403
+      - catb.org had an HTTPS certificate mismatch; the current HTTP fallback
+        serves different markup than the legacy font-heavy page referenced here
+
+[ ] Video and embed preservation
+    - Build configurable video domain allowlist regex (YouTube, Vimeo,
+      Dailymotion, Twitch, Bilibili, Wikimedia)
+    - Check iframe/embed src against allowlist before removing
+    - Protect video/audio/source elements from removal
+    - Add PreprocessConfig toggle: preserve_video_embeds (default true)
+    Fixtures:
+      https://www.musicradar.com/guitarist/the-20-greatest-guitar-solos-of-all-time-403987 (embedded players)
+      https://www.vulture.com/article/best-movies-2025-new-films.html
+      https://www.polygon.com/reviews/23718684/zelda-tears-of-the-kingdom-review-switch-totk/
+      https://blog.cloudflare.com/workers-ai (embedded demo videos)
+
+[ ] Data table vs layout table classification
+    - Implement multi-factor detection: role, caption, thead/th/tfoot,
+      nested tables, row×col count thresholds
+    - Mark data tables (attribute or internal flag) during pre-scoring
+    - Protect data tables from conditional cleaning in postprocess
+    - Unwrap layout table cells into normal flow
+    Fixtures:
+      https://www.baseball-reference.com/leagues/majors/2026.shtml (data tables)
+      https://www.timeanddate.com/worldclock/ (complex data table)
+      https://www.imdb.com/chart/top/ (ranked list table)
+      https://www.berkshirehathaway.com/ (table-based layout, famously)
+      https://www.cppreference.com/w/cpp/container/vector (spec tables)
+
+[ ] Candidate aggregation and sibling refinement
+    - Detect 3+ candidates within 75% of top score → walk to ancestor
+    - Apply 0.3 coefficient to hash-only URL link density
+    - Protect <figure> children from aggressive cleanup
+    - Add class bonus for siblings sharing className with top candidate
+    Fixtures:
+      https://www.propublica.org/article/ (multi-section investigations)
+      https://aeon.co/essays/ (figure-heavy longform)
+      https://docs.rs/tokio/latest/tokio/ (hash-link-heavy API docs)
+        - Note that for docs.rs links, we can follow the redirected JSON link (custom conf/ruleset)
+          (We parse version, crate name, and item path from the URL to construct the JSON URL)
+          https://docs.rs/crate/clap/latest/json
+      https://www.lrb.co.uk/the-paper/v46/n01/ (sibling article blocks)
+
+[ ] Title deduplication via text similarity
+    - Implement token-based text similarity function (0.0–1.0 scale)
+    - Remove H1/H2 duplicating article title (threshold > 0.75)
+    - Use in metadata to deduplicate JSON-LD headline vs name
+    Fixtures:
+      https://www.scientificamerican.com/article/ (rich JSON-LD)
+      https://www.ft.com/content/ (headline + og:title + H1 all differ)
+      https://nautil.us/the-last-interview/ (title in <title> + H1)
+      https://restofworld.org/2024/ (multilingual title metadata)
+
+[ ] isProbablyReadable pre-check
+    - Export public fn is_probably_readable(html) -> bool
+    - Streaming lol_html pass — no DOM, O(n) on arbitrarily large pages
+    - Quick scan: count P/PRE/ARTICLE nodes, score = sqrt(len - 140)
+    - Threshold: total ≥ 20 or any single node ≥ 140 chars
+    - Use in server to return early for non-article URLs
+    Fixtures (should return false):
+      https://duckduckgo.com/
+      https://www.ikea.com/
+      https://store.steampowered.com/
+      https://calendar.google.com/
+    Fixtures (should return true):
+      https://norvig.com/21-days.html
+      https://matklad.github.io/2024/03/22/basic-things.html
+
+[ ] Streaming markdown output
+    - Parse srcset width descriptors, select best image URL
+    - Restructure link-wrapped block content (<a><h2>...</h2></a>)
+    - Detect layout tables → extract content, not markdown table
+    - Detect complex tables (colspan/rowspan) → pass as HTML
+    - Simple tables → standard markdown pipe format
+    Fixtures:
+      https://jakearchibald.com/2024/attributes-vs-properties/ (srcset)
+      https://hacks.mozilla.org/2024/02/state-of-css/ (link-wrapped cards)
+      https://www.cppreference.com/w/cpp/language/operator_comparison
+      https://ciechanow.ski/lights-and-shadows/ (complex media + tables)
+      https://increment.com/software-architecture/ (card grid layout)
+
+[ ] Multi-page article stitching
+    - Detect "next page", "continue reading", page 1/2/3 pagination links
+    - Fetch and concatenate pages in parallel (tokio::join)
+    - Deduplicate repeated headers/footers/nav across pages
+    - Configurable max pages (default 10) and total size limit
+    - Cache stitched result as single unit in server
+    Fixtures:
+      https://www.reuters.com/ (paginated longform features)
+      https://www.newyorker.com/magazine/ (multi-page profiles)
+      https://arstechnica.com/features/ (paginated features)
+      https://www.foreignaffairs.com/ (gated multi-page essays)
+
+[ ] Extraction confidence scoring and diagnostics
+    - Return confidence score (0.0–1.0) with every extraction
+    - Factors: content length, link density, scoring spread, retry pass,
+      site-extractor match, word count vs page size ratio
+    - Optional diagnostics: candidate scores, removal log, pass history
+    - API response fields: "confidence": 0.92, "diagnostics": {...}
+    Fixtures:
+      High confidence: any clean blog post (norvig, matklad, etc.)
+      Medium confidence: forum threads, documentation pages
+      Low confidence: product pages, landing pages, dashboards
+      Use existing fixture set to calibrate thresholds
+
+[ ] Parallel format extraction and cache pre-warming
+    - Extract HTML, markdown, and text from single scored DOM tree
+    - Share tree across formatters via Rust borrowing (zero-copy)
+    - Server pre-warms cache: on first request, store all formats
+    - Add ExtractConfig::formats: Vec<Format> (default: requested only)
+    - Benchmark: single multi-format pass vs 3 separate extractions
+    Fixtures: reuse existing fixture set, benchmark with criterion
+
+[ ] PDF and EPUB output
+    - Generate clean PDF from extracted HTML via typst or weasyprint
+    - Generate EPUB with chapter structure, metadata, cover image
+    - Server endpoint: format=pdf|epub in extract request
+    - Stream binary response with correct Content-Type headers
+    Fixtures:
+      https://norvig.com/21-days.html (simple article → PDF)
+      https://matklad.github.io/2024/03/22/basic-things.html (code blocks)
+      https://ciechanow.ski/lights-and-shadows/ (images + interactive)
+      Verify: PDF renders correctly, EPUB validates with epubcheck
+
 Acceptance Criteria:
 - Each improvement has unit tests with real-world HTML fixtures
 - Extraction quality improves on a curated test set (measured by word count

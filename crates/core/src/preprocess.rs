@@ -1,7 +1,9 @@
 use crate::{LectitoError, Result};
 use regex::Regex;
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::io::Read;
+use std::rc::Rc;
 use std::sync::OnceLock;
 use url::Url;
 
@@ -30,6 +32,8 @@ pub struct PreprocessConfig {
     pub convert_urls: bool,
     /// Base URL for converting relative URLs
     pub base_url: Option<Url>,
+    /// Whether to resolve lazy-loaded images before scoring
+    pub resolve_lazy_images: bool,
 }
 
 impl Default for PreprocessConfig {
@@ -46,25 +50,17 @@ impl Default for PreprocessConfig {
             remove_hidden: true,
             convert_urls: true,
             base_url: None,
+            resolve_lazy_images: true,
         }
     }
 }
 
 /// Preprocess HTML by removing unwanted elements and normalizing the document
 pub fn preprocess_html(html: &str, config: &PreprocessConfig) -> String {
-    let mut processed = html.to_string();
-
-    if config.remove_scripts
-        || config.remove_styles
-        || config.remove_noscript
-        || config.remove_iframes
-        || config.remove_svg
-        || config.remove_canvas
-    {
-        processed = remove_unwanted_tags(&processed, config);
-    }
+    let mut processed = rewrite_html(html, config);
 
     processed = remove_comments(&processed);
+    processed = normalize_phrasing_content(&processed);
 
     if config.remove_unlikely {
         processed = remove_unlikely_candidates(&processed, config.keep_positive);
@@ -111,7 +107,8 @@ pub fn preprocess_reader<R: Read>(mut reader: R, config: &PreprocessConfig) -> R
         .map_err(|e| LectitoError::HtmlParseError(e.to_string()))?;
 
     let cleaned = if output.is_empty() { String::new() } else { output };
-    Ok(remove_comments(&cleaned))
+    let cleaned = remove_comments(&cleaned);
+    Ok(normalize_phrasing_content(&cleaned))
 }
 
 fn streaming_handlers(
@@ -124,6 +121,7 @@ fn streaming_handlers(
         Cow<'static, lol_html::Selector>,
         lol_html::ElementContentHandlers<'static>,
     )> = Vec::new();
+    let base_url = config.base_url.clone();
 
     if config.remove_scripts {
         handlers.push(lol_html::element!("script", |el| {
@@ -138,10 +136,39 @@ fn streaming_handlers(
         }));
     }
     if config.remove_noscript {
-        handlers.push(lol_html::element!("noscript", |el| {
-            el.remove();
-            Ok(())
-        }));
+        if config.resolve_lazy_images {
+            let noscript_buffers = Rc::new(RefCell::new(Vec::<String>::new()));
+            let start_buffers = noscript_buffers.clone();
+            handlers.push(lol_html::element!("noscript", move |el| {
+                start_buffers.borrow_mut().push(String::new());
+                el.remove_and_keep_content();
+                Ok(())
+            }));
+
+            let text_buffers = noscript_buffers;
+            let text_base_url = base_url.clone();
+            handlers.push(lol_html::text!("noscript", move |text| {
+                if let Some(buffer) = text_buffers.borrow_mut().last_mut() {
+                    buffer.push_str(text.as_str());
+                }
+
+                text.remove();
+
+                if text.last_in_text_node() {
+                    let raw = text_buffers.borrow_mut().pop().unwrap_or_default();
+                    if let Some(fragment) = extract_noscript_image_fragment(&raw, text_base_url.as_ref()) {
+                        text.after(&fragment, lol_html::html_content::ContentType::Html);
+                    }
+                }
+
+                Ok(())
+            }));
+        } else {
+            handlers.push(lol_html::element!("noscript", |el| {
+                el.remove();
+                Ok(())
+            }));
+        }
     }
     if config.remove_iframes {
         handlers.push(lol_html::element!("iframe", |el| {
@@ -210,8 +237,39 @@ fn streaming_handlers(
         }));
     }
 
+    if config.resolve_lazy_images || config.convert_urls {
+        let img_base = base_url.clone();
+        let resolve_lazy_images = config.resolve_lazy_images;
+        let convert_img_urls = config.convert_urls;
+        handlers.push(lol_html::element!("img", move |el| {
+            if resolve_lazy_images {
+                resolve_lazy_image_element(el);
+                if el.removed() {
+                    return Ok(());
+                }
+            }
+
+            if convert_img_urls
+                && let Some(base) = img_base.as_ref()
+                && let Some(src) = el.get_attribute("src")
+                && let Ok(absolute) = base.join(&src)
+            {
+                el.set_attribute("src", absolute.as_str()).ok();
+            }
+
+            Ok(())
+        }));
+
+        if config.resolve_lazy_images {
+            handlers.push(lol_html::element!("source", |el| {
+                resolve_lazy_source_element(el);
+                Ok(())
+            }));
+        }
+    }
+
     if config.convert_urls
-        && let Some(base_url) = config.base_url.clone()
+        && let Some(base_url) = base_url
     {
         let link_base = base_url.clone();
         handlers.push(lol_html::element!("a", move |el| {
@@ -219,16 +277,6 @@ fn streaming_handlers(
                 && let Ok(absolute) = link_base.join(&href)
             {
                 el.set_attribute("href", absolute.as_str()).ok();
-            }
-            Ok(())
-        }));
-
-        let img_base = base_url.clone();
-        handlers.push(lol_html::element!("img", move |el| {
-            if let Some(src) = el.get_attribute("src")
-                && let Ok(absolute) = img_base.join(&src)
-            {
-                el.set_attribute("src", absolute.as_str()).ok();
             }
             Ok(())
         }));
@@ -244,69 +292,18 @@ fn streaming_handlers(
         }));
     }
 
+    handlers.push(lol_html::element!("font", |el| {
+        el.set_tag_name("span").ok();
+        Ok(())
+    }));
+
     handlers
 }
 
-/// Remove script, style, noscript, iframe, svg, and canvas tags from HTML
-fn remove_unwanted_tags(html: &str, config: &PreprocessConfig) -> String {
+fn rewrite_html(html: &str, config: &PreprocessConfig) -> String {
     let mut output = String::new();
     let mut rewriter = lol_html::HtmlRewriter::new(
-        lol_html::Settings {
-            element_content_handlers: vec![
-                if config.remove_scripts {
-                    Some(lol_html::element!("script", |el| {
-                        el.remove();
-                        Ok(())
-                    }))
-                } else {
-                    None
-                },
-                if config.remove_styles {
-                    Some(lol_html::element!("style", |el| {
-                        el.remove();
-                        Ok(())
-                    }))
-                } else {
-                    None
-                },
-                if config.remove_noscript {
-                    Some(lol_html::element!("noscript", |el| {
-                        el.remove();
-                        Ok(())
-                    }))
-                } else {
-                    None
-                },
-                if config.remove_iframes {
-                    Some(lol_html::element!("iframe", |el| {
-                        el.remove();
-                        Ok(())
-                    }))
-                } else {
-                    None
-                },
-                if config.remove_svg {
-                    Some(lol_html::element!("svg", |el| {
-                        el.remove();
-                        Ok(())
-                    }))
-                } else {
-                    None
-                },
-                if config.remove_canvas {
-                    Some(lol_html::element!("canvas", |el| {
-                        el.remove();
-                        Ok(())
-                    }))
-                } else {
-                    None
-                },
-            ]
-            .into_iter()
-            .flatten()
-            .collect(),
-            ..Default::default()
-        },
+        lol_html::Settings { element_content_handlers: streaming_handlers(config), ..Default::default() },
         |c: &[u8]| {
             output.push_str(&String::from_utf8_lossy(c));
         },
@@ -325,10 +322,313 @@ fn remove_unwanted_tags(html: &str, config: &PreprocessConfig) -> String {
     if output.is_empty() { html.to_string() } else { output }
 }
 
+/// Remove script, style, noscript, iframe, svg, and canvas tags from HTML
+#[cfg(test)]
+fn remove_unwanted_tags(html: &str, config: &PreprocessConfig) -> String {
+    rewrite_html(html, config)
+}
+
 /// Remove HTML comments from the document
 fn remove_comments(html: &str) -> String {
     let re = Regex::new(r"(?s)<!--.*?-->").unwrap();
     re.replace_all(html, "").to_string()
+}
+
+fn extract_noscript_image_fragment(raw_html: &str, base_url: Option<&Url>) -> Option<String> {
+    if !contains_image_markup(raw_html) {
+        return None;
+    }
+
+    let fragment_config = PreprocessConfig {
+        remove_scripts: true,
+        remove_styles: true,
+        remove_noscript: false,
+        remove_iframes: true,
+        remove_svg: false,
+        remove_canvas: true,
+        remove_unlikely: false,
+        keep_positive: true,
+        remove_hidden: false,
+        convert_urls: base_url.is_some(),
+        base_url: base_url.cloned(),
+        resolve_lazy_images: true,
+    };
+
+    let cleaned = remove_comments(&rewrite_html(raw_html.trim(), &fragment_config));
+    contains_image_markup(&cleaned).then_some(cleaned)
+}
+
+fn contains_image_markup(html: &str) -> bool {
+    static IMAGE_PATTERN: OnceLock<Regex> = OnceLock::new();
+    IMAGE_PATTERN
+        .get_or_init(|| Regex::new(r"(?is)<\s*(?:img|picture)\b").unwrap())
+        .is_match(html)
+}
+
+fn resolve_lazy_image_element(el: &mut lol_html::html_content::Element<'_, '_, impl lol_html::HandlerTypes>) {
+    let src = el.get_attribute("src");
+    let src_is_placeholder = src.as_deref().is_some_and(is_placeholder_image_src);
+    let src_is_lazy_fallback = src.as_deref().is_some_and(is_lazy_fallback_image_src);
+    let promoted_src = promoted_attr_value(el, &["data-src", "data-original", "data-lazy-src"]);
+    let promoted_srcset = promoted_attr_value(el, &["data-srcset"]);
+
+    if let Some(srcset) = promoted_srcset
+        && el
+            .get_attribute("srcset")
+            .is_none_or(|current| current.trim().is_empty())
+    {
+        el.set_attribute("srcset", &srcset).ok();
+    }
+
+    if let Some(promoted_src) = promoted_src
+        && (src.is_none() || src_is_placeholder || src_is_lazy_fallback)
+    {
+        el.set_attribute("src", &promoted_src).ok();
+    }
+
+    let has_real_source = el
+        .get_attribute("src")
+        .is_some_and(|current| !current.trim().is_empty() && !is_placeholder_image_src(&current))
+        || el
+            .get_attribute("srcset")
+            .is_some_and(|current| !current.trim().is_empty());
+
+    if !has_real_source && src_is_placeholder {
+        el.remove();
+    }
+}
+
+fn resolve_lazy_source_element(el: &mut lol_html::html_content::Element<'_, '_, impl lol_html::HandlerTypes>) {
+    if let Some(srcset) = promoted_attr_value(el, &["data-srcset", "data-src"])
+        && el
+            .get_attribute("srcset")
+            .is_none_or(|current| current.trim().is_empty())
+    {
+        el.set_attribute("srcset", &srcset).ok();
+    }
+}
+
+fn promoted_attr_value(
+    el: &lol_html::html_content::Element<'_, '_, impl lol_html::HandlerTypes>, attrs: &[&str],
+) -> Option<String> {
+    attrs
+        .iter()
+        .find_map(|attr| el.get_attribute(attr))
+        .and_then(|value| normalize_promoted_attr_value(&value))
+}
+
+fn normalize_promoted_attr_value(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() || matches!(trimmed, "null" | "undefined") {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn is_placeholder_image_src(src: &str) -> bool {
+    let trimmed = src.trim();
+    if !trimmed.to_ascii_lowercase().starts_with("data:image/") {
+        return false;
+    }
+    if trimmed.to_ascii_lowercase().starts_with("data:image/svg") {
+        return false;
+    }
+
+    let Some((meta, payload)) = trimmed.split_once(',') else {
+        return false;
+    };
+
+    let byte_len = if meta.to_ascii_lowercase().contains(";base64") {
+        approximate_base64_decoded_len(payload)
+    } else {
+        payload.len()
+    };
+
+    byte_len < 133
+}
+
+fn is_lazy_fallback_image_src(src: &str) -> bool {
+    static FALLBACK_PATTERN: OnceLock<Regex> = OnceLock::new();
+    FALLBACK_PATTERN
+        .get_or_init(|| {
+            Regex::new(r"(?i)(?:lazyload[-_]?fallback|placeholder|spacer|blank|transparent|pixel|1x1)\.(?:gif|png|jpe?g|webp)(?:$|[?#])")
+                .unwrap()
+        })
+        .is_match(src.trim())
+}
+
+fn approximate_base64_decoded_len(payload: &str) -> usize {
+    let compact: String = payload.chars().filter(|c| !c.is_ascii_whitespace()).collect();
+    let padding = compact.chars().rev().take_while(|c| *c == '=').count();
+    compact
+        .len()
+        .saturating_mul(3)
+        .saturating_div(4)
+        .saturating_sub(padding)
+}
+
+fn normalize_phrasing_content(html: &str) -> String {
+    let mut normalized = html.to_string();
+
+    for _ in 0..4 {
+        let next = normalize_br_chain_paragraphs(&normalize_inline_only_divs(&normalized));
+        if next == normalized {
+            break;
+        }
+        normalized = next;
+    }
+
+    normalized
+}
+
+fn normalize_inline_only_divs(html: &str) -> String {
+    static DIV_PATTERN: OnceLock<Regex> = OnceLock::new();
+    let pattern = DIV_PATTERN.get_or_init(|| {
+        Regex::new(&format!(
+            r"(?is)<div(?P<attrs>[^>]*)>(?P<inner>{})</div>",
+            inline_fragment_pattern()
+        ))
+        .unwrap()
+    });
+
+    pattern
+        .replace_all(html, |caps: &regex::Captures<'_>| {
+            let attrs = caps.name("attrs").map(|m| m.as_str()).unwrap_or("");
+            let inner = caps.name("inner").map(|m| m.as_str()).unwrap_or("");
+            if !should_convert_inline_div(inner) {
+                return caps.get(0).unwrap().as_str().to_string();
+            }
+            wrap_phrasing_segments(inner, attrs)
+        })
+        .to_string()
+}
+
+fn normalize_br_chain_paragraphs(html: &str) -> String {
+    static P_PATTERN: OnceLock<Regex> = OnceLock::new();
+    let pattern = P_PATTERN.get_or_init(|| {
+        Regex::new(&format!(
+            r"(?is)<p(?P<attrs>[^>]*)>(?P<inner>{})</p>",
+            inline_fragment_pattern()
+        ))
+        .unwrap()
+    });
+
+    pattern
+        .replace_all(html, |caps: &regex::Captures<'_>| {
+            let attrs = caps.name("attrs").map(|m| m.as_str()).unwrap_or("");
+            let inner = caps.name("inner").map(|m| m.as_str()).unwrap_or("");
+
+            if split_br_chain_segments(inner).len() <= 1 {
+                return caps.get(0).unwrap().as_str().to_string();
+            }
+
+            wrap_phrasing_segments(inner, attrs)
+        })
+        .to_string()
+}
+
+fn inline_fragment_pattern() -> &'static str {
+    r#"(?:(?:<!--.*?-->)|(?:[^<]+)|(?:</?(?:a|abbr|b|bdi|bdo|br|cite|code|data|del|dfn|em|font|i|img|ins|kbd|mark|q|rp|rt|ruby|s|samp|small|span|strike|strong|sub|sup|time|u|var|wbr)\b[^>]*>))*"#
+}
+
+fn should_convert_inline_div(inner: &str) -> bool {
+    if split_br_chain_segments(inner).len() > 1 {
+        return true;
+    }
+
+    has_top_level_text(inner)
+}
+
+fn has_top_level_text(inner: &str) -> bool {
+    let mut depth = 0usize;
+    let mut idx = 0usize;
+    let bytes = inner.as_bytes();
+
+    while idx < bytes.len() {
+        if bytes[idx] == b'<' {
+            let Some(end) = inner[idx..].find('>') else {
+                break;
+            };
+            let tag = &inner[idx + 1..idx + end];
+            let tag = tag.trim();
+
+            if tag.starts_with('!') || tag.starts_with('?') {
+                idx += end + 1;
+                continue;
+            }
+
+            let closing = tag.starts_with('/');
+            let tag_name = tag_name(tag.trim_start_matches('/'));
+            let self_closing = tag.ends_with('/') || is_void_inline_tag(tag_name);
+
+            if closing {
+                depth = depth.saturating_sub(1);
+            } else if !self_closing {
+                depth += 1;
+            }
+
+            idx += end + 1;
+            continue;
+        }
+
+        let Some(ch) = inner[idx..].chars().next() else {
+            break;
+        };
+        if depth == 0 && !ch.is_whitespace() {
+            return true;
+        }
+        idx += ch.len_utf8();
+    }
+
+    false
+}
+
+fn tag_name(tag: &str) -> &str {
+    let end = tag
+        .char_indices()
+        .find(|(_, ch)| ch.is_whitespace() || *ch == '/')
+        .map(|(idx, _)| idx)
+        .unwrap_or(tag.len());
+    &tag[..end]
+}
+
+fn is_void_inline_tag(tag_name: &str) -> bool {
+    matches!(tag_name.to_ascii_lowercase().as_str(), "br" | "img" | "wbr")
+}
+
+fn wrap_phrasing_segments(inner: &str, attrs: &str) -> String {
+    let segments = split_br_chain_segments(inner);
+    if segments.len() <= 1 {
+        return format!("<p{attrs}>{inner}</p>");
+    }
+
+    let mut output = String::new();
+    for (idx, segment) in segments.into_iter().enumerate() {
+        if idx == 0 {
+            output.push_str(&format!("<p{attrs}>{segment}</p>"));
+        } else {
+            output.push_str(&format!("<p>{segment}</p>"));
+        }
+    }
+
+    output
+}
+
+fn split_br_chain_segments(inner: &str) -> Vec<String> {
+    static BR_CHAIN_PATTERN: OnceLock<Regex> = OnceLock::new();
+    let pattern = BR_CHAIN_PATTERN.get_or_init(|| Regex::new(r"(?is)(?:\s*<br\b[^>]*>\s*){2,}").unwrap());
+
+    if !pattern.is_match(inner) {
+        return vec![inner.to_string()];
+    }
+
+    pattern
+        .split(inner)
+        .map(str::trim)
+        .filter(|segment| !segment.is_empty())
+        .map(ToString::to_string)
+        .collect()
 }
 
 /// Remove elements that match unlikely candidate patterns
@@ -741,5 +1041,78 @@ mod tests {
         assert!(result.contains("main"));
         assert!(result.contains("href=\"https://example.com/post\""));
         assert!(result.contains("Content"));
+    }
+
+    #[test]
+    fn test_resolve_lazy_image_attributes() {
+        let html = r#"
+            <html>
+                <body>
+                    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" data-src="/hero.jpg" data-srcset="/hero.jpg 1200w" />
+                    <picture>
+                        <source data-srcset="/hero.webp 1200w" />
+                    </picture>
+                </body>
+            </html>
+        "#;
+
+        let base = Url::parse("https://example.com/articles/").unwrap();
+        let result = preprocess_html(html, &PreprocessConfig { base_url: Some(base), ..Default::default() });
+
+        assert!(result.contains("src=\"https://example.com/hero.jpg\""));
+        assert!(result.contains("srcset=\"/hero.jpg 1200w\""));
+        assert!(result.contains("srcset=\"/hero.webp 1200w\""));
+        assert!(!result.contains("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="));
+    }
+
+    #[test]
+    fn test_unwrap_noscript_image_replacement() {
+        let html = r#"
+            <html>
+                <body>
+                    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" />
+                    <noscript><img src="/fullsize.jpg" alt="Full size image"></noscript>
+                </body>
+            </html>
+        "#;
+
+        let base = Url::parse("https://example.com/").unwrap();
+        let result = preprocess_html(html, &PreprocessConfig { base_url: Some(base), ..Default::default() });
+
+        assert!(!result.contains("<noscript"));
+        assert!(result.contains("src=\"https://example.com/fullsize.jpg\""));
+        assert!(result.contains("alt=\"Full size image\""));
+        assert!(!result.contains("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="));
+    }
+
+    #[test]
+    fn test_normalize_br_chains_and_inline_divs() {
+        let html = r#"
+            <html>
+                <body>
+                    <div class="story">Alpha<br><br>Beta <font color="red">Gamma</font></div>
+                </body>
+            </html>
+        "#;
+
+        let result = normalize_whitespace(preprocess_html(html, &PreprocessConfig::default()));
+
+        assert!(result.contains(r#"<p class="story">Alpha</p><p>Beta <span color="red">Gamma</span></p>"#));
+        assert!(!result.contains("<font"));
+    }
+
+    #[test]
+    fn test_inline_div_with_block_child_stays_div() {
+        let html = r#"
+            <html>
+                <body>
+                    <div class="wrapper"><span>Intro</span><p>Body</p></div>
+                </body>
+            </html>
+        "#;
+
+        let result = preprocess_html(html, &PreprocessConfig::default());
+
+        assert!(result.contains(r#"<div class="wrapper"><span>Intro</span><p>Body</p></div>"#));
     }
 }
