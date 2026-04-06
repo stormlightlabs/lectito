@@ -1,5 +1,6 @@
 use super::error::AppError;
 use axum::http::HeaderMap;
+use lectito_core::ExtractionDiagnostics;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
@@ -36,6 +37,8 @@ pub struct CachedExtractedArticle {
     pub format: CachedFormat,
     pub content: String,
     pub metadata: CachedMetadata,
+    pub confidence: f64,
+    pub diagnostics: Option<ExtractionDiagnostics>,
     pub fetched_at: OffsetDateTime,
 }
 

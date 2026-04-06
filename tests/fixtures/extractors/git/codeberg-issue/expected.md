@@ -1057,8 +1057,9 @@ which
 Lines 34 to 36 in [114ea92](https://codeberg.org/ziglang/zig/src/commit/114ea92c09b6f27fe7596fddc4b114a31bf1c334)
 
 |  | `/// Completion of https://github.com/ziglang/zig/issues/24510 will also allow` |
-|  | `/// the second parameter of the main function to be a custom struct that`      |
-|  | `/// contain auto-parsed CLI arguments.`                                        |
+| --- | --- |
+|  | `/// the second parameter of the main function to be a custom struct that` |
+|  | `/// contain auto-parsed CLI arguments.` |
 
 seems to imply. You *need* to return `Args` directly.  
  Edit: On second thought you could of course say `args.named.foo.value` is the syntax to get the value, and that might be acceptable. However I would not say it's preferable.

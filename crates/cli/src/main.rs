@@ -324,6 +324,11 @@ async fn main() -> anyhow::Result<()> {
                 "Words:".dimmed(),
                 article.word_count.to_string().bright_white()
             );
+            eprintln!(
+                "  {} {}\n",
+                "Confidence:".dimmed(),
+                format!("{:.2}", article.confidence).bright_white()
+            );
         }
 
         if args.metadata_only {
@@ -447,6 +452,11 @@ async fn main() -> anyhow::Result<()> {
             "  {} {}\n",
             "Score:".dimmed(),
             format!("{:.1}", extracted.top_score).bright_white()
+        );
+        eprintln!(
+            "  {} {}\n",
+            "Confidence:".dimmed(),
+            format!("{:.2}", extracted.confidence).bright_white()
         );
         eprintln!(
             "  {} {}\n",

@@ -10,10 +10,10 @@ Lazurite is a cross-platform Bluesky client built with Flutter and Dart using Ma
 
 [](#home-feed--composer)
 
-| Home Feed                                                                                                                                 | Composer                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Profile                                                                                                                             |
-| ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Home Feed | Composer | Profile |
+| --- | --- | --- |
 | [![Home Feed](/stormlightlabs/lazurite/raw/main/docs/images/home-feed.png)](/stormlightlabs/lazurite/blob/main/docs/images/home-feed.png) | [![Compose Screenshot](https://camo.githubusercontent.com/94e1695a0f2b75466919a9653d0bd2c03249c38f18439d0853ff5f31b053f018/68747470733a2f2f706c616365686f6c642e636f2f343030783830302f3443414635302f4646464646463f746578743d436f6d706f73652b53637265656e73686f74)](https://camo.githubusercontent.com/94e1695a0f2b75466919a9653d0bd2c03249c38f18439d0853ff5f31b053f018/68747470733a2f2f706c616365686f6c642e636f2f343030783830302f3443414635302f4646464646463f746578743d436f6d706f73652b53637265656e73686f74) | [![Profile](/stormlightlabs/lazurite/raw/main/docs/images/profile.png)](/stormlightlabs/lazurite/blob/main/docs/images/profile.png) |
-| View your personal timeline with support for threads and media.                                                                           | Create new posts with rich text and media attachments. Supports replies and quoting.                                                                                                                                                                                                                                                                                                                                                                                                                        | View detailed actor profiles, including their feed and metadata.                                                                    |
+| View your personal timeline with support for threads and media. | Create new posts with rich text and media attachments. Supports replies and quoting. | View detailed actor profiles, including their feed and metadata. |
 
 
 
@@ -21,10 +21,10 @@ Lazurite is a cross-platform Bluesky client built with Flutter and Dart using Ma
 
 [](#search--profile)
 
-| Search                                                                                                                                   | About                                                                                                                         | DevTools                                                                                                                                 |
-| ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Search | About | DevTools |
+| --- | --- | --- |
 | [![Search Results](/stormlightlabs/lazurite/raw/main/docs/images/search.png)](/stormlightlabs/lazurite/blob/main/docs/images/search.png) | [![About](/stormlightlabs/lazurite/raw/main/docs/images/about.png)](/stormlightlabs/lazurite/blob/main/docs/images/about.png) | [![DevTools](/stormlightlabs/lazurite/raw/main/docs/images/dev-tools.png)](/stormlightlabs/lazurite/blob/main/docs/images/dev-tools.png) |
-| Discover people and posts across the Bluesky network.                                                                                    | About (showing Rose Pine Moon theme)                                                                                          | Built-in logs and developer utilities for exploring the AT Protocol (Rose Pine Dawn).                                                    |
+| Discover people and posts across the Bluesky network. | About (showing Rose Pine Moon theme) | Built-in logs and developer utilities for exploring the AT Protocol (Rose Pine Dawn). |
 
 
 
@@ -78,14 +78,14 @@ The project follows a feature-first architecture layered with a core module:
 
 Lazurite uses `StatefulShellRoute` for persistent bottom navigation.
 
-| Path        | Description                    |
-| ----------- | ------------------------------ |
-| `/login`    | Authentication gateway         |
-| `/`         | Home Feed tab                  |
-| `/search`   | Search tab                     |
-| `/profile`  | Current user profile tab       |
-| `/settings` | Global settings                |
-| `/compose`  | Root-level modal for new posts |
+| Path | Description |
+| --- | --- |
+| `/login` | Authentication gateway |
+| `/` | Home Feed tab |
+| `/search` | Search tab |
+| `/profile` | Current user profile tab |
+| `/settings` | Global settings |
+| `/compose` | Root-level modal for new posts |
 
 
 
@@ -113,15 +113,15 @@ flutter run
 
 Powered by **Drift**, the following tables are currently implemented:
 
-| Table             | Purpose                                                          |
-| ----------------- | ---------------------------------------------------------------- |
-| `accounts`        | Local storage for session and auth tokens (DID, handle, service) |
-| `cached_profiles` | Cached profile metadata to reduce network calls                  |
-| `cached_posts`    | Cached post content for offline viewing                          |
-| `saved_feeds`     | Locally Managed feed preferences                                 |
-| `search_history`  | Persistent query history                                         |
-| `drafts`          | Offline-first post drafting with media support                   |
-| `settings`        | Key-value application configuration                              |
+| Table | Purpose |
+| --- | --- |
+| `accounts` | Local storage for session and auth tokens (DID, handle, service) |
+| `cached_profiles` | Cached profile metadata to reduce network calls |
+| `cached_posts` | Cached post content for offline viewing |
+| `saved_feeds` | Locally Managed feed preferences |
+| `search_history` | Persistent query history |
+| `drafts` | Offline-first post drafting with media support |
+| `settings` | Key-value application configuration |
 
 
 

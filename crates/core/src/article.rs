@@ -4,6 +4,7 @@
 //! result of content extraction, including the extracted HTML, plain text,
 //! metadata, and calculated metrics.
 
+use super::extract::ExtractionDiagnostics;
 use super::formatters::markdown::MarkdownConfig;
 use super::formatters::markdown::convert_to_markdown;
 use super::metadata::{clean_metadata_title, count_words};
@@ -53,6 +54,13 @@ pub struct Article {
 
     /// Source URL if known.
     pub source_url: Option<String>,
+
+    /// Extraction confidence score (0.0-1.0).
+    pub confidence: f64,
+
+    /// Optional extraction diagnostics for callers that need more detail.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diagnostics: Option<ExtractionDiagnostics>,
 }
 
 impl Article {
@@ -90,7 +98,17 @@ impl Article {
         let word_count = count_words(&text_content);
         let reading_time = word_count as f64 / 200.0;
 
-        Self { content, text_content, metadata, length, word_count, reading_time, source_url }
+        Self {
+            content,
+            text_content,
+            metadata,
+            length,
+            word_count,
+            reading_time,
+            source_url,
+            confidence: 0.0,
+            diagnostics: None,
+        }
     }
 
     /// Creates an Article from a Document and extracted content HTML.
@@ -147,6 +165,17 @@ impl Article {
     /// This is an alias for the `text_content` field.
     pub fn to_text(&self) -> String {
         self.text_content.clone()
+    }
+
+    pub fn with_extraction_assessment(mut self, confidence: f64, diagnostics: ExtractionDiagnostics) -> Self {
+        self.confidence = confidence;
+        self.diagnostics = Some(diagnostics);
+        self
+    }
+
+    pub fn set_extraction_assessment(&mut self, confidence: f64, diagnostics: ExtractionDiagnostics) {
+        self.confidence = confidence;
+        self.diagnostics = Some(diagnostics);
     }
 }
 

@@ -78,6 +78,11 @@ pub fn print_extraction_details(extracted: &lectito_core::ExtractedContent) {
     eprintln!("{}", "═".repeat(60).dimmed());
     eprintln!(
         "  {} {}",
+        "Confidence:".dimmed(),
+        format!("{:.2}", extracted.confidence).bright_white()
+    );
+    eprintln!(
+        "  {} {}",
         "Top Score:".dimmed(),
         format!("{:.1}", extracted.top_score).bright_white()
     );
