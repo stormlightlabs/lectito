@@ -1,21 +1,21 @@
 [book]
-title = "Lectito Documentation"
+title = "Lectito Book"
 authors = ["Stormlight Labs"]
-description = "User documentation for the Lectito article extraction library and CLI"
+description = "Documentation for the Lectito extraction library, CLI, API, and web app"
 language = "en"
 src = "src"
 
 [rust]
-edition = "2021"
+edition = "2024"
 
 [build]
 build-dir = "output"
 create-missing = true
 
 [output.html]
-default-theme = "coal"
-preferred-dark-theme = "coal"
-additional-css = ["theme/css/iceberg.css"]
+default-theme = "light"
+preferred-dark-theme = "light"
+additional-css = ["theme/css/custom-theme.css"]
 git-repository-url = "https://github.com/stormlightlabs/lectito"
 edit-url-template = "https://github.com/stormlightlabs/lectito/edit/main/docs/{path}"
 site-url = "/lectito/"

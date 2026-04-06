@@ -1,0 +1,272 @@
+@import url("https://fonts.googleapis.com/css2?family=Google+Sans:ital,wght@0,400;0,500;0,700;1,400&family=Google+Sans+Code:wght@400;500;700&family=Lora:ital,wght@0,400;0,500;0,700;1,400&display=swap");
+
+:root,
+html.light,
+html.rust,
+html.coal,
+html.navy,
+html.ayu {
+  --paper: #fafafa;
+  --paper-shadow: rgba(255, 255, 255, 0.74);
+  --ink: #0a0a0a;
+  --charcoal: #1a1a1a;
+  --graphite: #2d2d2d;
+  --stone: #666666;
+  --fog: #999999;
+  --mist: #e5e5e5;
+  --accent: #0f766e;
+  --panel-border: #e5e5e5;
+  --code-bg: #181818;
+  --code-fg: #fafafa;
+
+  --bg: var(--paper);
+  --fg: var(--charcoal);
+  --sidebar-bg: rgba(255, 255, 255, 0.86);
+  --sidebar-fg: var(--graphite);
+  --sidebar-non-existant: var(--fog);
+  --sidebar-active: var(--ink);
+  --quote-bg: rgba(255, 255, 255, 0.72);
+  --quote-fg: var(--graphite);
+  --table-border-color: #d8d8d8;
+  --theme-popup-bg: rgba(255, 255, 255, 0.96);
+  --theme-popup-border: var(--mist);
+  --theme-hover: rgba(10, 10, 10, 0.04);
+  --links: var(--accent);
+  --inline-code-color: var(--code-fg);
+  --search-mark-bg: rgba(15, 118, 110, 0.18);
+  --searchbar-fg: var(--ink);
+  --searchbar-bg: rgba(255, 255, 255, 0.94);
+  --searchbar-border-color: var(--mist);
+  --searchresults-header-fg: var(--ink);
+  --searchresults-border-color: var(--mist);
+  --scrollbar: #d4d4d4;
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(10, 10, 10, 0.04), transparent 34%), linear-gradient(180deg, #ffffff 0%, var(--paper) 46%, #f3f1eb 100%);
+  color: var(--ink);
+  scroll-behavior: smooth;
+}
+
+body {
+  background:
+    repeating-linear-gradient(90deg, transparent 0, transparent 71px, rgba(10, 10, 10, 0.025) 72px, rgba(10, 10, 10, 0.025) 73px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(250, 250, 250, 0.96));
+  color: var(--ink);
+  font-family: "Google Sans", "Avenir Next", "Segoe UI", sans-serif;
+}
+
+#theme-toggle,
+#theme-list {
+  display: none;
+}
+
+#menu-bar,
+.menu-bar.sticky {
+  background: rgba(255, 255, 255, 0.82);
+  border-bottom: 1px solid var(--mist);
+  box-shadow: 0 10px 20px rgba(10, 10, 10, 0.04);
+  backdrop-filter: blur(18px);
+}
+
+.menu-title {
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.left-buttons button,
+.left-buttons label,
+.right-buttons a {
+  color: var(--stone);
+}
+
+.left-buttons button:hover,
+.left-buttons label:hover,
+.right-buttons a:hover {
+  color: var(--ink);
+}
+
+#sidebar,
+.sidebar,
+.sidebar .sidebar-scrollbox {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--mist);
+  backdrop-filter: blur(14px);
+}
+
+.chapter li.chapter-item a {
+  border-radius: 999px;
+  color: var(--graphite);
+  font-size: 0.92rem;
+  padding: 0.32rem 0.75rem;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.chapter li.chapter-item a:hover,
+.chapter li.chapter-item a.active {
+  background: rgba(10, 10, 10, 0.06);
+  color: var(--ink);
+  transform: translateX(2px);
+}
+
+#content {
+  margin: 0 auto;
+  max-width: 68rem;
+  padding: 2rem 1.5rem 3rem;
+}
+
+#content main {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), var(--paper-shadow));
+  border: 1px solid var(--panel-border);
+  border-radius: 28px;
+  box-shadow:
+    0 14px 30px rgba(10, 10, 10, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  padding: clamp(1.5rem, 3vw, 3rem);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--ink);
+  font-family: "Google Sans", "Avenir Next", "Segoe UI", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+h1 {
+  font-size: clamp(2.2rem, 4vw, 3.6rem);
+  margin-bottom: 1rem;
+}
+
+h2 {
+  border-bottom: 1px solid var(--mist);
+  font-size: clamp(1.55rem, 2vw, 2rem);
+  margin-top: 2.8rem;
+  padding-bottom: 0.45rem;
+}
+
+h3 {
+  font-size: clamp(1.25rem, 1.6vw, 1.55rem);
+  margin-top: 2rem;
+}
+
+p,
+li,
+blockquote {
+  color: var(--charcoal);
+  font-family: "Lora", "Iowan Old Style", "Palatino Linotype", serif;
+  font-size: 1.06rem;
+  line-height: 1.85;
+}
+
+p code,
+li code {
+  background: var(--code-bg);
+  border-radius: 0.35rem;
+  color: var(--code-fg);
+  font-family: "Google Sans Code", "SFMono-Regular", monospace;
+  font-size: 0.86em;
+  padding: 0.1rem 0.35rem;
+}
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  box-shadow: 0 10px 20px rgba(10, 10, 10, 0.12);
+  padding: 1rem 1.15rem;
+}
+
+pre code {
+  color: var(--code-fg);
+  font-family: "Google Sans Code", "SFMono-Regular", monospace;
+}
+
+a {
+  border-bottom: 1px solid rgba(10, 10, 10, 0.22);
+  color: var(--links);
+  text-decoration: none;
+  transition:
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+a:hover {
+  border-bottom-color: var(--links);
+}
+
+blockquote {
+  background: var(--quote-bg);
+  border-left: 3px solid var(--ink);
+  border-radius: 0 1rem 1rem 0;
+  color: var(--graphite);
+  margin: 1.5rem 0;
+  padding: 0.85rem 1.15rem;
+}
+
+table {
+  background: rgba(255, 255, 255, 0.88);
+  border-collapse: collapse;
+  border-radius: 1rem;
+  overflow: hidden;
+  width: 100%;
+}
+
+th,
+td {
+  border: 1px solid var(--table-border-color);
+  padding: 0.7rem 0.9rem;
+}
+
+th {
+  background: rgba(10, 10, 10, 0.04);
+  color: var(--ink);
+  font-family: "Google Sans", "Avenir Next", "Segoe UI", sans-serif;
+  font-weight: 600;
+}
+
+#searchbar,
+.searchbar-outer {
+  background: var(--searchbar-bg);
+  border-color: var(--searchbar-border-color);
+  color: var(--searchbar-fg);
+}
+
+.searchresults-outer {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--mist);
+  box-shadow: 0 18px 34px rgba(10, 10, 10, 0.08);
+}
+
+.nav-chapters,
+.mobile-nav-chapters {
+  color: var(--ink);
+}
+
+::selection {
+  background: rgba(10, 10, 10, 0.9);
+  color: var(--paper);
+}
+
+@media (max-width: 1080px) {
+  #content {
+    padding: 1.25rem 1rem 2rem;
+  }
+
+  #content main {
+    border-radius: 20px;
+    padding: 1.2rem 1rem 1.5rem;
+  }
+}

@@ -1,5 +1,9 @@
-use crate::{Document, FetchConfig, LectitoError, Metadata, Result, utils};
+#[cfg(feature = "fetch")]
+use crate::LectitoError;
+use crate::{Document, FetchConfig, Metadata, Result, utils};
+#[cfg(feature = "fetch")]
 use std::future::Future;
+#[cfg(feature = "fetch")]
 use std::pin::Pin;
 use url::Url;
 
@@ -70,6 +74,13 @@ impl ExtractorRegistry {
         }
 
         Ok(None)
+    }
+
+    #[cfg(not(feature = "fetch"))]
+    pub async fn extract_async(
+        &self, doc: &Document, url: &Url, _fetch_config: &FetchConfig,
+    ) -> Result<Option<ExtractorOutcome>> {
+        self.extract(doc, url)
     }
 }
 
@@ -743,6 +754,7 @@ fn host_site_name(url: &Url) -> String {
     .to_string()
 }
 
+#[cfg(feature = "fetch")]
 fn extract_youtube_caption_url(html: &str) -> Option<String> {
     static BASE_URL_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let re = BASE_URL_RE.get_or_init(|| regex::Regex::new(r#""baseUrl":"([^"]+)""#).unwrap());
@@ -750,6 +762,7 @@ fn extract_youtube_caption_url(html: &str) -> Option<String> {
     Some(value.replace("\\u0026", "&").replace("\\/", "/").replace("&amp;", "&"))
 }
 
+#[cfg(feature = "fetch")]
 fn render_youtube_transcript(url: &Url, title: &str, transcript_json: &str) -> Result<String> {
     let value: serde_json::Value =
         serde_json::from_str(transcript_json).map_err(|e| LectitoError::HtmlParseError(e.to_string()))?;
@@ -913,6 +926,7 @@ mod tests {
         assert!(matches!(outcome, Some(ExtractorOutcome::Selector { .. })));
     }
 
+    #[cfg(feature = "fetch")]
     #[test]
     fn test_render_youtube_transcript_groups_segments() {
         let html = render_youtube_transcript(

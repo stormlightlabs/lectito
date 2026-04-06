@@ -125,6 +125,9 @@ pub mod readability;
 pub mod scoring;
 #[cfg(feature = "siteconfig")]
 pub mod siteconfig;
+#[cfg(not(feature = "siteconfig"))]
+#[path = "siteconfig_stub.rs"]
+pub mod siteconfig;
 #[doc(hidden)]
 pub mod siteextractors;
 
@@ -155,7 +158,6 @@ pub use readability::{
 pub use scoring::{
     ScoreConfig, ScoreResult, base_tag_score, calculate_score, class_id_weight, content_density_score, link_density,
 };
-#[cfg(feature = "siteconfig")]
 pub use siteconfig::{ConfigLoader, ConfigLoaderBuilder, ConfigParser, Directive, FingerprintMatcher, SiteConfig};
 
 pub(crate) mod utils;
