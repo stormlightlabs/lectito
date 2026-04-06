@@ -1,12 +1,11 @@
-use crate::dom_tree::DomTree;
-use crate::metadata::count_words;
-use crate::parse::{Document, Element};
-use crate::postprocess::{PostProcessConfig, postprocess_html};
-use crate::preprocess::hidden_reason;
-use crate::scoring::{ScoreConfig, ScoreResult, calculate_score};
-use crate::siteconfig::{SiteConfig, SiteConfigProcessing, SiteConfigXPath};
-use crate::{LectitoError, Result, preprocess};
-
+use super::dom_tree::DomTree;
+use super::metadata::count_words;
+use super::parse::{Document, Element};
+use super::postprocess::{PostProcessConfig, TableKind, classify_table_element, postprocess_html};
+use super::preprocess::hidden_reason;
+use super::scoring::{ScoreConfig, ScoreResult, calculate_score};
+use super::siteconfig::{SiteConfig, SiteConfigProcessing, SiteConfigXPath};
+use super::{LectitoError, Result, preprocess};
 use regex::Regex;
 use std::collections::HashSet;
 use std::sync::OnceLock;
@@ -91,7 +90,17 @@ impl<'a> EntryPointCandidate<'a> {
 }
 
 /// Tags that are considered potential content containers
-const CANDIDATE_TAGS: &[&str] = &["div", "article", "section", "main", "p", "pre", "blockquote", "td"];
+const CANDIDATE_TAGS: &[&str] = &[
+    "div",
+    "article",
+    "section",
+    "main",
+    "p",
+    "pre",
+    "blockquote",
+    "td",
+    "table",
+];
 
 /// Priority-ordered entry points for main-content detection.
 const ENTRY_POINT_SELECTORS: &[&str] = &[
@@ -183,6 +192,9 @@ fn should_remove_partial_selector_candidate(element: &Element<'_>) -> bool {
         "article" | "main" | "body" | "html" | "pre" | "code" | "math"
     ) || is_heading_tag(&tag)
     {
+        return false;
+    }
+    if tag == "table" && classify_table_element(element) == TableKind::Data {
         return false;
     }
 
@@ -282,6 +294,9 @@ fn identify_candidates<'a>(
                 }
                 scanned += 1;
                 let tag_name = element.tag_name();
+                if tag_name == "table" && classify_table_element(&element) == TableKind::Layout {
+                    continue;
+                }
                 let text = element.text();
                 if !matches!(tag_name.as_str(), "article" | "section" | "main")
                     && text.chars().count() < config.char_threshold / 10
@@ -579,33 +594,12 @@ fn entry_candidate_meets_threshold(entry_candidate: &EntryPointCandidate<'_>, co
     tag != "body" || entry_candidate.content_score >= config.min_score_threshold
 }
 
-fn looks_like_table_layout(table: &Element<'_>) -> bool {
-    let width = table
-        .attr("width")
-        .and_then(|value| value.parse::<usize>().ok())
-        .unwrap_or(0);
-    if width > 400
-        || table
-            .attr("align")
-            .is_some_and(|value| value.eq_ignore_ascii_case("center"))
-    {
-        return true;
-    }
-
-    let attrs = selector_attrs(table);
-    if attrs.contains("content") || attrs.contains("article") {
-        return true;
-    }
-
-    table.select("tr").unwrap_or_default().into_iter().any(|row| {
-        let cells = row.select("td, th").unwrap_or_default();
-        cells.len() >= 2 && cells.iter().any(|cell| cell.attr("width").is_some())
-    })
-}
-
 fn select_table_layout_candidate<'a>(doc: &'a Document, score_config: &ScoreConfig) -> Option<Candidate<'a>> {
     let tables = doc.select("table").ok()?;
-    if !tables.iter().any(looks_like_table_layout) {
+    if !tables
+        .iter()
+        .any(|table| classify_table_element(table) == TableKind::Layout)
+    {
         return None;
     }
 

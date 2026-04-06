@@ -4,17 +4,16 @@
 //! The main entry point is the [`Readability`] struct, along with convenience functions
 //! like [`parse`] and [`fetch_and_parse`].
 
-use crate::article::Article;
-use crate::extract::{
-    ExtractConfig, extract_content_with_config, extract_largest_hidden_subtree, extract_schema_org_article,
-};
-use crate::fetch::{FetchConfig, fetch_url};
-use crate::parse::Document;
-use crate::preprocess::PreprocessConfig;
-use crate::scoring::{ScoreConfig, calculate_score};
-use crate::siteconfig::{ConfigLoader, SiteConfig, SiteConfigXPath};
-use crate::siteextractors::{ExtractorOutcome, ExtractorRegistry};
-use crate::{LectitoError, Result};
+use super::article::Article;
+use super::extract::ExtractConfig;
+use super::extract::{extract_content_with_config, extract_largest_hidden_subtree, extract_schema_org_article};
+use super::fetch::{FetchConfig, fetch_url};
+use super::parse::Document;
+use super::preprocess::PreprocessConfig;
+use super::scoring::{ScoreConfig, calculate_score};
+use super::siteconfig::{ConfigLoader, SiteConfig, SiteConfigXPath};
+use super::siteextractors::{ExtractorOutcome, ExtractorRegistry};
+use super::{LectitoError, Result};
 use std::collections::HashMap;
 use url::Url;
 
@@ -289,7 +288,7 @@ impl Readability {
             }
 
             if let Some(extracted) = extract_largest_hidden_subtree(&pass2_doc) {
-                let article = Article::from_document(&pass2_doc, extracted.content, url.map(|u| u.to_string()));
+                let article = Article::from_document_deduped(&pass2_doc, extracted.content, url.map(|u| u.to_string()));
                 if article.word_count >= RETRY_WORD_THRESHOLD {
                     return Ok(article);
                 }
@@ -313,7 +312,7 @@ impl Readability {
         if let Ok(schema_doc) = Document::parse_with_preprocessing_config(html, &schema_preprocess)
             && let Some(extracted) = extract_schema_org_article(&schema_doc)
         {
-            let article = Article::from_document(&schema_doc, extracted.content, url.map(|u| u.to_string()));
+            let article = Article::from_document_deduped(&schema_doc, extracted.content, url.map(|u| u.to_string()));
             if article.word_count >= RETRY_WORD_THRESHOLD {
                 return Ok(article);
             }
@@ -363,7 +362,7 @@ impl Readability {
                 &metadata_patch,
             ))
         } else {
-            Ok(Article::from_document(
+            Ok(Article::from_document_deduped(
                 doc,
                 extracted.content,
                 url.map(|u| u.to_string()),

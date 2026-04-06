@@ -5,3 +5,16 @@ https://news.ycombinator.com/item?id=38646892
 https://old.reddit.com/r/rust/comments/1sa402r/this_week_in_rust_645/
 https://patternmatched.substack.com/p/software-as-fan-art
 https://wordpress.org/news/2023/12/wordpress-6-4-2/
+
+data-table-vs-layout
+https://www.baseball-reference.com/leagues/majors/2026.shtml
+https://www.timeanddate.com/worldclock/
+https://www.imdb.com/chart/top/
+https://www.berkshirehathaway.com/
+https://www.cppreference.com/w/cpp/container/vector
+
+title-deduplication-via-text-similarity
+https://www.scientificamerican.com/article/
+https://www.ft.com/content/
+https://nautil.us/the-last-interview/
+https://restofworld.org/2024/

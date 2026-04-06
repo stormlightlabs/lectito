@@ -4,11 +4,12 @@
 //! result of content extraction, including the extracted HTML, plain text,
 //! metadata, and calculated metrics.
 
-use crate::formatters::markdown::MarkdownConfig;
-use crate::formatters::markdown::convert_to_markdown;
-use crate::metadata::count_words;
-use crate::{Document, Metadata};
-use crate::{LectitoError, Result};
+use super::formatters::markdown::MarkdownConfig;
+use super::formatters::markdown::convert_to_markdown;
+use super::metadata::{clean_metadata_title, count_words};
+use super::postprocess::dedupe_title_headings;
+use super::{Document, Metadata};
+use super::{LectitoError, Result};
 use serde::Serialize;
 
 /// Output format options for Article content.
@@ -55,6 +56,30 @@ pub struct Article {
 }
 
 impl Article {
+    fn build_from_document(
+        doc: &Document, content_html: String, source_url: Option<String>, metadata_patch: Option<&Metadata>,
+        dedupe_title: bool,
+    ) -> Self {
+        let mut metadata = doc.extract_metadata();
+        if let Some(metadata_patch) = metadata_patch {
+            metadata = metadata.with_patch(metadata_patch);
+        }
+
+        let (title, detected_site_name) = clean_metadata_title(metadata.title.take(), metadata.site_name.as_deref());
+        metadata.title = title;
+        if metadata.site_name.is_none() {
+            metadata.site_name = detected_site_name;
+        }
+
+        let content_html = if dedupe_title {
+            dedupe_title_headings(&content_html, metadata.title.as_deref())
+        } else {
+            content_html
+        };
+
+        Self::new(content_html, metadata, source_url)
+    }
+
     /// Creates a new Article from its components.
     ///
     /// This constructor automatically calculates derived metrics including
@@ -73,8 +98,11 @@ impl Article {
     /// This is a convenience method that extracts metadata from the document
     /// and creates an Article with the provided content HTML.
     pub fn from_document(doc: &Document, content_html: String, source_url: Option<String>) -> Self {
-        let metadata = doc.extract_metadata();
-        Self::new(content_html, metadata, source_url)
+        Self::build_from_document(doc, content_html, source_url, None, false)
+    }
+
+    pub(crate) fn from_document_deduped(doc: &Document, content_html: String, source_url: Option<String>) -> Self {
+        Self::build_from_document(doc, content_html, source_url, None, true)
     }
 
     /// Creates an Article from a Document and extracted content HTML, overriding
@@ -82,8 +110,7 @@ impl Article {
     pub fn from_document_with_metadata(
         doc: &Document, content_html: String, source_url: Option<String>, metadata_patch: &Metadata,
     ) -> Self {
-        let metadata = doc.extract_metadata().with_patch(metadata_patch);
-        Self::new(content_html, metadata, source_url)
+        Self::build_from_document(doc, content_html, source_url, Some(metadata_patch), false)
     }
 
     /// Converts content to the specified format.
