@@ -6,9 +6,12 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+#[cfg(feature = "fetch")]
 use std::time::Duration;
 
+#[cfg(feature = "fetch")]
 use reqwest::Client;
+#[cfg(feature = "fetch")]
 use url::Url;
 
 use crate::{LectitoError, Result};
@@ -41,6 +44,7 @@ impl Default for FetchConfig {
 /// This function performs an HTTP GET request and returns the response body as text.
 /// It follows redirects, respects the configured timeout, and uses a browser-like
 /// User-Agent for better compatibility.
+#[cfg(feature = "fetch")]
 pub async fn fetch_url(url: &str, config: &FetchConfig) -> Result<String> {
     let parsed_url = Url::parse(url).map_err(|e| LectitoError::InvalidUrl(e.to_string()))?;
 
@@ -71,6 +75,14 @@ pub async fn fetch_url(url: &str, config: &FetchConfig) -> Result<String> {
     response.text().await.map_err(LectitoError::HttpError)
 }
 
+#[cfg(not(feature = "fetch"))]
+pub async fn fetch_url(_url: &str, _config: &FetchConfig) -> Result<String> {
+    Err(LectitoError::ConfigError(
+        "URL fetching requires the `fetch` feature".to_string(),
+    ))
+}
+
+#[cfg(feature = "fetch")]
 fn build_client(config: &FetchConfig, http1_only: bool) -> std::result::Result<Client, reqwest::Error> {
     let mut builder = Client::builder().timeout(Duration::from_secs(config.timeout));
     if http1_only {
@@ -81,6 +93,7 @@ fn build_client(config: &FetchConfig, http1_only: bool) -> std::result::Result<C
     builder.build()
 }
 
+#[cfg(feature = "fetch")]
 fn build_request(client: &Client, url: &Url, config: &FetchConfig) -> reqwest::RequestBuilder {
     let mut request = client
         .get(url.clone())
@@ -98,6 +111,7 @@ fn build_request(client: &Client, url: &Url, config: &FetchConfig) -> reqwest::R
     request
 }
 
+#[cfg(feature = "fetch")]
 async fn send_request(
     parsed_url: &Url, config: &FetchConfig, http1_only: bool,
 ) -> std::result::Result<reqwest::Response, reqwest::Error> {
@@ -105,6 +119,7 @@ async fn send_request(
     build_request(&client, parsed_url, config).send().await
 }
 
+#[cfg(feature = "fetch")]
 fn should_retry_with_http1(error: &reqwest::Error) -> bool {
     let message = error.to_string().to_lowercase();
     (error.is_connect() || message.contains("protocol"))
@@ -151,6 +166,7 @@ mod tests {
         assert!(config.user_agent.contains("Lectito"));
     }
 
+    #[cfg(feature = "fetch")]
     #[test]
     fn test_fetch_url_invalid() {
         let config = FetchConfig::default();
@@ -173,9 +189,9 @@ mod tests {
 
     #[test]
     fn test_url_validation() {
-        assert!(Url::parse("http://example.com").is_ok());
-        assert!(Url::parse("https://example.com").is_ok());
-        assert!(Url::parse("example.com").is_err()); // Missing scheme
+        assert!(url::Url::parse("http://example.com").is_ok());
+        assert!(url::Url::parse("https://example.com").is_ok());
+        assert!(url::Url::parse("example.com").is_err()); // Missing scheme
     }
 
     #[test]

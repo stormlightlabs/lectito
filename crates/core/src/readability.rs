@@ -13,7 +13,9 @@ use super::metadata::count_words;
 use super::parse::Document;
 use super::preprocess::PreprocessConfig;
 use super::scoring::{ScoreConfig, calculate_score};
-use super::siteconfig::{ConfigLoader, SiteConfig, SiteConfigXPath};
+#[cfg(feature = "siteconfig")]
+use super::siteconfig::SiteConfigXPath;
+use super::siteconfig::{ConfigLoader, SiteConfig};
 use super::siteextractors::{ExtractorOutcome, ExtractorRegistry};
 use super::{LectitoError, Result};
 use std::collections::HashMap;
@@ -1084,6 +1086,7 @@ mod tests {
         assert!(is_probably_readable(ARTICLE_HTML));
     }
 
+    #[cfg(feature = "fetch")]
     #[test]
     fn test_readability_fetch_and_parse_invalid_url() {
         let reader = Readability::new();
@@ -1098,6 +1101,7 @@ mod tests {
         assert!(matches!(result, Err(LectitoError::InvalidUrl(_))));
     }
 
+    #[cfg(feature = "fetch")]
     #[test]
     fn test_convenience_fetch_and_parse_invalid_url() {
         let result = std::thread::spawn(move || {
@@ -1111,6 +1115,7 @@ mod tests {
         assert!(matches!(result, Err(LectitoError::InvalidUrl(_))));
     }
 
+    #[cfg(feature = "fetch")]
     #[test]
     fn test_readability_fetch_and_parse_with_config_custom_timeout() {
         let reader = Readability::new();
@@ -1130,6 +1135,7 @@ mod tests {
         assert!(matches!(result, Err(LectitoError::Timeout { .. })));
     }
 
+    #[cfg(feature = "fetch")]
     #[test]
     fn test_convenience_fetch_and_parse_with_config() {
         let readability_config = ReadabilityConfig::builder().min_score(50.0).build();

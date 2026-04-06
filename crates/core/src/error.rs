@@ -48,6 +48,7 @@ pub enum LectitoError {
     ///
     /// This variant wraps network errors, DNS failures, connection issues,
     /// and other HTTP-related problems.
+    #[cfg(feature = "fetch")]
     #[error("HTTP request failed: {0}")]
     HttpError(#[from] reqwest::Error),
 

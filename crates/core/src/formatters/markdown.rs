@@ -616,6 +616,7 @@ impl MarkdownFormatter {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "markdown")]
     #[test]
     fn test_html_to_markdown_basic() {
         let html = r#"<h1>Title</h1><p>This is a paragraph.</p>"#;
@@ -629,6 +630,7 @@ mod tests {
         assert!(markdown.contains("This is a paragraph."));
     }
 
+    #[cfg(feature = "markdown")]
     #[test]
     fn test_html_to_markdown_with_links() {
         let html = r#"<p>Check out <a href="https://example.com">this link</a>.</p>"#;
@@ -641,6 +643,7 @@ mod tests {
         assert!(markdown.contains("[this link](https://example.com)"));
     }
 
+    #[cfg(feature = "markdown")]
     #[test]
     fn test_html_to_markdown_with_images() {
         let html = r#"<p>An image: <img src="photo.jpg" alt="A photo"></p>"#;
@@ -653,6 +656,7 @@ mod tests {
         assert!(markdown.contains("![A photo](photo.jpg)"));
     }
 
+    #[cfg(feature = "markdown")]
     #[test]
     fn test_html_to_markdown_normalizes_unordered_list_spacing() {
         let html = r#"<ul><li>First item</li><li>Second item</li></ul>"#;
@@ -664,6 +668,7 @@ mod tests {
         assert!(!markdown.contains("*   Second item"));
     }
 
+    #[cfg(feature = "markdown")]
     #[test]
     fn test_html_to_markdown_normalizes_ordered_list_spacing() {
         let html = r#"<ol><li>First item</li><li>Second item</li></ol>"#;
@@ -813,6 +818,7 @@ mod tests {
         assert!(markdown.contains("Data 1"));
     }
 
+    #[cfg(feature = "markdown")]
     #[test]
     fn test_html_to_markdown_with_code_blocks() {
         let html = r#"<pre><code>fn main() { println!("Hello"); }</code></pre>"#;
@@ -825,6 +831,7 @@ mod tests {
         assert!(markdown.contains("```"));
     }
 
+    #[cfg(feature = "markdown")]
     #[test]
     fn test_html_to_markdown_with_blockquotes() {
         let html = r#"<blockquote>This is a quote</blockquote>"#;
