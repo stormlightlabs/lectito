@@ -2,12 +2,12 @@ use anyhow::Context;
 use clap::{CommandFactory, Parser, ValueEnum};
 use clap_complete::{generate, shells::Bash, shells::Fish, shells::PowerShell, shells::Zsh};
 use lectito_cli::echo;
+use lectito_core::article::Article;
 use lectito_core::formatters::{JsonConfig, convert_to_json, metadata_to_json, metadata_to_toml};
-use lectito_core::siteconfig::SiteConfigProcessing;
-use lectito_core::{
-    Document, ExtractConfig, FetchConfig, MarkdownConfig, PostProcessConfig, convert_to_markdown, extract_content,
-    extract_content_with_config, fetch_url,
-};
+use lectito_core::siteconfig::{SiteConfig, SiteConfigProcessing};
+use lectito_core::{Document, ExtractConfig, FetchConfig, MarkdownConfig, PostProcessConfig};
+use lectito_core::{Readability, ReadabilityConfig};
+use lectito_core::{convert_to_markdown, extract_content, extract_content_with_config, fetch_url};
 use owo_colors::OwoColorize;
 use std::collections::HashMap;
 use std::fs;
@@ -136,12 +136,12 @@ fn build_config_loader(args: &Args) -> lectito_core::ConfigLoader {
     }
 }
 
-fn load_site_config(args: &Args, input: &str) -> Option<lectito_core::siteconfig::SiteConfig> {
+fn load_site_config(args: &Args, input: &str) -> Option<SiteConfig> {
     let mut config_loader = build_config_loader(args);
     config_loader.load_for_url(input).ok()
 }
 
-fn resolve_user_agent(args: &Args, site_config: Option<&lectito_core::siteconfig::SiteConfig>) -> String {
+fn resolve_user_agent(args: &Args, site_config: Option<&SiteConfig>) -> String {
     let mut user_agent = args
         .user_agent
         .clone()
@@ -158,9 +158,7 @@ fn resolve_user_agent(args: &Args, site_config: Option<&lectito_core::siteconfig
     user_agent
 }
 
-async fn read_input(
-    args: &Args, input: &str, site_config: Option<&lectito_core::siteconfig::SiteConfig>,
-) -> anyhow::Result<(String, usize)> {
+async fn read_input(args: &Args, input: &str, site_config: Option<&SiteConfig>) -> anyhow::Result<(String, usize)> {
     if input == "-" {
         if args.verbose {
             echo::print_step(1, 4, "Reading from stdin");
@@ -193,8 +191,7 @@ async fn read_input(
 }
 
 fn parse_document(
-    args: &Args, input: &str, html: String, site_config: Option<&lectito_core::siteconfig::SiteConfig>,
-    base_url: Option<Url>,
+    args: &Args, input: &str, html: String, site_config: Option<&SiteConfig>, base_url: Option<Url>,
 ) -> anyhow::Result<Document> {
     if is_url(input) && site_config.is_some_and(|cfg| cfg.has_extraction_config()) {
         if args.verbose {
@@ -203,12 +200,11 @@ fn parse_document(
         let processed_html = site_config
             .map(|cfg| cfg.apply_text_replacements(&html))
             .unwrap_or(html);
-        return Document::parse_with_base_url(&processed_html, base_url).context("Failed to parse HTML");
+        Document::parse_with_base_url(&processed_html, base_url).context("Failed to parse HTML")
+    } else {
+        let preprocess_config = lectito_core::PreprocessConfig { base_url, ..Default::default() };
+        Document::parse_with_preprocessing_config(&html, &preprocess_config).context("Failed to parse HTML")
     }
-
-    let preprocess_config = lectito_core::PreprocessConfig { base_url, ..Default::default() };
-    let doc = Document::parse_with_preprocessing_config(&html, &preprocess_config).context("Failed to parse HTML")?;
-    Ok(doc)
 }
 
 fn build_extract_config(args: &Args) -> ExtractConfig {
@@ -220,9 +216,31 @@ fn build_extract_config(args: &Args) -> ExtractConfig {
     }
 }
 
+fn build_readability_config(args: &Args) -> ReadabilityConfig {
+    ReadabilityConfig::builder()
+        .char_threshold(args.char_threshold)
+        .nb_top_candidates(args.max_elements)
+        .preserve_images(!args.no_images)
+        .build()
+}
+
+async fn fetch_article_from_url(args: &Args, input: &str) -> anyhow::Result<Article> {
+    let loader = build_config_loader(args);
+    let reader = Readability::with_config_and_loader(build_readability_config(args), loader);
+    let mut fetch_config = FetchConfig { timeout: args.timeout, ..Default::default() };
+
+    if let Some(user_agent) = &args.user_agent {
+        fetch_config.user_agent = user_agent.clone();
+    }
+
+    reader
+        .fetch_and_parse_with_config(input, &fetch_config)
+        .await
+        .context("Failed to fetch and extract URL")
+}
+
 fn extract_article(
-    args: &Args, input: &str, doc: &Document, extract_config: &ExtractConfig,
-    site_config: Option<&lectito_core::siteconfig::SiteConfig>,
+    args: &Args, input: &str, doc: &Document, extract_config: &ExtractConfig, site_config: Option<&SiteConfig>,
 ) -> anyhow::Result<lectito_core::ExtractedContent> {
     if is_url(input)
         && let Some(site_config) = site_config
@@ -282,6 +300,108 @@ async fn main() -> anyhow::Result<()> {
     if args.verbose {
         echo::print_banner();
         echo::print_info("Debug logging enabled");
+    }
+
+    if is_url(&input) {
+        let fetch_start = Instant::now();
+        if args.verbose {
+            echo::print_step(
+                1,
+                3,
+                &format!("Fetching and extracting {}", input.bright_white().underline()),
+            );
+        }
+
+        let article = fetch_article_from_url(&args, &input).await?;
+        timings.push(("Fetch + Extract".to_string(), fetch_start.elapsed()));
+
+        if args.verbose {
+            if let Some(title) = &article.metadata.title {
+                eprintln!("  {} {}\n", "Title:".dimmed(), title.bright_white());
+            }
+            eprintln!(
+                "  {} {}\n",
+                "Words:".dimmed(),
+                article.word_count.to_string().bright_white()
+            );
+        }
+
+        if args.metadata_only {
+            let output = if args.metadata_format.to_lowercase() == "json" {
+                metadata_to_json(&article.metadata, true).context("Failed to convert metadata to JSON")?
+            } else {
+                metadata_to_toml(&article.metadata).context("Failed to convert metadata to TOML")?
+            };
+
+            match args.output {
+                Some(path) => {
+                    fs::write(&path, output).with_context(|| format!("Failed to write to file: {}", path.display()))?;
+                    echo::print_success(&format!("Output written to {}", path.display().bright_white()))
+                }
+                None => print!("{}", output),
+            }
+
+            if args.verbose {
+                echo::print_timing_summary(total_start.elapsed(), &timings);
+            }
+            return Ok(());
+        }
+
+        let format_start = Instant::now();
+        let output = match args.format {
+            OutputFormat::Markdown => {
+                let config = MarkdownConfig {
+                    include_frontmatter: args.frontmatter,
+                    include_references: args.references,
+                    strip_images: args.no_images,
+                    include_title_heading: true,
+                };
+                convert_to_markdown(&article.content, &article.metadata, &config)
+                    .context("Failed to convert to Markdown")?
+            }
+            OutputFormat::Html => article.content.clone(),
+            OutputFormat::Text => article.to_text(),
+            OutputFormat::Json => {
+                let config = JsonConfig {
+                    include_markdown: true,
+                    include_text: true,
+                    include_html: true,
+                    include_references: args.references,
+                    pretty: true,
+                };
+                convert_to_json(&article.content, &article.metadata, &config, None)
+                    .context("Failed to convert to JSON")?
+            }
+        };
+
+        let output = if args.json {
+            let config = JsonConfig {
+                include_markdown: true,
+                include_text: true,
+                include_html: true,
+                include_references: args.references,
+                pretty: true,
+            };
+            convert_to_json(&article.content, &article.metadata, &config, None).context("Failed to convert to JSON")?
+        } else {
+            output
+        };
+
+        timings.push(("Format".to_string(), format_start.elapsed()));
+
+        match args.output {
+            Some(path) => {
+                fs::write(&path, output).with_context(|| format!("Failed to write to file: {}", path.display()))?;
+                echo::print_success(&format!("Output written to {}", path.display().bright_white()));
+            }
+            None => print!("{}", output),
+        }
+
+        if args.verbose {
+            echo::print_timing_summary(total_start.elapsed(), &timings);
+        }
+
+        return Ok(());
     }
 
     let fetch_start = Instant::now();
@@ -451,7 +571,7 @@ async fn main() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lectito_core::siteconfig::SiteConfig;
+    use SiteConfig;
 
     fn base_args() -> Args {
         Args {
@@ -486,6 +606,20 @@ mod tests {
         assert_eq!(config.char_threshold, 123);
         assert_eq!(config.max_top_candidates, 9);
         assert!(config.postprocess.strip_images);
+    }
+
+    #[test]
+    fn test_build_readability_config() {
+        let mut args = base_args();
+        args.char_threshold = 321;
+        args.max_elements = 7;
+        args.no_images = true;
+
+        let config = build_readability_config(&args);
+
+        assert_eq!(config.char_threshold, 321);
+        assert_eq!(config.nb_top_candidates, 7);
+        assert!(!config.preserve_images);
     }
 
     #[test]

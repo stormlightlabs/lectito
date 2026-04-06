@@ -1,0 +1,72 @@
+{
+  "root": "0:0:1",
+  "crate_version": "1.42.0",
+  "index": {
+    "0:0:1": {
+      "name": "tokio",
+      "docs": "Tokio gives you the building blocks for writing asynchronous Rust applications.\n\n## Runtime\nUse the runtime to drive futures to completion.",
+      "inner": {
+        "module": {
+          "is_crate": true,
+          "items": ["0:0:2", "0:0:3"]
+        }
+      }
+    },
+    "0:0:2": {
+      "name": "runtime",
+      "docs": "The runtime module contains core scheduling and execution types.",
+      "inner": {
+        "module": {
+          "is_crate": false,
+          "items": ["0:0:4"]
+        }
+      }
+    },
+    "0:0:3": {
+      "name": "net",
+      "docs": "Networking utilities for asynchronous I/O.",
+      "inner": {
+        "module": {
+          "is_crate": false,
+          "items": []
+        }
+      }
+    },
+    "0:0:4": {
+      "name": "Handle",
+      "docs": "Runtime context handle.\n\n- Spawn background tasks\n- Access runtime state",
+      "inner": {
+        "struct": {
+          "kind": {
+            "plain": {
+              "fields": [],
+              "has_stripped_fields": false
+            }
+          },
+          "generics": {
+            "params": [],
+            "where_predicates": []
+          },
+          "impls": []
+        }
+      }
+    }
+  },
+  "paths": {
+    "0:0:2": {
+      "crate_id": 0,
+      "path": ["tokio", "runtime"],
+      "kind": "module"
+    },
+    "0:0:3": {
+      "crate_id": 0,
+      "path": ["tokio", "net"],
+      "kind": "module"
+    },
+    "0:0:4": {
+      "crate_id": 0,
+      "path": ["tokio", "runtime", "Handle"],
+      "kind": "struct"
+    }
+  }
+}

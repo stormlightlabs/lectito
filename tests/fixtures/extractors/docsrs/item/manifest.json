@@ -1,0 +1,15 @@
+{
+  "url": "https://docs.rs/clap/latest/clap/struct.Command.html",
+  "mode": "selector_hint",
+  "title": "Command in clap",
+  "author": null,
+  "date": null,
+  "min_words": 15,
+  "must_contain": [
+    "Struct Command",
+    "Build a command-line interface.",
+    "Use this builder to declare arguments, subcommands, and help output.",
+    "Create a command and attach a required argument."
+  ],
+  "must_not_contain": ["Sidebar chrome", "Methods in the sidebar"]
+}

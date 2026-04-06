@@ -108,7 +108,7 @@ MILESTONE A: Algorithm Improvements
       - catb.org had an HTTPS certificate mismatch; the current HTTP fallback
         serves different markup than the legacy font-heavy page referenced here
 
-[ ] Video and embed preservation
+[x] Video and embed preservation
     - Build configurable video domain allowlist regex (YouTube, Vimeo,
       Dailymotion, Twitch, Bilibili, Wikimedia)
     - Check iframe/embed src against allowlist before removing
@@ -133,7 +133,7 @@ MILESTONE A: Algorithm Improvements
       https://www.berkshirehathaway.com/ (table-based layout, famously)
       https://www.cppreference.com/w/cpp/container/vector (spec tables)
 
-[ ] Candidate aggregation and sibling refinement
+[x] Candidate aggregation and sibling refinement
     - Detect 3+ candidates within 75% of top score → walk to ancestor
     - Apply 0.3 coefficient to hash-only URL link density
     - Protect <figure> children from aggressive cleanup

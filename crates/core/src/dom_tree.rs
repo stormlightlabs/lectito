@@ -124,7 +124,22 @@ pub fn build_dom_tree(html: &str) -> Result<DomTree> {
     let doc = Document::parse(html)?;
     let mut tree = DomTree::new();
 
-    let candidate_tags = &["div", "article", "section", "main", "p", "td", "pre", "blockquote"];
+    let candidate_tags = &[
+        "div",
+        "article",
+        "section",
+        "main",
+        "p",
+        "td",
+        "pre",
+        "blockquote",
+        "table",
+        "header",
+        "h1",
+        "h2",
+        "figure",
+        "figcaption",
+    ];
 
     let mut elements: Vec<(String, String)> = Vec::new();
     for tag in candidate_tags {

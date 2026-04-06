@@ -100,7 +100,9 @@ export function sanitizeExtractedHtml(html: string) {
   if (typeof DOMParser === 'undefined') return html;
 
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  const blockedSelectors = ['script', 'iframe', 'object', 'embed', 'base', 'form', 'input', 'button'];
+  const blockedSelectors = ['script', 'base', 'form', 'input', 'button'];
+  const videoEmbedAllowlist =
+    /^(?:https?:)?\/\/(?:(?:www\.)?(?:youtube(?:-nocookie)?\.com|youtu\.be)\/|player\.vimeo\.com\/|(?:www\.)?dailymotion\.com\/|dai\.ly\/|(?:player|clips)\.twitch\.tv\/|(?:www\.)?bilibili\.com\/|player\.bilibili\.com\/|(?:www\.)?wikimedia\.org\/|commons\.wikimedia\.org\/|upload\.wikimedia\.org\/)/i;
 
   for (const selector of blockedSelectors) {
     for (const node of doc.querySelectorAll(selector)) {
@@ -109,6 +111,16 @@ export function sanitizeExtractedHtml(html: string) {
   }
 
   for (const element of doc.body.querySelectorAll('*')) {
+    const tagName = element.tagName.toLowerCase();
+
+    if (tagName === 'iframe' || tagName === 'embed' || tagName === 'object') {
+      const source = (tagName === 'object' ? element.getAttribute('data') : element.getAttribute('src'))?.trim() ?? '';
+      if (!source || !videoEmbedAllowlist.test(source)) {
+        element.remove();
+        continue;
+      }
+    }
+
     for (const attr of element.attributes) {
       const name = attr.name.toLowerCase();
       const value = attr.value.trim().toLowerCase();
@@ -118,7 +130,10 @@ export function sanitizeExtractedHtml(html: string) {
         continue;
       }
 
-      if ((name === 'href' || name === 'src') && value.startsWith('javascript:')) {
+      if (
+        (name === 'href' || name === 'src' || name === 'data' || name === 'poster') &&
+        value.startsWith('javascript:')
+      ) {
         element.removeAttribute(attr.name);
       }
     }

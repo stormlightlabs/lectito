@@ -36,6 +36,7 @@ impl ExtractorRegistry {
         Self {
             extractors: vec![
                 Box::new(GitForgeExtractor),
+                Box::new(DocsRsExtractor),
                 Box::new(RedditExtractor),
                 Box::new(YouTubeExtractor),
                 Box::new(HackerNewsExtractor),
@@ -79,6 +80,7 @@ impl Default for ExtractorRegistry {
 }
 
 struct GitForgeExtractor;
+struct DocsRsExtractor;
 struct RedditExtractor;
 struct HackerNewsExtractor;
 struct SubstackExtractor;
@@ -174,6 +176,38 @@ impl SiteExtractor for GitForgeExtractor {
         }
 
         Ok(None)
+    }
+}
+
+impl SiteExtractor for DocsRsExtractor {
+    fn name(&self) -> &'static str {
+        "docs-rs"
+    }
+
+    fn matches(&self, url: &Url) -> bool {
+        matches!(url.host_str().unwrap_or_default(), "docs.rs" | "www.docs.rs")
+    }
+
+    fn extract(&self, doc: &Document, _url: &Url) -> Result<Option<ExtractorOutcome>> {
+        for selector in [
+            "#main-content",
+            "main > .width-limiter > #main-content",
+            "main > .width-limiter > section.content",
+            "main section.content",
+        ] {
+            if doc.select(selector).map(|els| !els.is_empty()).unwrap_or(false) {
+                return Ok(Some(ExtractorOutcome::Selector { selector: selector.to_string() }));
+            }
+        }
+
+        Ok(None)
+    }
+
+    #[cfg(feature = "fetch")]
+    fn extract_async<'a>(
+        &'a self, _doc: &'a Document, _url: &'a Url, _fetch_config: &'a FetchConfig,
+    ) -> Pin<Box<dyn Future<Output = Result<Option<ExtractorOutcome>>> + Send + 'a>> {
+        Box::pin(async { Ok(None) })
     }
 }
 
@@ -894,5 +928,40 @@ mod tests {
 
         assert!(html.contains("Transcript"));
         assert!(html.contains("Hello world again"));
+    }
+
+    #[test]
+    fn test_docs_rs_extractor_prefers_main_content_selector() {
+        let extractor = DocsRsExtractor;
+        let url = Url::parse("https://docs.rs/clap/latest/clap/struct.Command.html").unwrap();
+        let doc = Document::parse(
+            r#"
+            <html>
+              <body class="rustdoc-page">
+                <nav class="sidebar"><p>Sidebar chrome</p></nav>
+                <main>
+                  <div class="width-limiter">
+                    <section id="main-content" class="content">
+                      <h1>Struct Command</h1>
+                      <p>Build a command-line interface.</p>
+                    </section>
+                  </div>
+                </main>
+              </body>
+            </html>
+            "#,
+        )
+        .unwrap();
+        let outcome = extractor
+            .extract(&doc, &url)
+            .unwrap()
+            .expect("docs.rs extractor should return a selector");
+
+        match outcome {
+            ExtractorOutcome::Selector { selector } => {
+                assert_eq!(selector, "#main-content");
+            }
+            ExtractorOutcome::Html(_) => panic!("expected selector outcome"),
+        }
     }
 }
