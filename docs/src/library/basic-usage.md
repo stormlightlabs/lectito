@@ -26,6 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let article: Article = parse(html)?;
 
     println!("Title: {:?}", article.metadata.title);
+    println!("Confidence: {:.2}", article.confidence);
     println!("Content: {}", article.to_markdown()?);
 
     Ok(())
@@ -52,9 +53,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+This helper requires the `fetch` feature.
+
 ## Working with the Article
 
-The `Article` struct contains all extracted information:
+The `Article` struct contains the extracted content, metadata, and derived metrics.
 
 ### Metadata
 
@@ -64,7 +67,6 @@ use lectito_core::parse;
 let html = "<html>...</html>";
 let article = parse(html)?;
 
-// Access metadata
 if let Some(title) = article.metadata.title {
     println!("Title: {}", title);
 }
@@ -73,11 +75,10 @@ if let Some(author) = article.metadata.author {
     println!("Author: {}", author);
 }
 
-if let Some(date) = article.metadata.published_date {
+if let Some(date) = article.metadata.date {
     println!("Published: {}", date);
 }
 
-// Get excerpt
 if let Some(excerpt) = article.metadata.excerpt {
     println!("Excerpt: {}", excerpt);
 }
@@ -91,18 +92,13 @@ use lectito_core::parse;
 let html = "<html>...</html>";
 let article = parse(html)?;
 
-// Get cleaned HTML
 let html_content = &article.content;
-
-// Get plain text
 let text = article.to_text();
-
-// Get Markdown
 let markdown = article.to_markdown()?;
-
-// Get JSON
 let json = article.to_json()?;
 ```
+
+`to_markdown()` requires the `markdown` feature.
 
 ## Readability API
 
@@ -114,14 +110,13 @@ use lectito_core::{Readability, ReadabilityConfig};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let html = "<html>...</html>";
 
-    // Use default config
     let reader = Readability::new();
     let article = reader.parse(html)?;
 
-    // Or with custom config
     let config = ReadabilityConfig::builder()
         .min_score(25.0)
         .char_threshold(500)
+        .nb_top_candidates(8)
         .build();
 
     let reader = Readability::with_config(config);
@@ -141,7 +136,7 @@ use lectito_core::{parse, LectitoError};
 fn extract_article(html: &str) -> Result<String, String> {
     match parse(html) {
         Ok(article) => Ok(article.to_markdown().unwrap_or_default()),
-        Err(LectitoError::NotReaderable { score, threshold }) => {
+        Err(LectitoError::NotReadable { score, threshold }) => {
             Err(format!("Content not readable: score {} < threshold {}", score, threshold))
         }
         Err(LectitoError::InvalidUrl(msg)) => {
@@ -167,28 +162,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let article: Article = parse_with_url(html, url)?;
 
-    // Relative links are now resolved correctly
+    assert_eq!(article.source_url.as_deref(), Some(url));
     Ok(())
 }
 ```
 
-### Check if Content is Readable
+### Check if Content is Probably Readable
 
-Before parsing, check if content meets readability thresholds:
+For a quick pre-check:
 
 ```rs
 use lectito_core::is_probably_readable;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
     let html = "<html>...</html>";
 
     if is_probably_readable(html) {
-        println!("Content is readable");
+        println!("Content looks readable");
     } else {
         println!("Content may not be readable");
     }
-
-    Ok(())
 }
 ```
 
@@ -212,51 +205,3 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
-
-## Integrations
-
-### With reqwest
-
-```rs
-use lectito_core::parse;
-use reqwest::Client;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::new();
-    let response = client.get("https://example.com/article")
-        .send()
-        .await?;
-
-    let html = response.text().await?;
-    let article = parse(&html)?;
-
-    println!("Title: {:?}", article.metadata.title);
-
-    Ok(())
-}
-```
-
-### With Scraper
-
-If you're already using `scraper`, you can integrate:
-
-```rs
-use lectito_core::parse;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let html = "<html>...</html>";
-    let article = parse(html)?;
-
-    // Work with the article's HTML content
-    println!("Cleaned HTML: {}", article.content);
-
-    Ok(())
-}
-```
-
-## Next Steps
-
-- [Configuration](configuration.md) - Advanced configuration options
-- [Async vs Sync](async-vs-sync.md) - Understanding async APIs
-- [Output Formats](output-formats.md) - Detailed format documentation

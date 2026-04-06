@@ -65,7 +65,7 @@ lectito-core = { version = "0.1", features = ["fetch", "markdown"] }
 | `markdown`   | Yes     | Enable Markdown output format     |
 | `siteconfig` | Yes     | Enable site configuration support |
 
-If you don't need URL fetching (e.g., you have your own HTTP client), disable the default features:
+If you don't need URL fetching, disable the default features and opt back into only what you need:
 
 ```toml
 [dependencies]

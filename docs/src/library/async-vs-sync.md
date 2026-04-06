@@ -13,6 +13,8 @@ Lectito provides both synchronous and asynchronous APIs:
 | `fetch_and_parse()` | Async      | Fetch from URL then parse |
 | `fetch_url()`       | Async      | Fetch HTML from URL       |
 
+The async fetch helpers require the `fetch` feature.
+
 ## When to Use Each
 
 ### Use Sync APIs When
@@ -207,28 +209,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Choosing the Right Approach
 
-| Scenario             | Recommended Approach                              |
-| -------------------- | ------------------------------------------------- |
-| Have HTML string     | `parse()` (sync)                                  |
-| Need to fetch URL    | `fetch_and_parse()` (async)                       |
-| Custom HTTP client   | Your client + `parse()` (sync)                    |
-| Batch URL processing | `fetch_and_parse()` with concurrent futures       |
-| CLI tool             | Depends on your runtime setup                     |
-| Web server           | `fetch_and_parse()` (async) for better throughput |
-
-## Feature Flags
-
-To disable async features and reduce dependencies:
-
-```toml
-[dependencies]
-lectito-core = { version = "0.1", default-features = false, features = ["markdown"] }
-```
-
-This removes `reqwest` and `tokio` dependencies. You'll need to fetch HTML yourself.
-
-## Next Steps
-
-- [Output Formats](output-formats.md) - Working with different output formats
-- [Configuration](configuration.md) - Advanced configuration options
-- [Basic Usage](basic-usage.md) - Core usage patterns
+| Scenario             | Recommended Approach                        |
+| -------------------- | ------------------------------------------- |
+| Have HTML string     | `parse()` (sync)                            |
+| Need to fetch URL    | `fetch_and_parse()` (async)                 |
+| Custom HTTP client   | Your client + `parse()` (sync)              |
+| Batch URL processing | `fetch_and_parse()` with concurrent futures |
+| CLI tool             | Depends on your runtime setup               |
+| Web server           | `fetch_and_parse()` (async) for throughput  |

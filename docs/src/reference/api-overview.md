@@ -1,37 +1,34 @@
 # API Overview
 
-Complete reference for the Lectito Rust library API.
+Reference for the Lectito Rust library API.
 
 ## Core Types
 
 ### Article
 
-The main result type containing extracted content and metadata.
+The main result type containing extracted content, metadata, and derived metrics.
 
 ```rs
 pub struct Article {
-    /// Extracted metadata
-    pub metadata: Metadata,
-
-    /// Cleaned HTML content
     pub content: String,
-
-    /// Plain text content
     pub text_content: String,
-
-    /// Number of words in content
+    pub metadata: Metadata,
+    pub length: usize,
     pub word_count: usize,
-
-    /// Final readability score
-    pub readability_score: f64,
+    pub reading_time: f64,
+    pub source_url: Option<String>,
+    pub confidence: f64,
+    pub diagnostics: Option<ExtractionDiagnostics>,
 }
 ```
 
-**Methods:**
+Common methods:
 
-- `to_markdown() -> Result<String>` - Convert to Markdown with frontmatter
-- `to_json() -> Result<String>` - Convert to JSON
-- `to_text() -> String` - Get plain text
+- `to_markdown() -> Result<String>`
+- `to_markdown_with_config(&MarkdownConfig) -> Result<String>`
+- `to_json() -> Result<serde_json::Value>`
+- `to_text() -> String`
+- `to_format(OutputFormat) -> Result<String>`
 
 ### Metadata
 
@@ -39,56 +36,35 @@ Extracted article metadata.
 
 ```rs
 pub struct Metadata {
-    /// Article title
     pub title: Option<String>,
-
-    /// Author name
     pub author: Option<String>,
-
-    /// Publication date
-    pub published_date: Option<String>,
-
-    /// Article excerpt/description
+    pub date: Option<String>,
     pub excerpt: Option<String>,
-
-    /// Content language
+    pub site_name: Option<String>,
+    pub image: Option<String>,
+    pub favicon: Option<String>,
+    pub word_count: Option<usize>,
+    pub reading_time_minutes: Option<f64>,
     pub language: Option<String>,
 }
 ```
 
 ### LectitoError
 
-Error type for all Lectito operations.
+Main error type for extraction, parsing, and fetch failures.
 
-```rs
-pub enum LectitoError {
-    /// Content not readable: score below threshold
-    NotReaderable { score: f64, threshold: f64 },
+Notable variants:
 
-    /// Invalid URL provided
-    InvalidUrl(String),
+- `NotReadable { score, threshold }`
+- `InvalidUrl(String)`
+- `Timeout { timeout }`
+- `HtmlParseError(String)`
+- `NoContent`
+- `FileNotFound(PathBuf)`
+- `ConfigError(String)`
+- `SiteConfigError(String)`
 
-    /// HTTP request timeout
-    Timeout { timeout: u64 },
-
-    /// HTTP error
-    HttpError(reqwest::Error),
-
-    /// HTML parsing error
-    HtmlParseError(String),
-
-    /// IO error
-    IoError(std::io::Error),
-}
-```
-
-### Result
-
-Type alias for Result with LectitoError.
-
-```rs
-pub type Result<T> = std::result::Result<T, LectitoError>;
-```
+`HttpError(reqwest::Error)` is available when the `fetch` feature is enabled.
 
 ## Configuration Types
 
@@ -98,46 +74,18 @@ Main configuration for content extraction.
 
 ```rs
 pub struct ReadabilityConfig {
-    /// Minimum readability score (default: 20.0)
     pub min_score: f64,
-
-    /// Minimum character count (default: 500)
     pub char_threshold: usize,
-
-    /// Preserve images in output (default: true)
+    pub nb_top_candidates: usize,
+    pub max_elems_to_parse: usize,
+    pub remove_unlikely: bool,
+    pub keep_classes: bool,
     pub preserve_images: bool,
-
-    /// Minimum content length (default: 140)
-    pub min_content_length: usize,
-
-    /// Minimum score threshold (default: 20.0)
-    pub min_score_threshold: f64,
+    pub preserve_video_embeds: bool,
 }
 ```
 
-**Methods:**
-
-- `builder() -> ReadabilityConfigBuilder` - Create a builder
-- `default() -> Self` - Default configuration
-
-### ReadabilityConfigBuilder
-
-Builder for `ReadabilityConfig`.
-
-```rs
-pub struct ReadabilityConfigBuilder {
-    // ...
-}
-```
-
-**Methods:**
-
-- `min_score(f64) -> Self` - Set minimum score
-- `char_threshold(usize) -> Self` - Set character threshold
-- `preserve_images(bool) -> Self` - Set image preservation
-- `min_content_length(usize) -> Self` - Set minimum content length
-- `min_score_threshold(f64) -> Self` - Set score threshold
-- `build() -> ReadabilityConfig` - Build configuration
+Build with `ReadabilityConfig::builder()`.
 
 ### FetchConfig
 
@@ -145,37 +93,23 @@ Configuration for HTTP fetching.
 
 ```rs
 pub struct FetchConfig {
-    /// Request timeout in seconds (default: 30)
     pub timeout: u64,
-
-    /// User-Agent header (default: "Lectito/...")
     pub user_agent: String,
+    pub headers: HashMap<String, String>,
 }
 ```
 
-**Trait:**
-
-- `impl Default for FetchConfig`
-
 ## Main API Functions
 
-### parse
+### `parse`
 
-Parse HTML string and extract article.
+Parse an HTML string and extract an `Article`.
 
 ```rs
 pub fn parse(html: &str) -> Result<Article>
 ```
 
-**Example:**
-
-```rs
-use lectito_core::parse;
-
-let article = parse("<html>...</html>")?;
-```
-
-### parse_with_url
+### `parse_with_url`
 
 Parse HTML with URL context for relative link resolution.
 
@@ -183,285 +117,79 @@ Parse HTML with URL context for relative link resolution.
 pub fn parse_with_url(html: &str, url: &str) -> Result<Article>
 ```
 
-**Example:**
+### `is_probably_readable`
 
-```rs
-use lectito_core::parse_with_url;
-
-let article = parse_with_url(html, "https://example.com/article")?;
-```
-
-### fetch_and_parse
-
-Fetch URL and extract article.
-
-```rs
-pub async fn fetch_and_parse(url: &str) -> Result<Article>
-```
-
-**Feature:** `fetch`
-
-**Example:**
-
-```rs
-use lectito_core::fetch_and_parse;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let article = fetch_and_parse("https://example.com/article").await?;
-    Ok(())
-}
-```
-
-### fetch_and_parse_with_config
-
-Fetch URL and extract with custom configuration.
-
-```rs
-pub async fn fetch_and_parse_with_config(
-    url: &str,
-    fetch_config: &FetchConfig,
-    readability_config: &ReadabilityConfig
-) -> Result<Article>
-```
-
-**Feature:** `fetch`
-
-**Example:**
-
-```rs
-use lectito_core::{fetch_and_parse_with_config, FetchConfig, ReadabilityConfig};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let fetch_config = FetchConfig {
-        timeout: 60,
-        ..Default::default()
-    };
-
-    let read_config = ReadabilityConfig::builder()
-        .min_score(25.0)
-        .build();
-
-    let article = fetch_and_parse_with_config(
-        "https://example.com/article",
-        &fetch_config,
-        &read_config
-    ).await?;
-
-    Ok(())
-}
-```
-
-### is_probably_readable
-
-Check if content likely meets readability thresholds.
+Cheap pre-check for likely article pages.
 
 ```rs
 pub fn is_probably_readable(html: &str) -> bool
 ```
 
-**Example:**
+### `fetch_url`
 
-```rs
-use lectito_core::is_probably_readable;
-
-if is_probably_readable(html) {
-    println!("Content is readable");
-}
-```
-
-## Readability Type
-
-Main API for configured extraction.
-
-```rs
-pub struct Readability {
-    config: ReadabilityConfig,
-}
-```
-
-**Methods:**
-
-- `new() -> Self` - Create with default config
-- `with_config(ReadabilityConfig) -> Self` - Create with custom config
-- `parse(&str) -> Result<Article>` - Parse HTML
-
-**Example:**
-
-```rs
-use lectito_core::{Readability, ReadabilityConfig};
-
-let config = ReadabilityConfig::builder()
-    .min_score(25.0)
-    .build();
-
-let reader = Readability::with_config(config);
-let article = reader.parse(html)?;
-```
-
-## Fetch Functions
-
-### fetch_url
-
-Fetch HTML from URL.
+Fetch raw HTML from a URL.
 
 ```rs
 pub async fn fetch_url(url: &str, config: &FetchConfig) -> Result<String>
 ```
 
-**Feature:** `fetch`
+Requires the `fetch` feature.
 
-### fetch_file
+### `fetch_and_parse`
 
-Read HTML from file.
-
-```rs
-pub fn fetch_file(path: &str) -> Result<String>
-```
-
-### fetch_stdin
-
-Read HTML from stdin.
+Fetch a URL and extract an article with default configuration.
 
 ```rs
-pub fn fetch_stdin() -> Result<String>
+pub async fn fetch_and_parse(url: &str) -> Result<Article>
 ```
 
-## DOM Types
+Requires the `fetch` feature.
 
-### Document
+### `fetch_and_parse_with_config`
 
-HTML document wrapper for parsing and selection.
+Fetch a URL and extract an article with custom readability and fetch settings.
 
 ```rs
-pub struct Document {
-    // ...
-}
+pub async fn fetch_and_parse_with_config(
+    url: &str,
+    readability_config: &ReadabilityConfig,
+    fetch_config: &FetchConfig,
+) -> Result<Article>
 ```
 
-**Methods:**
+Requires the `fetch` feature.
 
-- `parse(&str) -> Result<Self>` - Parse HTML
-- `select(&str) -> Result<Vec<Element>>` - CSS selector
+## Readability Type
 
-### Element
-
-DOM element wrapper.
+`Readability` is the main stateful API:
 
 ```rs
-pub struct Element<'a> {
-    // ...
-}
+pub struct Readability { /* ... */ }
 ```
 
-**Methods:**
+Common constructors and methods:
 
-- `text() -> String` - Extract text content
-- `html() -> String` - Get inner HTML
+- `Readability::new()`
+- `Readability::with_config(ReadabilityConfig)`
+- `Readability::with_config_and_loader(ReadabilityConfig, ConfigLoader)`
+- `parse(&self, html: &str) -> Result<Article>`
+- `parse_with_url(&self, html: &str, url: &str) -> Result<Article>`
+- `is_probably_readable(&self, html: &str) -> bool`
+- `fetch_and_parse(&self, url: &str) -> Result<Article>`
+- `fetch_and_parse_with_config(&self, url: &str, fetch_config: &FetchConfig) -> Result<Article>`
 
-## Module Organization
+## Lower-Level Types
 
-```sh
-.
-├── article          # Article and Metadata types
-├── error            # LectitoError and Result
-├── fetch            # HTTP and file fetching
-├── formatters       # Output formatters
-├── metadata         # Metadata extraction
-├── parse            # Document and Element types
-├── readability      # Main API (parse, fetch_and_parse)
-└── scoring          # Scoring algorithm
-```
+For callers that need more control, Lectito also exposes:
+
+- `Document` and `Element` for DOM access
+- `ConfigLoader` and `ConfigLoaderBuilder` for site configuration loading
+- `MarkdownConfig`, `JsonConfig`, and formatter types for output control
 
 ## Feature Flags
 
-| Feature      | Default | Enables                    |
-| ------------ | ------- | -------------------------- |
-| `fetch`      | Yes     | URL fetching with reqwest  |
-| `markdown`   | Yes     | Markdown output            |
-| `siteconfig` | Yes     | Site configuration support |
-
-## Re-exports
-
-The crate re-exports commonly used types at the root:
-
-```rs
-// Core types
-pub use article::{Article, OutputFormat};
-pub use error::{LectitoError, Result};
-
-// Configuration
-pub use fetch::FetchConfig;
-pub use readability::{
-    Readability, ReadabilityConfig, ReadabilityConfigBuilder,
-    LectitoConfig, LectitoConfigBuilder
-};
-
-// Functions
-pub use readability::{
-    parse, parse_with_url, fetch_and_parse, fetch_and_parse_with_config,
-    is_probably_readable
-};
-
-// Fetching
-pub use fetch::{fetch_url, fetch_file, fetch_stdin};
-
-// Formatters
-pub use formatters::{
-    MarkdownFormatter, TextFormatter, JsonFormatter,
-    convert_to_markdown, convert_to_text, convert_to_json
-};
-```
-
-## Complete Example
-
-```rs
-use lectito_core::{
-    Readability, ReadabilityConfig, FetchConfig,
-    fetch_and_parse_with_config
-};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Configure
-    let fetch_config = FetchConfig {
-        timeout: 60,
-        user_agent: "MyBot/1.0".to_string(),
-    };
-
-    let read_config = ReadabilityConfig::builder()
-        .min_score(25.0)
-        .char_threshold(1000)
-        .build();
-
-    // Fetch and parse
-    let article = fetch_and_parse_with_config(
-        "https://example.com/article",
-        &fetch_config,
-        &read_config
-    ).await?;
-
-    // Access results
-    println!("Title: {:?}", article.metadata.title);
-    println!("Word count: {}", article.word_count);
-
-    // Convert to format
-    let markdown = article.to_markdown()?;
-    println!("{}", markdown);
-
-    Ok(())
-}
-```
-
-## Further Documentation
-
-- ~~[docs.rs/lectito](https://docs.rs/lectito)~~ - Full API documentation with rustdoc
-- [GitHub Repository](https://github.com/stormlightlabs/lectito) - Source code and examples
-- [Basic Usage](../library/basic-usage.md) - Usage examples
-- [Configuration](../library/configuration.md) - Configuration options
-
-## Next Steps
-
-- [Getting Started](../getting-started/) - Installation and quick start
-- [Library Guide](../library/) - In-depth usage documentation
+| Feature      | Default | Purpose                           |
+| ------------ | ------- | --------------------------------- |
+| `fetch`      | Yes     | Async URL fetching with `reqwest` |
+| `markdown`   | Yes     | Markdown conversion support       |
+| `siteconfig` | Yes     | Site configuration support        |

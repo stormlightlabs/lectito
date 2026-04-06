@@ -10,7 +10,7 @@ It identifies and extracts the main article content from web pages, removing nav
 ## Features
 
 - **Content Extraction**: Automatically identifies the main article content
-- **Metadata Extraction**: Pulls title, author, date, excerpt, and language
+- **Metadata Extraction**: Pulls title, author, date, excerpt, site name, and language
 - **Output Formats**: HTML, Markdown, plain text, and JSON
 - **URL Fetching**: Built-in async HTTP client with timeout support
 - **CLI**: Simple command-line interface for quick extractions
@@ -29,7 +29,7 @@ It identifies and extracts the main article content from web pages, removing nav
 - **Installation**: See the [Installation Guide](getting-started/installation.md)
 - **CLI Usage**: See the [CLI Usage Guide](getting-started/cli-usage.md)
 - **Library Usage**: See the [Basic Usage Guide](library/basic-usage.md)
-- **API Reference**: ~~See [docs.rs/lectito](https://docs.rs/lectito)~~
+- **API Reference**: See the [API Overview](reference/api-overview.md)
 
 ## Quick Start
 

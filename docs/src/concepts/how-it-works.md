@@ -8,7 +8,7 @@ Lectito implements a content extraction algorithm inspired by Mozilla's Readabil
 
 ## Extraction Pipeline
 
-The extraction process consists of four main stages:
+The extraction process still follows the same core shape:
 
 ```text
 HTML Input → Preprocessing → Scoring → Selection → Post-processing → Article
@@ -31,7 +31,7 @@ Score each element based on content characteristics:
 - **Tag score**: Different HTML tags have different base scores
 - **Class/ID weight**: Positive patterns (article, content) vs negative (sidebar, footer)
 - **Content density**: Length and punctuation indicate content quality
-- **Link density**: Too many links suggests navigation/metadata, not content
+- **Link density**: Too many links suggests navigation or metadata, not content
 
 **Why**: Scoring identifies which elements are most likely to contain the main article content.
 
@@ -39,10 +39,11 @@ Score each element based on content characteristics:
 
 Select the highest-scoring element as the article candidate:
 
-- Find element with highest score (bias toward semantic containers when scores are close)
-- Check if score meets minimum threshold (default: 20.0)
-- Check if content length meets minimum threshold (default: 500 chars)
-- Return error if content doesn't meet thresholds
+- Find element with highest score
+- Bias toward semantic containers when scores are close
+- Check if score meets the minimum threshold
+- Check if content length meets the minimum threshold
+- Return an error if content doesn't meet thresholds
 
 **Why**: Selection ensures we extract actual article content, not navigation or ads.
 
@@ -53,9 +54,19 @@ Clean up the selected content:
 - Include sibling elements: adjacent content blocks and shared-parent headers
 - Remove remaining clutter: ads, comments, social widgets
 - Clean up whitespace: normalize spacing and formatting
-- Preserve structure: maintain headings, paragraphs, lists
+- Preserve structure: maintain headings, paragraphs, and lists
 
 **Why**: Post-processing improves the quality of extracted content and includes related elements.
+
+## Branch Additions
+
+The current branch layers a few extra passes around that core flow:
+
+- **Retry strategy**: if the first pass comes back short, Lectito retries with progressively looser settings before giving up
+- **Site-specific extraction**: built-in extractors and optional site configs can override the generic scorer for difficult sites
+- **Confidence and diagnostics**: successful extractions carry a confidence score and can include pass-by-pass diagnostics
+
+Those additions sit around the original pipeline. They do not replace it.
 
 ## Data Flow
 
@@ -124,7 +135,7 @@ Unlike XPath-based extraction, Lectito doesn't rely on fixed HTML structures. It
 
 ### Heuristic-Based
 
-The algorithm uses heuristics (rules of thumb) derived from analyzing thousands of articles. This makes it flexible and adaptable to different site designs.
+The algorithm uses heuristics derived from analyzing lots of article pages. That keeps it flexible across different site designs.
 
 ### Fallback Mechanism
 
@@ -136,41 +147,27 @@ For sites where the algorithm fails, Lectito supports site-specific configuratio
 
 - Very short pages (tweets, status updates)
 - Non-article content (product pages, search results)
-- Unusual layouts (some single-column designs)
+- Unusual layouts
 - Heavily JavaScript-dependent content
 
 ### Improving Extraction
 
 For difficult sites:
 
-1. **Adjust thresholds**: Lower `min_score` or `char_threshold`
-2. **Site configuration**: Provide XPath rules
-3. **Manual curation**: Use XPath or CSS selectors directly
+1. Adjust thresholds such as `min_score` or `char_threshold`
+2. Provide a site configuration
+3. Add a site-specific extractor when generic scoring is not enough
 
 See [Configuration](../library/configuration.md) for options.
 
 ## Comparison to Alternatives
 
-| Approach             | Pros                                            | Cons                              |
-| -------------------- | ----------------------------------------------- | --------------------------------- |
-| **Lectito**          | Works across many sites, no custom rules needed | May fail on unusual layouts       |
-| **XPath**            | Precise, predictable                            | Requires custom rules per site    |
-| **CSS Selectors**    | Simple, familiar                                | Brittle, breaks on layout changes |
-| **Machine Learning** | Adaptable                                       | Complex, requires training data   |
+| Approach                                           | Pros                                                                           | Cons                                                                |
+| -------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| **Lectito**                                        | Works across many sites, no custom rules needed                                | May fail on unusual layouts                                         |
+| **[Defuddle](https://github.com/kepano/defuddle)** | Strong HTML and Markdown output, forgiving cleanup, richer metadata extraction | JavaScript and DOM-oriented, not a Rust-native library or CLI stack |
+| **XPath**                                          | Precise, predictable                                                           | Requires custom rules per site                                      |
+| **CSS Selectors**                                  | Simple, familiar                                                               | Brittle, breaks on layout changes                                   |
+| **Machine Learning**                               | Adaptable                                                                      | Complex, requires training data                                     |
 
-Lectito strikes a balance: works well for most sites without custom rules, with site configuration as a fallback.
-
-## Performance Considerations
-
-- **Parsing**: HTML parsing is fast but not instant
-- **Scoring**: Traverses entire DOM, O(n) complexity
-- **Fetching**: Async for non-blocking I/O
-- **Memory**: Entire document loaded into memory
-
-For large-scale extraction, consider batching and concurrent fetches.
-
-## Next Steps
-
-- [Scoring Algorithm](scoring-algorithm.md) - Detailed scoring explanation
-- [Configuration](../library/configuration.md) - Customizing extraction
-- [Basic Usage](../library/basic-usage.md) - Using the API
+Lectito strikes a balance by working well for most sites without custom rules, with site configuration as a fallback.
