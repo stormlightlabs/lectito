@@ -269,6 +269,117 @@ Improvements to add to lectito-core:
    Extractors return either a contentSelector (re-enter generic pipeline)
    or fully extracted HTML.
 
+9. Lazy-loaded image resolution (pre-scoring, lol_html streaming pass)
+   - Scan data-src, data-srcset, data-original, data-lazy-src → promote to
+     src/srcset before scoring
+   - Unwrap <noscript> images to replace placeholder <img> tags (base64
+     placeholders <133 bytes, non-SVG = placeholder)
+   - Stop blindly removing all <noscript> tags; check for image content first
+   - Implemented as a single streaming lol_html rewrite pass — O(n) with
+     no DOM allocation, unlike JS libs that must build a full DOM first
+   Fixture capture note (2026-04-05):
+     - Rolling Stone fixture snapshot came from the live redirected URL
+       `https://www.rollingstone.com/music/music-lists/best-albums-of-all-time-1062063/`
+     - `https://www.nationalgeographic.com/animals/article/worlds-largest-owl`
+       returned `404`
+     - `https://www.smithsonianmag.com/history/the-true-story-of-thanksgiving/`
+       returned `403`
+     - `https://www.theatlantic.com/technology/archive/2024/03/ai-chatbots/`
+       returned `404`
+
+10. BR chain and phrasing content normalization (pre-scoring)
+    - Convert 2+ consecutive <br> elements into <p> paragraphs, collecting
+      intermediate phrasing content
+    - Convert DIVs containing only phrasing/inline content into <p> tags
+    - Convert <font> tags to <span>
+    These improve scoring accuracy by normalizing legacy HTML before the
+    candidate identification pass.
+    Fixture capture note (2026-04-05):
+      - `https://norvig.com/21-days.html` and
+        `https://www.mit.edu/~xela/tao.html` were snapshotted directly
+      - `https://www.poetryfoundation.org/poems/48860/the-raven`
+        returned `403`
+      - `https://catb.org/jargon/html/index.html` had an HTTPS certificate
+        mismatch, and the current HTTP fallback serves different markup than
+        the legacy font-heavy page referenced by this task
+
+11. Video and embed preservation
+    - Preserve iframes/embeds from: YouTube, Vimeo, Dailymotion, Twitch,
+      Bilibili, Wikimedia (configurable allowlist regex)
+    - Stop blindly removing all iframes; check src against allowlist first
+    - Protect video/audio/source elements from removal
+
+12. Data table vs layout table classification
+    - Multi-factor detection: role="presentation" → layout; has
+      caption/thead/th/tfoot → data; nested tables → layout;
+      rows × cols > 10 → data
+    - Protect data tables from conditional cleaning and content removal
+    - Layout tables: unwrap cells and extract content as normal flow
+
+13. Candidate aggregation and sibling refinement
+    - When 3+ candidates score within 75% of top candidate, walk up DOM to
+      find common ancestor (prevents over-selecting narrow containers)
+    - Hash/anchor-only URLs (#) get reduced link-density coefficient (0.3)
+      since they're internal navigation, not external link spam
+    - Protect elements inside <figure> from aggressive cleanup
+
+14. Title deduplication via text similarity
+    - Token-based text similarity scoring (0.0–1.0)
+    - Remove H1/H2 in extracted content that duplicate the article title
+      (similarity > 0.75)
+    - Also used for deduplicating metadata (headline vs name in JSON-LD)
+
+15. isProbablyReadable pre-check
+    - Quick scan before full extraction: count P/PRE/ARTICLE elements,
+      require minScore ≥ 20 or ≥ 140 chars in qualifying nodes
+    - Score = sqrt(text_length - 140) per node
+    - Implemented as a single streaming lol_html pass — never builds a DOM,
+      so it's orders of magnitude faster than JS equivalents on large pages
+    - Allows callers to skip expensive extraction on non-article pages
+
+16. Streaming markdown output (lol_html-native)
+    - Srcset best-image selection: parse width descriptors, pick optimal URL
+    - Link wrapper restructuring: unwrap block content from <a> wrappers,
+      move href to inline children for proper markdown conversion
+    - Layout tables → extract content; complex tables (colspan/rowspan) →
+      pass through as HTML; simple tables → markdown pipes
+    - Long-term: explore single-pass lol_html HTML→Markdown streaming
+      converter to replace htmd DOM-based approach
+
+17. Multi-page article stitching
+    - Detect "next page", "continue reading", page 1/2/3 pagination links
+    - Fetch and concatenate pages into a single article (async, parallel)
+    - Deduplicate repeated headers/footers/nav across pages
+    - Configurable max pages (default 10) and total size limit
+    - Unique to lectito: server-side caching means stitched articles are
+      cached as single units, avoiding re-fetch on subsequent reads
+
+18. Extraction confidence scoring and diagnostics
+    - Return a confidence score (0.0–1.0) with every extraction based on:
+      content length, link density, scoring spread, retry pass used,
+      site-extractor match, cache hit
+    - Expose optional diagnostics: candidate scores, removal log, pass
+      history (which retry pass succeeded and why earlier ones failed)
+    - Enables callers to decide whether to trust the extraction or fall
+      back to a different strategy
+    - API response field: "confidence": 0.92, "diagnostics": {...}
+
+19. Parallel format extraction
+    - Extract HTML, markdown, and text in a single pipeline invocation
+    - Share the scored DOM tree across formatters (extract once, format N)
+    - Server uses this for cache pre-warming: on first request, cache all
+      formats so subsequent requests for any format are instant hits
+    - Leverages Rust's zero-cost ownership model — formatters borrow the
+      scored tree without copying
+
+20. PDF and EPUB output
+    - Generate clean PDF from extracted HTML (headless rendering or
+      weasyprint/typst integration)
+    - Generate EPUB with proper chapter structure, metadata, and cover image
+    - Server endpoint: POST /api/v1/extract with format=pdf|epub
+    - Unique server-side capability: JS extraction libraries run in browser
+      and cannot generate binary formats
+
 ================================================================================
 SVELTE SPA
 ================================================================================
