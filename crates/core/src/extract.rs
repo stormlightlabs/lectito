@@ -1,5 +1,6 @@
 use super::dom_tree::DomTree;
 use super::metadata::count_words;
+use super::metadata::text_similarity;
 use super::parse::{Document, Element};
 use super::postprocess::{PostProcessConfig, TableKind, classify_table_element, postprocess_html};
 use super::preprocess::hidden_reason;
@@ -761,6 +762,108 @@ fn sibling_class_bonus(candidate: &Candidate<'_>, top_candidate_classes: &HashSe
     }
 }
 
+#[derive(Clone)]
+struct SelectedBlock<'a> {
+    element: Element<'a>,
+    order: usize,
+}
+
+fn normalize_block_text(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn block_word_count(element: &Element<'_>) -> usize {
+    count_words(&normalize_block_text(&element.text()))
+}
+
+fn block_preference_score(element: &Element<'_>) -> usize {
+    let mut score = block_word_count(element);
+    let tag = element.tag_name();
+
+    if matches!(tag.as_str(), "article" | "main" | "section") {
+        score += 24;
+    }
+    if element
+        .attr("role")
+        .is_some_and(|role| role.eq_ignore_ascii_case("main"))
+    {
+        score += 20;
+    }
+    if element.select("h1, h2").ok().is_some_and(|els| !els.is_empty()) {
+        score += 12;
+    }
+    if matches!(tag.as_str(), "header" | "h1" | "h2") {
+        score += 6;
+    }
+
+    score
+}
+
+fn should_drop_overlapping_block(current: &SelectedBlock<'_>, other: &SelectedBlock<'_>) -> bool {
+    let current_text = normalize_block_text(&current.element.text());
+    let other_text = normalize_block_text(&other.element.text());
+
+    if current_text.is_empty() || other_text.is_empty() || current_text == other_text && current.order == other.order {
+        return false;
+    }
+
+    let current_pref = block_preference_score(&current.element);
+    let other_pref = block_preference_score(&other.element);
+
+    if current_text == other_text {
+        return other_pref > current_pref || (other_pref == current_pref && other.order < current.order);
+    }
+
+    let current_words = count_words(&current_text);
+    let other_words = count_words(&other_text);
+    if current_words == 0 || other_words == 0 || other_words < current_words {
+        return false;
+    }
+
+    let strongly_overlaps = other_text.contains(&current_text) || text_similarity(&current_text, &other_text) > 0.98;
+    if !strongly_overlaps {
+        return false;
+    }
+
+    other_words > current_words || other_pref > current_pref
+}
+
+fn prune_overlapping_blocks<'a>(blocks: Vec<SelectedBlock<'a>>) -> Vec<SelectedBlock<'a>> {
+    let mut drop_indices = HashSet::new();
+
+    for (idx, current) in blocks.iter().enumerate() {
+        for (other_idx, other) in blocks.iter().enumerate() {
+            if idx == other_idx {
+                continue;
+            }
+            if should_drop_overlapping_block(current, other) {
+                drop_indices.insert(idx);
+                break;
+            }
+        }
+    }
+
+    blocks
+        .into_iter()
+        .enumerate()
+        .filter(|(idx, _)| !drop_indices.contains(idx))
+        .map(|(_, block)| block)
+        .collect()
+}
+
+fn find_selected_candidate<'a>(
+    blocks: &[SelectedBlock<'a>], candidates: &'a [Candidate<'a>],
+) -> Option<&'a Candidate<'a>> {
+    blocks
+        .iter()
+        .filter_map(|block| {
+            candidates
+                .iter()
+                .find(|candidate| candidate.element.outer_html() == block.element.outer_html())
+        })
+        .max_by(|left, right| compare_candidates(left, right).unwrap_or(std::cmp::Ordering::Equal))
+}
+
 fn candidate_diagnostics(candidates: &[Candidate<'_>], limit: usize) -> Vec<CandidateScoreDiagnostic> {
     candidates
         .iter()
@@ -1169,32 +1272,34 @@ pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<Extract
         _ => select_top_candidate(&candidates, config)?.clone(),
     };
     let siblings = select_siblings(working_doc, &top_candidate, &candidates, config, dom_tree.as_ref());
-    let mut leading = Vec::new();
-    let mut trailing = Vec::new();
+    let mut selected_blocks = Vec::new();
+    let mut order = 0usize;
 
     for sibling in siblings {
-        match sibling.tag_name().as_str() {
-            "header" | "h1" => leading.push(sibling),
-            _ => trailing.push(sibling),
+        if matches!(sibling.tag_name().as_str(), "header" | "h1") {
+            selected_blocks.push(SelectedBlock { element: sibling, order });
+            order += 1;
         }
     }
 
+    selected_blocks.push(SelectedBlock { element: top_candidate.element.clone(), order });
+    order += 1;
+
+    for sibling in select_siblings(working_doc, &top_candidate, &candidates, config, dom_tree.as_ref()) {
+        if !matches!(sibling.tag_name().as_str(), "header" | "h1") {
+            selected_blocks.push(SelectedBlock { element: sibling, order });
+            order += 1;
+        }
+    }
+
+    let selected_blocks = prune_overlapping_blocks(selected_blocks);
+
     let mut content = String::new();
-    for sibling in &leading {
+    for block in &selected_blocks {
         if !content.is_empty() {
             content.push('\n');
         }
-        content.push_str(&sibling.outer_html());
-    }
-
-    if !content.is_empty() {
-        content.push('\n');
-    }
-    content.push_str(&top_candidate.element.outer_html());
-
-    for sibling in &trailing {
-        content.push('\n');
-        content.push_str(&sibling.outer_html());
+        content.push_str(&block.element.outer_html());
     }
 
     if let Some(title) = doc.title() {
@@ -1208,8 +1313,9 @@ pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<Extract
 
     let content = postprocess_html(&content, &config.postprocess);
 
-    let element_count = 1 + leading.len() + trailing.len();
-    let diagnostics = build_extraction_diagnostics(doc, &content, &top_candidate, &candidates, prepared.removal_log);
+    let primary_candidate = find_selected_candidate(&selected_blocks, &candidates).unwrap_or(&top_candidate);
+    let element_count = selected_blocks.len();
+    let diagnostics = build_extraction_diagnostics(doc, &content, primary_candidate, &candidates, prepared.removal_log);
     let confidence = confidence_from_diagnostics(&diagnostics);
 
     Ok(ExtractedContent { content, top_score: top_candidate.score(), element_count, confidence, diagnostics })

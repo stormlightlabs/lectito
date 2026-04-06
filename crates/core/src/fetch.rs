@@ -50,13 +50,40 @@ pub async fn fetch_url(url: &str, config: &FetchConfig) -> Result<String> {
         ));
     }
 
-    let client = Client::builder()
-        .timeout(Duration::from_secs(config.timeout))
-        .build()
-        .map_err(LectitoError::HttpError)?;
+    let response = match send_request(&parsed_url, config, false).await {
+        Ok(response) => response,
+        Err(err) if should_retry_with_http1(&err) => send_request(&parsed_url, config, true).await.map_err(|e| {
+            if e.is_timeout() {
+                LectitoError::Timeout { timeout: config.timeout }
+            } else {
+                LectitoError::HttpError(e)
+            }
+        })?,
+        Err(err) => {
+            return Err(if err.is_timeout() {
+                LectitoError::Timeout { timeout: config.timeout }
+            } else {
+                LectitoError::HttpError(err)
+            });
+        }
+    };
 
+    response.text().await.map_err(LectitoError::HttpError)
+}
+
+fn build_client(config: &FetchConfig, http1_only: bool) -> std::result::Result<Client, reqwest::Error> {
+    let mut builder = Client::builder().timeout(Duration::from_secs(config.timeout));
+    if http1_only {
+        builder = builder.use_native_tls().http1_only();
+    } else {
+        builder = builder.use_rustls_tls();
+    }
+    builder.build()
+}
+
+fn build_request(client: &Client, url: &Url, config: &FetchConfig) -> reqwest::RequestBuilder {
     let mut request = client
-        .get(parsed_url)
+        .get(url.clone())
         .header("User-Agent", &config.user_agent)
         .header(
             "Accept",
@@ -68,17 +95,23 @@ pub async fn fetch_url(url: &str, config: &FetchConfig) -> Result<String> {
         request = request.header(name, value);
     }
 
-    let response = request.send().await.map_err(|e| {
-        if e.is_timeout() {
-            LectitoError::Timeout { timeout: config.timeout }
-        } else {
-            LectitoError::HttpError(e)
-        }
-    })?;
+    request
+}
 
-    let content = response.text().await?;
+async fn send_request(
+    parsed_url: &Url, config: &FetchConfig, http1_only: bool,
+) -> std::result::Result<reqwest::Response, reqwest::Error> {
+    let client = build_client(config, http1_only)?;
+    build_request(&client, parsed_url, config).send().await
+}
 
-    Ok(content)
+fn should_retry_with_http1(error: &reqwest::Error) -> bool {
+    let message = error.to_string().to_lowercase();
+    (error.is_connect() || message.contains("protocol"))
+        && (message.contains("bad protocol version")
+            || message.contains("alpn")
+            || message.contains("http2")
+            || message.contains("protocol error"))
 }
 
 /// Reads HTML content from a local file.

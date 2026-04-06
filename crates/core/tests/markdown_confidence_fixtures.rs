@@ -53,9 +53,9 @@ fn markdown_fixture_selects_largest_srcset_image() {
 fn markdown_fixture_restructures_link_wrapped_cards() {
     let markdown = render_fixture_markdown("extract/markdown/increment-software-architecture.html");
     let normalized = normalize_markdown(&markdown);
-    let has_linked_heading = normalized.contains(
-        "### [Software architecture at scale](/software-architecture/architecture-at-scale/)",
-    ) || normalized.contains("### [What happens when the pager goes off?](/on-call/when-the-pager-goes-off/)");
+    let has_linked_heading = normalized
+        .contains("### [Software architecture at scale](/software-architecture/architecture-at-scale/)")
+        || normalized.contains("### [What happens when the pager goes off?](/on-call/when-the-pager-goes-off/)");
     let has_linked_excerpt = normalized.contains(
         "[Leaders at Foursquare, Hulu, and Twitter discuss early architecture decisions, downstream effects, and architectural philosophies.](/software-architecture/architecture-at-scale/)",
     ) || normalized.contains(
@@ -94,7 +94,8 @@ fn markdown_fixture_preserves_complex_tables_as_html() {
 #[test]
 fn confidence_fixture_distinguishes_high_medium_and_low_cases() {
     let high = parse(&read_fixture("extract/confidence/matklad-basic-things.html")).expect("high fixture should parse");
-    let second_high = parse(&read_fixture("extract/confidence/norvig-21-days.html")).expect("second high fixture should parse");
+    let second_high =
+        parse(&read_fixture("extract/confidence/norvig-21-days.html")).expect("second high fixture should parse");
     let medium = parse(&read_fixture("extract/aggregation/docsrs-tokio.html")).expect("medium fixture should parse");
     let low = parse(&read_fixture("extract/confidence/duckduckgo-home.html")).expect("low fixture should parse");
 
