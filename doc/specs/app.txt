@@ -297,8 +297,8 @@ Improvements to add to lectito-core:
     Fixture capture note (2026-04-05):
       - `https://norvig.com/21-days.html` and
         `https://www.mit.edu/~xela/tao.html` were snapshotted directly
-      - `https://www.poetryfoundation.org/poems/48860/the-raven`
-        returned `403`
+      - `https://www.poetryfoundation.org/poems/48860/the-raven` - required adding
+         native-tls to reqwest
       - `https://catb.org/jargon/html/index.html` had an HTTPS certificate
         mismatch, and the current HTTP fallback serves different markup than
         the legacy font-heavy page referenced by this task
