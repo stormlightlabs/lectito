@@ -120,7 +120,7 @@ MILESTONE A: Algorithm Improvements
       https://www.polygon.com/reviews/23718684/zelda-tears-of-the-kingdom-review-switch-totk/
       https://blog.cloudflare.com/workers-ai (embedded demo videos)
 
-[ ] Data table vs layout table classification
+[x] Data table vs layout table classification
     - Implement multi-factor detection: role, caption, thead/th/tfoot,
       nested tables, row×col count thresholds
     - Mark data tables (attribute or internal flag) during pre-scoring
@@ -147,7 +147,7 @@ MILESTONE A: Algorithm Improvements
           https://docs.rs/crate/clap/latest/json
       https://www.lrb.co.uk/the-paper/v46/n01/ (sibling article blocks)
 
-[ ] Title deduplication via text similarity
+[x] Title deduplication via text similarity
     - Implement token-based text similarity function (0.0–1.0 scale)
     - Remove H1/H2 duplicating article title (threshold > 0.75)
     - Use in metadata to deduplicate JSON-LD headline vs name
