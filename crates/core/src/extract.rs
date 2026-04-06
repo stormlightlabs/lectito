@@ -118,6 +118,9 @@ const ENTRY_POINT_SELECTORS: &[&str] = &[
     "body",
 ];
 const MIN_ENTRY_POINT_WORDS: usize = 50;
+const AGGREGATE_TOP_SCORE_RATIO: f64 = 0.75;
+const AGGREGATE_MIN_CANDIDATES: usize = 3;
+const SIBLING_SHARED_CLASS_BONUS_RATIO: f64 = 0.2;
 
 /// Exact selectors that are safe to remove before scoring.
 const PRE_SCORE_EXACT_SELECTORS: &[&str] = &[
@@ -189,7 +192,21 @@ fn should_remove_partial_selector_candidate(element: &Element<'_>) -> bool {
     let tag = element.tag_name();
     if matches!(
         tag.as_str(),
-        "article" | "main" | "body" | "html" | "pre" | "code" | "math"
+        "article"
+            | "main"
+            | "body"
+            | "html"
+            | "pre"
+            | "code"
+            | "math"
+            | "figure"
+            | "figcaption"
+            | "iframe"
+            | "embed"
+            | "object"
+            | "video"
+            | "audio"
+            | "source"
     ) || is_heading_tag(&tag)
     {
         return false;
@@ -206,7 +223,7 @@ fn should_remove_partial_selector_candidate(element: &Element<'_>) -> bool {
         return false;
     }
     if element
-        .select("pre, code, math")
+        .select("pre, code, math, figure, iframe, embed, object, video, audio, source")
         .ok()
         .is_some_and(|els| !els.is_empty())
     {
@@ -251,15 +268,24 @@ fn prepare_scoring_document(doc: &Document, config: &ExtractConfig) -> Option<Do
 
     let original_html = doc.as_string();
     let mut snippets = Vec::new();
+    let protected_html = protected_cleanup_html(doc);
 
     for selector in PRE_SCORE_EXACT_SELECTORS {
         if let Ok(elements) = doc.select(selector) {
-            snippets.extend(elements.into_iter().map(|el| el.outer_html()));
+            snippets.extend(
+                elements
+                    .into_iter()
+                    .filter(|element| !should_protect_from_cleanup(element, &protected_html))
+                    .map(|el| el.outer_html()),
+            );
         }
     }
 
     if let Ok(elements) = doc.select("*") {
         for element in elements {
+            if should_protect_from_cleanup(&element, &protected_html) {
+                continue;
+            }
             if should_remove_partial_selector_candidate(&element) {
                 snippets.push(element.outer_html());
             }
@@ -276,6 +302,33 @@ fn prepare_scoring_document(doc: &Document, config: &ExtractConfig) -> Option<Do
     }
 
     Document::parse_with_base_url(&filtered_html, doc.base_url().cloned()).ok()
+}
+
+fn protected_cleanup_html(doc: &Document) -> HashSet<String> {
+    doc.select("figure, figure *, iframe, embed, object, video, audio, source")
+        .unwrap_or_default()
+        .into_iter()
+        .map(|element| element.outer_html())
+        .collect()
+}
+
+fn should_protect_from_cleanup(element: &Element<'_>, protected_html: &HashSet<String>) -> bool {
+    let tag = element.tag_name();
+    if matches!(
+        tag.as_str(),
+        "figure" | "figcaption" | "iframe" | "embed" | "object" | "video" | "audio" | "source"
+    ) {
+        return true;
+    }
+
+    if protected_html.contains(&element.outer_html()) {
+        return true;
+    }
+
+    element
+        .select("figure, iframe, embed, object, video, audio, source")
+        .ok()
+        .is_some_and(|matches| !matches.is_empty())
 }
 
 /// Identify all candidate elements from the document
@@ -500,6 +553,109 @@ fn is_descendant_of(candidate_id: usize, ancestor_id: usize, dom_tree: &DomTree)
     false
 }
 
+fn element_for_node<'a>(doc: &'a Document, tag_name: &str, html: &str) -> Option<Element<'a>> {
+    doc.select(tag_name)
+        .ok()?
+        .into_iter()
+        .find(|element| element.outer_html() == html)
+}
+
+fn nearest_cluster_ancestor(top_id: usize, cluster_ids: &[usize], dom_tree: &DomTree) -> Option<usize> {
+    let mut current = dom_tree.get_node(top_id)?.parent_id;
+
+    while let Some(node_id) = current {
+        let node = dom_tree.get_node(node_id)?;
+        let clustered = cluster_ids
+            .iter()
+            .filter(|candidate_id| is_descendant_of(**candidate_id, node_id, dom_tree))
+            .count();
+
+        if clustered >= AGGREGATE_MIN_CANDIDATES && !matches!(node.tag_name.as_str(), "body" | "html") {
+            return Some(node_id);
+        }
+
+        current = node.parent_id;
+    }
+
+    None
+}
+
+fn aggregate_clustered_candidates<'a>(
+    doc: &'a Document, candidates: &[Candidate<'a>], dom_tree: &DomTree, score_config: &ScoreConfig,
+) -> Option<Candidate<'a>> {
+    let top_candidate = candidates.first()?;
+    let top_id = node_id_for_element(&top_candidate.element, dom_tree)?;
+    let top_threshold = top_candidate.score() * AGGREGATE_TOP_SCORE_RATIO;
+
+    let near_top = candidates
+        .iter()
+        .filter(|candidate| candidate.score() >= top_threshold)
+        .filter_map(|candidate| node_id_for_element(&candidate.element, dom_tree).map(|id| (candidate, id)))
+        .collect::<Vec<_>>();
+
+    if near_top.len() < AGGREGATE_MIN_CANDIDATES {
+        return None;
+    }
+
+    let cluster_ids = near_top.iter().map(|(_, id)| *id).collect::<Vec<_>>();
+    let ancestor_id = nearest_cluster_ancestor(top_id, &cluster_ids, dom_tree)?;
+    let ancestor_node = dom_tree.get_node(ancestor_id)?;
+    let ancestor = element_for_node(doc, &ancestor_node.tag_name, &ancestor_node.html)?;
+
+    if ancestor.outer_html() == top_candidate.element.outer_html() {
+        return None;
+    }
+
+    let top_words = count_words(&top_candidate.element.text()).max(1);
+    let ancestor_words = count_words(&ancestor.text());
+    if ancestor_words * 5 < top_words * 6 {
+        return None;
+    }
+
+    let link_density = crate::scoring::link_density(&ancestor);
+    if link_density > 0.45 {
+        return None;
+    }
+
+    let mut score_result = calculate_score(&ancestor, score_config);
+    let bonus = near_top
+        .iter()
+        .map(|(candidate, _)| candidate.score() * 0.35)
+        .sum::<f64>();
+    if bonus <= 0.0 {
+        return None;
+    }
+
+    score_result.final_score += bonus;
+    Some(Candidate::new(ancestor, score_result))
+}
+
+fn class_tokens(element: &Element<'_>) -> HashSet<String> {
+    element
+        .attr("class")
+        .unwrap_or("")
+        .split_whitespace()
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string())
+        .collect()
+}
+
+fn sibling_class_bonus(candidate: &Candidate<'_>, top_candidate_classes: &HashSet<String>, top_score: f64) -> f64 {
+    if top_candidate_classes.is_empty() {
+        return 0.0;
+    }
+
+    let candidate_classes = class_tokens(&candidate.element);
+    if candidate_classes
+        .iter()
+        .any(|class_name| top_candidate_classes.contains(class_name))
+    {
+        top_score * SIBLING_SHARED_CLASS_BONUS_RATIO
+    } else {
+        0.0
+    }
+}
+
 fn select_preferred_entry_candidate<'a>(
     entry_candidates: &'a [EntryPointCandidate<'a>], dom_tree: Option<&DomTree>,
 ) -> Option<&'a EntryPointCandidate<'a>> {
@@ -643,6 +799,8 @@ fn select_siblings<'a>(
 ) -> Vec<Element<'a>> {
     let mut siblings = Vec::new();
     let top_score = top_candidate.score();
+    let sibling_threshold = top_score * config.sibling_threshold;
+    let top_candidate_classes = class_tokens(&top_candidate.element);
     let dom_tree = match dom_tree {
         Some(tree) => tree,
         None => return siblings,
@@ -653,27 +811,30 @@ fn select_siblings<'a>(
     }
 
     for candidate in candidates {
-        if candidate.score() >= top_score * config.sibling_threshold {
-            let top_html = top_candidate.element.outer_html();
-            let candidate_html = candidate.element.outer_html();
+        let adjusted_score = candidate.score() + sibling_class_bonus(candidate, &top_candidate_classes, top_score);
+        if adjusted_score < sibling_threshold {
+            continue;
+        }
 
-            if top_html != candidate_html {
-                if parent_id_for(&candidate.element, dom_tree) != top_parent_id {
-                    continue;
-                }
-                if candidate.element.tag_name() == "p" {
-                    let text = candidate.element.text();
-                    let text_len = text.chars().count();
+        let top_html = top_candidate.element.outer_html();
+        let candidate_html = candidate.element.outer_html();
 
-                    if text_len > 80 {
-                        let link_density = crate::scoring::link_density(&candidate.element);
-                        if link_density < 0.25 {
-                            siblings.push(candidate.element.clone());
-                        }
+        if top_html != candidate_html {
+            if parent_id_for(&candidate.element, dom_tree) != top_parent_id {
+                continue;
+            }
+            if candidate.element.tag_name() == "p" {
+                let text = candidate.element.text();
+                let text_len = text.chars().count();
+
+                if text_len > 80 {
+                    let link_density = crate::scoring::link_density(&candidate.element);
+                    if link_density < 0.25 {
+                        siblings.push(candidate.element.clone());
                     }
-                } else {
-                    siblings.push(candidate.element.clone());
                 }
+            } else {
+                siblings.push(candidate.element.clone());
             }
         }
     }
@@ -759,29 +920,49 @@ pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<Extract
     }
 
     candidates.sort_by(|a, b| b.score().partial_cmp(&a.score()).unwrap_or(std::cmp::Ordering::Equal));
+    let aggregated_candidate = dom_tree
+        .as_ref()
+        .and_then(|tree| aggregate_clustered_candidates(working_doc, &candidates, tree, &score_config));
+
     candidates.truncate(config.max_top_candidates);
     let table_layout_candidate = select_table_layout_candidate(working_doc, &score_config);
-    let scored_top_candidate = select_top_candidate(&candidates, config).ok();
+    let scored_top_candidate = match (
+        select_top_candidate(&candidates, config).ok().cloned(),
+        aggregated_candidate,
+    ) {
+        (Some(scored), Some(aggregated)) => Some(
+            if compare_candidates(&aggregated, &scored).is_some_and(|order| order.is_gt()) {
+                aggregated
+            } else {
+                scored
+            },
+        ),
+        (Some(scored), None) => Some(scored),
+        (None, Some(aggregated)) => Some(aggregated),
+        (None, None) => None,
+    };
     let preferred_entry_candidate = select_preferred_entry_candidate(&entry_candidates, dom_tree.as_ref())
         .filter(|candidate| candidate.score() >= config.min_score_threshold)
         .filter(|candidate| entry_candidate_meets_threshold(candidate, config));
 
     let top_candidate = match (
         preferred_entry_candidate,
-        scored_top_candidate,
+        scored_top_candidate.as_ref(),
         table_layout_candidate.as_ref(),
     ) {
         (Some(entry_candidate), Some(scored_candidate), _)
             if should_prefer_scored_descendant(entry_candidate, scored_candidate, dom_tree.as_ref()) =>
         {
-            scored_candidate
+            scored_candidate.clone()
         }
-        (Some(entry_candidate), _, _) => &entry_candidate.candidate,
-        (None, Some(scored_candidate), _) => scored_candidate,
-        (None, None, Some(table_candidate)) if table_candidate.score() >= config.min_score_threshold => table_candidate,
-        _ => select_top_candidate(&candidates, config)?,
+        (Some(entry_candidate), _, _) => entry_candidate.candidate.clone(),
+        (None, Some(scored_candidate), _) => scored_candidate.clone(),
+        (None, None, Some(table_candidate)) if table_candidate.score() >= config.min_score_threshold => {
+            table_candidate.clone()
+        }
+        _ => select_top_candidate(&candidates, config)?.clone(),
     };
-    let siblings = select_siblings(working_doc, top_candidate, &candidates, config, dom_tree.as_ref());
+    let siblings = select_siblings(working_doc, &top_candidate, &candidates, config, dom_tree.as_ref());
     let mut leading = Vec::new();
     let mut trailing = Vec::new();
 
@@ -1160,6 +1341,60 @@ mod tests {
 
         assert!(!extracted.content.is_empty());
         assert!(extracted.top_score > 0.0);
+    }
+
+    #[test]
+    fn test_aggregate_clustered_candidates_prefers_shared_ancestor() {
+        let section_one = "Section one contains enough content, prose, and commas to score well. ".repeat(12);
+        let section_two = "Section two contains enough content, prose, and commas to score well. ".repeat(12);
+        let section_three = "Section three contains enough content, prose, and commas to score well. ".repeat(12);
+        let html = format!(
+            r#"
+            <html>
+                <body>
+                    <article class="story-shell">
+                        <section class="story-block"><p>{section_one}</p></section>
+                        <section class="story-block"><p>{section_two}</p></section>
+                        <section class="story-block"><p>{section_three}</p></section>
+                    </article>
+                </body>
+            </html>
+        "#,
+        );
+
+        let doc = Document::parse(&html).unwrap();
+        let config = ExtractConfig::default();
+        let extracted = extract_content(&doc, &config).unwrap();
+
+        assert!(extracted.content.contains("<article"));
+        assert!(extracted.content.contains("Section one contains enough content"));
+        assert!(extracted.content.contains("Section two contains enough content"));
+        assert!(extracted.content.contains("Section three contains enough content"));
+    }
+
+    #[test]
+    fn test_shared_class_bonus_keeps_matching_sibling_section() {
+        let html = r#"
+            <html>
+                <body>
+                    <div class="story">
+                        <section class="article-block">
+                            <p>This is the first sibling block with enough text, commas, and structure to become the top candidate in extraction.</p>
+                        </section>
+                        <section class="article-block">
+                            <p>This is the second sibling block with enough text to survive once the shared class bonus is applied during sibling selection.</p>
+                        </section>
+                    </div>
+                </body>
+            </html>
+        "#;
+
+        let doc = Document::parse(html).unwrap();
+        let config = ExtractConfig { char_threshold: 50, sibling_threshold: 0.9, ..Default::default() };
+
+        let extracted = extract_content(&doc, &config).unwrap();
+        assert!(extracted.content.contains("first sibling block"));
+        assert!(extracted.content.contains("second sibling block"));
     }
 
     #[test]

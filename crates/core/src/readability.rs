@@ -46,6 +46,9 @@ pub struct ReadabilityConfig {
 
     /// Whether to preserve images in output HTML (default: true).
     pub preserve_images: bool,
+
+    /// Whether to preserve supported video embeds in output HTML (default: true).
+    pub preserve_video_embeds: bool,
 }
 
 impl Default for ReadabilityConfig {
@@ -58,6 +61,7 @@ impl Default for ReadabilityConfig {
             remove_unlikely: true,
             keep_classes: false,
             preserve_images: true,
+            preserve_video_embeds: true,
         }
     }
 }
@@ -121,6 +125,12 @@ impl ReadabilityConfigBuilder {
     /// Sets whether to preserve images in output HTML.
     pub fn preserve_images(mut self, value: bool) -> Self {
         self.config.preserve_images = value;
+        self
+    }
+
+    /// Sets whether to preserve supported video embeds.
+    pub fn preserve_video_embeds(mut self, value: bool) -> Self {
+        self.config.preserve_video_embeds = value;
         self
     }
 
@@ -252,6 +262,7 @@ impl Readability {
         let preprocess0 = PreprocessConfig {
             base_url: base_url.clone(),
             remove_unlikely: self.config.remove_unlikely,
+            preserve_video_embeds: self.config.preserve_video_embeds,
             ..Default::default()
         };
         if let Ok(raw_doc) = Document::parse_with_base_url(html, base_url.clone())
@@ -267,7 +278,12 @@ impl Readability {
             Err(_) => {}
         }
 
-        let preprocess1 = PreprocessConfig { base_url: base_url.clone(), remove_unlikely: false, ..Default::default() };
+        let preprocess1 = PreprocessConfig {
+            base_url: base_url.clone(),
+            remove_unlikely: false,
+            preserve_video_embeds: self.config.preserve_video_embeds,
+            ..Default::default()
+        };
         match self.try_extract_pass(html, url, &preprocess1, self.config.min_score, site_config.as_ref()) {
             Ok(article) if article.word_count >= RETRY_WORD_THRESHOLD => return Ok(article),
             Ok(article) => update_best(&mut best, article),
@@ -278,6 +294,7 @@ impl Readability {
             base_url: base_url.clone(),
             remove_unlikely: false,
             remove_hidden: false,
+            preserve_video_embeds: self.config.preserve_video_embeds,
             ..Default::default()
         };
         if let Ok(pass2_doc) = Document::parse_with_preprocessing_config(html, &preprocess2) {
@@ -307,6 +324,7 @@ impl Readability {
             remove_scripts: false,
             remove_unlikely: false,
             remove_hidden: false,
+            preserve_video_embeds: self.config.preserve_video_embeds,
             ..Default::default()
         };
         if let Ok(schema_doc) = Document::parse_with_preprocessing_config(html, &schema_preprocess)
@@ -605,6 +623,7 @@ mod tests {
         assert!(config.remove_unlikely);
         assert!(!config.keep_classes);
         assert!(config.preserve_images);
+        assert!(config.preserve_video_embeds);
     }
 
     #[test]
@@ -617,6 +636,7 @@ mod tests {
             .remove_unlikely(false)
             .keep_classes(true)
             .preserve_images(false)
+            .preserve_video_embeds(false)
             .build();
 
         assert_eq!(config.min_score, 30.0);
@@ -626,6 +646,7 @@ mod tests {
         assert!(!config.remove_unlikely);
         assert!(config.keep_classes);
         assert!(!config.preserve_images);
+        assert!(!config.preserve_video_embeds);
     }
 
     #[test]
@@ -634,6 +655,7 @@ mod tests {
         assert_eq!(config.min_score, 20.0);
         assert!(!config.keep_classes);
         assert!(config.preserve_images);
+        assert!(config.preserve_video_embeds);
     }
 
     #[test]
@@ -641,11 +663,13 @@ mod tests {
         let config = LectitoConfig::builder()
             .keep_classes(true)
             .preserve_images(true)
+            .preserve_video_embeds(true)
             .min_score(15.0)
             .build();
 
         assert!(config.keep_classes);
         assert!(config.preserve_images);
+        assert!(config.preserve_video_embeds);
         assert_eq!(config.min_score, 15.0);
     }
 

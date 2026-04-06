@@ -158,10 +158,17 @@ pub fn link_density(element: &Element<'_>) -> f64 {
         .select("a")
         .unwrap_or_default()
         .iter()
-        .map(|link| link.text().chars().count())
-        .sum::<usize>();
+        .map(|link| link.text().chars().count() as f64 * hash_only_link_coefficient(link.attr("href")))
+        .sum::<f64>();
 
-    link_text_length as f64 / text_length as f64
+    link_text_length / text_length as f64
+}
+
+pub(crate) fn hash_only_link_coefficient(href: Option<&str>) -> f64 {
+    match href.map(str::trim) {
+        Some(href) if href.starts_with('#') => 0.3,
+        _ => 1.0,
+    }
 }
 
 /// Calculate the final score for an element
@@ -370,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_link_density_all_links() {
-        let html = r##"<div><a href="#">Link text</a></div>"##;
+        let html = r##"<div><a href="/guide">Link text</a></div>"##;
         let doc = Document::parse(html).unwrap();
         let element = doc.select("div").unwrap().into_iter().next().unwrap();
         assert_eq!(link_density(&element), 1.0);
@@ -401,6 +408,22 @@ mod tests {
     }
 
     #[test]
+    fn test_link_density_deweights_hash_only_links() {
+        let html = r##"
+            <div>
+                <a href="#structs">Structs</a>
+                <a href="#traits">Traits</a>
+                API docs prose remains outside the hash links.
+            </div>
+        "##;
+        let doc = Document::parse(html).unwrap();
+        let element = doc.select("div").unwrap().into_iter().next().unwrap();
+        let density = link_density(&element);
+
+        assert!(density < 0.5);
+    }
+
+    #[test]
     fn test_calculate_score_combined() {
         let html = r##"<article class="main-content" id="post">
             This is a long piece of text that should score well, with multiple commas, to indicate prose content, and some links.
@@ -426,9 +449,9 @@ mod tests {
     #[test]
     fn test_calculate_score_nav_penalized() {
         let html = r##"<nav class="menu">
-            <a href="#">Link 1</a>
-            <a href="#">Link 2</a>
-            <a href="#">Link 3</a>
+            <a href="/one">Link 1</a>
+            <a href="/two">Link 2</a>
+            <a href="/three">Link 3</a>
         </nav>"##;
 
         let doc = Document::parse(html).unwrap();

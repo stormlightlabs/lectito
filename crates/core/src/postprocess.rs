@@ -1,5 +1,6 @@
 use super::metadata::text_similarity;
 use super::parse::{Document, Element};
+use super::scoring::hash_only_link_coefficient;
 use regex::Regex;
 use std::collections::HashSet;
 use std::sync::OnceLock;
@@ -1139,6 +1140,7 @@ fn remove_empty_nodes(html: &str, max_passes: usize) -> String {
     let tags = [
         "div", "p", "span", "section", "article", "aside", "nav", "header", "footer",
     ];
+    let protected_figure_children = protected_figure_children(html);
 
     let mut passes = 0;
     loop {
@@ -1146,11 +1148,21 @@ fn remove_empty_nodes(html: &str, max_passes: usize) -> String {
         let prev_result = result.clone();
 
         for tag in tags {
-            let empty_re = Regex::new(&format!(r#"<{}(?:\s[^>]*)?>\s*(?:<br\s*/?>\s*)*</{}>"#, tag, tag)).unwrap();
-            let whitespace_re = Regex::new(&format!(r#"<{}(?:\s[^>]*)?>\s*</{}>"#, tag, tag)).unwrap();
+            let empty_re = Regex::new(&format!(r#"(?is)<{}(?:\s[^>]*)?>\s*(?:<br\s*/?>\s*)*</{}>"#, tag, tag)).unwrap();
+            let whitespace_re = Regex::new(&format!(r#"(?is)<{}(?:\s[^>]*)?>\s*</{}>"#, tag, tag)).unwrap();
 
-            result = empty_re.replace_all(&result, "").to_string();
-            result = whitespace_re.replace_all(&result, "").to_string();
+            result = empty_re
+                .replace_all(&result, |caps: &regex::Captures| {
+                    let full = caps.get(0).map(|m| m.as_str()).unwrap_or("");
+                    if protected_figure_children.contains(full) { full.to_string() } else { String::new() }
+                })
+                .to_string();
+            result = whitespace_re
+                .replace_all(&result, |caps: &regex::Captures| {
+                    let full = caps.get(0).map(|m| m.as_str()).unwrap_or("");
+                    if protected_figure_children.contains(full) { full.to_string() } else { String::new() }
+                })
+                .to_string();
         }
 
         if result != prev_result {
@@ -1254,28 +1266,30 @@ fn remove_high_link_density_nodes(html: &str, max_density: f64) -> String {
     let mut result = html.to_string();
 
     let tags = ["div", "p", "section", "article", "aside", "nav", "li"];
+    let protected_figure_children = protected_figure_children(html);
 
     for tag in tags {
-        let re = Regex::new(&format!(r#"<{}(?:\s[^>]*)?>(.*?)</{}\s*>"#, tag, tag)).unwrap();
+        let re = Regex::new(&format!(r#"(?is)<{}(?:\s[^>]*)?>(.*?)</{}\s*>"#, tag, tag)).unwrap();
 
         result = re
             .replace_all(&result, |caps: &regex::Captures| {
+                let full = caps.get(0).map(|m| m.as_str()).unwrap_or("");
+                if protected_figure_children.contains(full) {
+                    return full.to_string();
+                }
+
                 let inner_html = caps.get(1).map(|m| m.as_str()).unwrap_or("");
                 let text_content = strip_tags(inner_html);
                 let text_length = text_content.chars().count();
 
                 if text_length == 0 {
-                    return caps.get(0).map(|m| m.as_str()).unwrap_or("").to_string();
+                    return full.to_string();
                 }
 
                 let link_text_length = extract_link_text_length(inner_html);
-                let link_density = link_text_length as f64 / text_length as f64;
+                let link_density = link_text_length / text_length as f64;
 
-                if link_density > density_threshold {
-                    String::new()
-                } else {
-                    caps.get(0).map(|m| m.as_str()).unwrap_or("").to_string()
-                }
+                if link_density > density_threshold { String::new() } else { full.to_string() }
             })
             .to_string();
     }
@@ -1414,13 +1428,32 @@ fn strip_tags(html: &str) -> String {
 }
 
 /// Extract the total length of link text from HTML
-fn extract_link_text_length(html: &str) -> usize {
-    let link_re = Regex::new(r"<a[^>]*>(.*?)</a>").unwrap();
+fn extract_link_text_length(html: &str) -> f64 {
+    let link_re = Regex::new(r#"(?is)<a\b[^>]*>(.*?)</a>"#).unwrap();
+    let href_re = Regex::new(r#"(?is)\bhref=["']([^"']*)["']"#).unwrap();
     link_re
         .captures_iter(html)
-        .map(|cap| cap.get(1).map(|m| m.as_str()).unwrap_or(""))
-        .map(|text| strip_tags(text).chars().count())
+        .map(|cap| {
+            let full = cap.get(0).map(|m| m.as_str()).unwrap_or("");
+            let href = href_re
+                .captures(full)
+                .and_then(|href_cap| href_cap.get(1).map(|m| m.as_str()));
+            let text = cap.get(1).map(|m| m.as_str()).unwrap_or("");
+            strip_tags(text).chars().count() as f64 * hash_only_link_coefficient(href)
+        })
         .sum()
+}
+
+fn protected_figure_children(html: &str) -> HashSet<String> {
+    let Ok(doc) = Document::parse(html) else {
+        return HashSet::new();
+    };
+
+    doc.select("figure *")
+        .unwrap_or_default()
+        .into_iter()
+        .map(|element| element.outer_html())
+        .collect()
 }
 
 #[cfg(test)]
@@ -1602,7 +1635,31 @@ mod tests {
     fn test_extract_link_text_length() {
         let html = r##"<a href="#">Link text</a> and <a href="#">Another</a>"##;
         let length = extract_link_text_length(html);
-        assert_eq!(length, 16);
+        assert!((length - 4.8).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_remove_high_link_density_nodes_preserves_figure_children() {
+        let html = r#"
+            <figure>
+                <p><a href="https://example.com/credit">Illustration credit</a></p>
+            </figure>
+        "#;
+
+        let result = remove_high_link_density_nodes(html, 0.1);
+        assert!(result.contains("Illustration credit"));
+    }
+
+    #[test]
+    fn test_remove_empty_nodes_preserves_figure_children() {
+        let html = r#"
+            <figure>
+                <div> </div>
+            </figure>
+        "#;
+
+        let result = remove_empty_nodes(html, 10);
+        assert!(result.contains("<div> </div>"));
     }
 
     #[test]

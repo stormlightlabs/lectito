@@ -40,4 +40,4 @@ autodetect_on_failure: yes
 http_header(User-Agent): Mozilla/5.0 (compatible; Lectito/1.0; +https://hacks.mozilla.org)
 
 # Test URL
-test_url: https://hacks.mozilla.org/2023/01/example-post/
+test_url: https://hacks.mozilla.org/2018/01/making-webassembly-even-faster-firefoxs-new-streaming-and-tiering-compiler/
