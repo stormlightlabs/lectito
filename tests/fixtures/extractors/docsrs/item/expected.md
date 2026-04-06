@@ -10,6 +10,6 @@ Create a command and attach a required argument.
 
 ## Methods
 
-* new
-* arg
-* get_matches
+*   new
+*   arg
+*   get\_matches

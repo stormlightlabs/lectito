@@ -1,6 +1,8 @@
 use crate::metadata::Metadata;
+use crate::parse::Document;
+use crate::postprocess::{TableKind, classify_table_element};
 use crate::{LectitoError, Result};
-use scraper::{Html, Selector};
+use scraper::{ElementRef, Html, Selector};
 use std::collections::HashMap;
 
 /// Configuration for Markdown conversion
@@ -25,6 +27,11 @@ pub struct LinkReference {
     pub url: String,
 }
 
+struct PreparedMarkdownHtml {
+    html: String,
+    token_replacements: HashMap<String, String>,
+}
+
 /// Convert HTML content to Markdown with optional frontmatter and references
 pub fn convert_to_markdown(html: &str, metadata: &Metadata, config: &MarkdownConfig) -> Result<String> {
     let mut output = String::new();
@@ -40,13 +47,13 @@ pub fn convert_to_markdown(html: &str, metadata: &Metadata, config: &MarkdownCon
         output.push_str(&format!("# {}\n\n", title));
     }
 
-    let processed_html = if config.strip_images { strip_images(html)? } else { html.to_string() };
+    let prepared = prepare_markdown_html(html, config)?;
 
-    let markdown = html_to_markdown(&processed_html);
+    let markdown = apply_markdown_tokens(html_to_markdown(&prepared.html), &prepared.token_replacements);
     output.push_str(&markdown);
 
     if config.include_references {
-        let links = extract_links(&processed_html)?;
+        let links = extract_links(&prepared.html)?;
         if !links.is_empty() {
             output.push_str("\n\n## References\n\n");
             output.push_str(&generate_reference_table(&links));
@@ -127,6 +134,14 @@ fn html_to_markdown(html: &str) -> String {
     doc.root_element().text().collect::<String>()
 }
 
+fn prepare_markdown_html(html: &str, config: &MarkdownConfig) -> Result<PreparedMarkdownHtml> {
+    let mut processed = select_best_image_sources(html)?;
+    if config.strip_images {
+        processed = strip_images(&processed)?;
+    }
+    Ok(normalize_markdown_blocks(&processed))
+}
+
 /// Strip all img tags from HTML
 fn strip_images(html: &str) -> Result<String> {
     let mut output = Vec::new();
@@ -156,6 +171,349 @@ fn strip_images(html: &str) -> Result<String> {
         }
         Err(_) => Ok(html.to_string()),
     }
+}
+
+fn select_best_image_sources(html: &str) -> Result<String> {
+    let mut output = Vec::new();
+    let mut rewriter = lol_html::HtmlRewriter::new(
+        lol_html::Settings {
+            element_content_handlers: vec![lol_html::element!("img", |el| {
+                if let Some(srcset) = el.get_attribute("srcset")
+                    && let Some(best) = best_srcset_url(&srcset)
+                {
+                    el.set_attribute("src", &best).ok();
+                }
+                Ok(())
+            })],
+            ..Default::default()
+        },
+        |chunk: &[u8]| output.extend_from_slice(chunk),
+    );
+
+    rewriter
+        .write(html.as_bytes())
+        .map_err(|err| LectitoError::HtmlParseError(err.to_string()))?;
+    rewriter
+        .end()
+        .map_err(|err| LectitoError::HtmlParseError(err.to_string()))?;
+
+    let rewritten = String::from_utf8(output).map_err(|err| LectitoError::HtmlParseError(err.to_string()))?;
+    Ok(normalize_picture_sources(&rewritten))
+}
+
+fn best_srcset_url(srcset: &str) -> Option<String> {
+    let mut best: Option<(f64, String)> = None;
+
+    for candidate in srcset
+        .split(',')
+        .map(str::trim)
+        .filter(|candidate| !candidate.is_empty())
+    {
+        let mut parts = candidate.split_whitespace().collect::<Vec<_>>();
+        if parts.is_empty() {
+            continue;
+        }
+        let url = parts.remove(0).to_string();
+        let score = parts
+            .first()
+            .and_then(|descriptor| {
+                descriptor
+                    .strip_suffix('w')
+                    .and_then(|value| value.parse::<f64>().ok())
+                    .or_else(|| {
+                        descriptor
+                            .strip_suffix('x')
+                            .and_then(|value| value.parse::<f64>().ok())
+                            .map(|value| value * 1000.0)
+                    })
+            })
+            .unwrap_or(0.0);
+
+        match &best {
+            Some((best_score, _)) if *best_score >= score => {}
+            _ => best = Some((score, url)),
+        }
+    }
+
+    best.map(|(_, url)| url)
+}
+
+fn normalize_picture_sources(html: &str) -> String {
+    let Ok(doc) = Document::parse(html) else {
+        return html.to_string();
+    };
+
+    let mut replacements = Vec::new();
+    for picture in doc.select("picture").unwrap_or_default() {
+        let img = picture.select("img").ok().and_then(|images| images.into_iter().next());
+        let best_source = picture
+            .select("source[srcset], img[srcset]")
+            .unwrap_or_default()
+            .into_iter()
+            .find_map(|element| element.attr("srcset").and_then(best_srcset_url))
+            .or_else(|| img.as_ref().and_then(|image| image.attr("src").map(str::to_string)));
+
+        let Some(src) = best_source else {
+            continue;
+        };
+        let alt = img.as_ref().and_then(|image| image.attr("alt")).unwrap_or("");
+        let title = img.as_ref().and_then(|image| image.attr("title"));
+        let title_attr = title.map(|title| format!(" title=\"{title}\"")).unwrap_or_default();
+        replacements.push((
+            picture.outer_html(),
+            format!("<img src=\"{src}\" alt=\"{alt}\"{title_attr}>"),
+        ));
+    }
+
+    replace_html_snippets(html.to_string(), replacements)
+}
+
+fn normalize_markdown_blocks(html: &str) -> PreparedMarkdownHtml {
+    let Ok(doc) = Document::parse(html) else {
+        return PreparedMarkdownHtml { html: html.to_string(), token_replacements: HashMap::new() };
+    };
+
+    let mut replacements = Vec::new();
+    let mut token_replacements = HashMap::new();
+    let mut next_token = 0usize;
+
+    for table in doc.select("table").unwrap_or_default() {
+        let token = format!("LECTITOMDTOKEN{}", next_token);
+        next_token += 1;
+        let replacement = match classify_table_element(&table) {
+            TableKind::Layout => unwrap_layout_table_markdown(&table),
+            TableKind::Data if is_complex_table(&table) => table.outer_html(),
+            TableKind::Data => render_simple_table_markdown(&table),
+        };
+        replacements.push((table.outer_html(), format!("<p>{token}</p>")));
+        token_replacements.insert(token, replacement);
+    }
+
+    for anchor in doc.select("a[href]").unwrap_or_default() {
+        if !anchor_contains_block_content(&anchor) {
+            continue;
+        }
+
+        let Some(markdown) = render_link_wrapped_block_markdown(&anchor) else {
+            continue;
+        };
+        let token = format!("LECTITOMDTOKEN{}", next_token);
+        next_token += 1;
+        replacements.push((anchor.outer_html(), format!("<p>{token}</p>")));
+        token_replacements.insert(token, markdown);
+    }
+
+    PreparedMarkdownHtml { html: replace_html_snippets(doc.as_string(), replacements), token_replacements }
+}
+
+fn replace_html_snippets(mut html: String, mut replacements: Vec<(String, String)>) -> String {
+    replacements.sort_by_key(|(old, _)| std::cmp::Reverse(old.len()));
+    for (old, new) in replacements {
+        if old.is_empty() || old == new {
+            continue;
+        }
+        if let Some(index) = html.find(&old) {
+            html.replace_range(index..index + old.len(), &new);
+        }
+    }
+    html
+}
+
+fn apply_markdown_tokens(mut markdown: String, replacements: &HashMap<String, String>) -> String {
+    for (token, replacement) in replacements {
+        markdown = markdown.replace(token, replacement);
+    }
+    markdown
+}
+
+fn anchor_contains_block_content(anchor: &crate::parse::Element<'_>) -> bool {
+    anchor
+        .select("h1, h2, h3, h4, h5, h6, p, div, section, article, ul, ol, li, figure, table, blockquote")
+        .ok()
+        .is_some_and(|elements| !elements.is_empty())
+}
+
+fn render_link_wrapped_block_markdown(anchor: &crate::parse::Element<'_>) -> Option<String> {
+    let href = anchor.attr("href")?;
+    let fragment = Html::parse_fragment(&anchor.inner_html());
+    let root = fragment.root_element();
+    let mut blocks = Vec::new();
+    let mut pending_text = String::new();
+
+    for child in root.children() {
+        if let Some(text) = child.value().as_text() {
+            let trimmed = text.text.trim();
+            if !trimmed.is_empty() {
+                if !pending_text.is_empty() {
+                    pending_text.push(' ');
+                }
+                pending_text.push_str(trimmed);
+            }
+            continue;
+        }
+
+        let Some(element) = ElementRef::wrap(child) else {
+            continue;
+        };
+
+        if !pending_text.is_empty() {
+            blocks.push(format!("[{}]({})", pending_text.trim(), href));
+            pending_text.clear();
+        }
+
+        render_link_wrapped_child(element, href, &mut blocks);
+    }
+
+    if !pending_text.is_empty() {
+        blocks.push(format!("[{}]({})", pending_text.trim(), href));
+    }
+
+    (!blocks.is_empty()).then(|| blocks.join("\n\n"))
+}
+
+fn render_link_wrapped_child(element: ElementRef<'_>, href: &str, blocks: &mut Vec<String>) {
+    let tag = element.value().name();
+
+    match tag {
+        "div" | "section" | "article" | "ul" | "ol" => {
+            for child in element.children() {
+                if let Some(text) = child.value().as_text() {
+                    let trimmed = text.text.trim();
+                    if !trimmed.is_empty() {
+                        blocks.push(format!("[{}]({})", trimmed, href));
+                    }
+                    continue;
+                }
+                if let Some(child_element) = ElementRef::wrap(child) {
+                    render_link_wrapped_child(child_element, href, blocks);
+                }
+            }
+        }
+        "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "li" | "blockquote" | "figcaption" => {
+            let linked_html = format!("<{tag}><a href=\"{href}\">{}</a></{tag}>", element.inner_html());
+            let markdown = html_to_markdown(&linked_html).trim().to_string();
+            if !markdown.is_empty() {
+                blocks.push(markdown);
+            }
+        }
+        "img" => {
+            let markdown = html_to_markdown(&element.html()).trim().to_string();
+            if !markdown.is_empty() {
+                blocks.push(markdown);
+            }
+        }
+        "figure" => {
+            let markdown = html_to_markdown(&element.html()).trim().to_string();
+            if !markdown.is_empty() {
+                blocks.push(markdown);
+            }
+        }
+        _ => {
+            let text = element.text().collect::<String>();
+            let trimmed = text.trim();
+            if !trimmed.is_empty() {
+                blocks.push(format!("[{}]({})", trimmed, href));
+            }
+        }
+    }
+}
+
+fn is_complex_table(table: &crate::parse::Element<'_>) -> bool {
+    if table.select("[colspan], [rowspan]").ok().is_some_and(|cells| {
+        cells
+            .iter()
+            .any(|cell| cell.attr("colspan").unwrap_or("1") != "1" || cell.attr("rowspan").unwrap_or("1") != "1")
+    }) {
+        return true;
+    }
+
+    let rows = table.select("tr").unwrap_or_default();
+    if rows.is_empty() {
+        return true;
+    }
+
+    let widths = rows
+        .iter()
+        .map(|row| row.select("th, td").unwrap_or_default().len())
+        .collect::<Vec<_>>();
+    widths.contains(&0) || widths.windows(2).any(|pair| pair[0] != pair[1])
+}
+
+fn unwrap_layout_table_markdown(table: &crate::parse::Element<'_>) -> String {
+    let mut parts = Vec::new();
+    for row in table.select("tr").unwrap_or_default() {
+        for cell in row.select("th, td").unwrap_or_default() {
+            let markdown = html_to_markdown(&cell.inner_html()).trim().to_string();
+            if !markdown.is_empty() {
+                parts.push(markdown);
+            }
+        }
+    }
+    parts.join("\n\n")
+}
+
+fn render_simple_table_markdown(table: &crate::parse::Element<'_>) -> String {
+    let rows = table.select("tr").unwrap_or_default();
+    if rows.is_empty() {
+        return table.outer_html();
+    }
+
+    let caption = table
+        .select("caption")
+        .unwrap_or_default()
+        .first()
+        .map(|caption| caption.text().trim().to_string())
+        .filter(|caption| !caption.is_empty());
+
+    let mut matrix = Vec::new();
+    for row in rows {
+        let cells = row
+            .select("th, td")
+            .unwrap_or_default()
+            .into_iter()
+            .map(|cell| sanitize_table_cell(&html_to_markdown(&cell.inner_html())))
+            .collect::<Vec<_>>();
+        if !cells.is_empty() {
+            matrix.push(cells);
+        }
+    }
+
+    if matrix.is_empty() {
+        return table.outer_html();
+    }
+
+    let header = matrix.first().cloned().unwrap_or_default();
+    let body = matrix.into_iter().skip(1).collect::<Vec<_>>();
+    let widths = header.len();
+    if widths == 0 {
+        return table.outer_html();
+    }
+
+    let mut lines = Vec::new();
+    if let Some(caption) = caption {
+        lines.push(format!("*{}*", caption));
+        lines.push(String::new());
+    }
+    lines.push(format!("| {} |", header.join(" | ")));
+    lines.push(format!("| {} |", vec!["---"; widths].join(" | ")));
+
+    for row in body {
+        let mut padded = row;
+        while padded.len() < widths {
+            padded.push(String::new());
+        }
+        lines.push(format!("| {} |", padded.join(" | ")));
+    }
+
+    lines.join("\n")
+}
+
+fn sanitize_table_cell(markdown: &str) -> String {
+    markdown
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .replace('|', "\\|")
 }
 
 /// Extract all links from HTML content

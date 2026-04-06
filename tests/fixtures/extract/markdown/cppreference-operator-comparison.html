@@ -1,0 +1,1912 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" class="client-nojs">
+<head>
+<title>Comparison operators - cppreference.com</title>
+<meta charset="UTF-8" />
+<meta name="generator" content="MediaWiki 1.21.2" />
+<link rel="alternate" type="application/x-wiki" title="Edit" href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit" />
+<link rel="edit" title="Edit" href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit" />
+<link rel="shortcut icon" href="../../../favicon.ico" />
+<link rel="search" type="application/opensearchdescription+xml" href="../../../mwiki/opensearch_desc.php" title="cppreference.com (en)" />
+<link rel="EditURI" type="application/rsd+xml" href="../../../mwiki/api.php@action=rsd" />
+<link rel="alternate" type="application/atom+xml" title="cppreference.com Atom feed" href="https://en.cppreference.com/mwiki/index.php?title=Special:RecentChanges&amp;feed=atom" />
+<link rel="stylesheet" href="/mwiki/load.php@debug=false&amp;lang=en&amp;modules=ext.gadget.ColiruCompiler,MathJax,StandardRevisions%257Cext.rtlcite%257Cmediawiki.legacy.commonPrint,shared%257Cskins.cppreference2&amp;only=styles&amp;skin=cppreference2&amp;%252A.css" />
+<meta name="ResourceLoaderDynamicStyles" content="" />
+<link rel="stylesheet" href="/mwiki/load.php@debug=false&amp;lang=en&amp;modules=site&amp;only=styles&amp;skin=cppreference2&amp;%252A.css" />
+<style>a:lang(ar),a:lang(ckb),a:lang(fa),a:lang(kk-arab),a:lang(mzn),a:lang(ps),a:lang(ur){text-decoration:none}#toc{display:none}.editsection{display:none}
+/* cache key: mwiki1-mwiki_en_:resourceloader:filter:minify-css:7:472787eddcf4605d11de8c7ef047234f */</style>
+
+<script src="../../../mwiki/load.php@debug=false&amp;lang=en&amp;modules=startup&amp;only=scripts&amp;skin=cppreference2&amp;%252A"></script>
+<script>if(window.mw){
+mw.config.set({"wgCanonicalNamespace":"","wgCanonicalSpecialPageName":false,"wgNamespaceNumber":0,"wgPageName":"cpp/language/operator_comparison","wgTitle":"cpp/language/operator comparison","wgCurRevisionId":177936,"wgArticleId":705,"wgIsArticle":true,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":[],"wgBreakFrames":false,"wgPageContentLanguage":"en","wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgMonthNamesShort":["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],"wgRelevantPageName":"cpp/language/operator_comparison","wgRestrictionEdit":[],"wgRestrictionMove":[]});
+}</script><script>if(window.mw){
+mw.loader.implement("user.options",function(){mw.user.options.set({"ccmeonemails":0,"cols":80,"date":"default","diffonly":0,"disablemail":0,"disablesuggest":0,"editfont":"default","editondblclick":0,"editsection":0,"editsectiononrightclick":0,"enotifminoredits":0,"enotifrevealaddr":0,"enotifusertalkpages":1,"enotifwatchlistpages":0,"extendwatchlist":0,"externaldiff":0,"externaleditor":0,"fancysig":0,"forceeditsummary":0,"gender":"unknown","hideminor":0,"hidepatrolled":0,"imagesize":2,"justify":0,"math":1,"minordefault":0,"newpageshidepatrolled":0,"nocache":0,"noconvertlink":0,"norollbackdiff":0,"numberheadings":0,"previewonfirst":0,"previewontop":1,"quickbar":5,"rcdays":7,"rclimit":50,"rememberpassword":0,"rows":25,"searchlimit":20,"showhiddencats":0,"showjumplinks":1,"shownumberswatching":1,"showtoc":0,"showtoolbar":1,"skin":"cppreference2","stubthreshold":0,"thumbsize":2,"underline":2,"uselivepreview":0,"usenewrc":0,"watchcreations":0,"watchdefault":0,"watchdeletion":0,
+"watchlistdays":3,"watchlisthideanons":0,"watchlisthidebots":0,"watchlisthideliu":0,"watchlisthideminor":0,"watchlisthideown":0,"watchlisthidepatrolled":0,"watchmoves":0,"wllimit":250,"variant":"en","language":"en","searchNs0":true,"searchNs1":false,"searchNs2":false,"searchNs3":false,"searchNs4":false,"searchNs5":false,"searchNs6":false,"searchNs7":false,"searchNs8":false,"searchNs9":false,"searchNs10":false,"searchNs11":false,"searchNs12":false,"searchNs13":false,"searchNs14":false,"searchNs15":false,"gadget-ColiruCompiler":1,"gadget-StandardRevisions":1,"gadget-MathJax":1});;},{},{});mw.loader.implement("user.tokens",function(){mw.user.tokens.set({"editToken":"+\\","patrolToken":false,"watchToken":false});;},{},{});
+/* cache key: mwiki1-mwiki_en_:resourceloader:filter:minify-js:7:173cd59b4efc63a37dd7498667b0fea2 */
+}</script>
+<script>if(window.mw){
+mw.loader.load(["mediawiki.page.startup","mediawiki.legacy.wikibits","mediawiki.legacy.ajax"]);
+}</script>
+<style type="text/css">/*<![CDATA[*/
+.source-cpp {line-height: normal;}
+.source-cpp li, .source-cpp pre {
+	line-height: normal; border: 0px none white;
+}
+/**
+ * GeSHi Dynamically Generated Stylesheet
+ * --------------------------------------
+ * Dynamically generated stylesheet for cpp
+ * CSS class: source-cpp, CSS id: 
+ * GeSHi (C) 2004 - 2007 Nigel McNie, 2007 - 2008 Benny Baumann
+ * (http://qbnz.com/highlighter/ and http://geshi.org/)
+ * --------------------------------------
+ */
+.cpp.source-cpp .de1, .cpp.source-cpp .de2 {font: normal normal 1em/1.2em monospace; margin:0; padding:0; background:none; vertical-align:top;}
+.cpp.source-cpp  {font-family:monospace;}
+.cpp.source-cpp .imp {font-weight: bold; color: red;}
+.cpp.source-cpp li, .cpp.source-cpp .li1 {font-weight: normal; vertical-align:top;}
+.cpp.source-cpp .ln {width:1px;text-align:right;margin:0;padding:0 2px;vertical-align:top;}
+.cpp.source-cpp .li2 {font-weight: bold; vertical-align:top;}
+.cpp.source-cpp .kw1 {color: #0000dd;}
+.cpp.source-cpp .kw2 {color: #0000ff;}
+.cpp.source-cpp .kw3 {color: #0000dd;}
+.cpp.source-cpp .kw4 {color: #0000ff;}
+.cpp.source-cpp .co1 {color: #909090;}
+.cpp.source-cpp .co2 {color: #339900;}
+.cpp.source-cpp .coMULTI {color: #ff0000; font-style: italic;}
+.cpp.source-cpp .es0 {color: #008000; font-weight: bold;}
+.cpp.source-cpp .es1 {color: #008000; font-weight: bold;}
+.cpp.source-cpp .es2 {color: #008000; font-weight: bold;}
+.cpp.source-cpp .es3 {color: #008000; font-weight: bold;}
+.cpp.source-cpp .es4 {color: #008000; font-weight: bold;}
+.cpp.source-cpp .es5 {color: #008000; font-weight: bold;}
+.cpp.source-cpp .br0 {color: #008000;}
+.cpp.source-cpp .sy0 {color: #008000;}
+.cpp.source-cpp .sy1 {color: #000080;}
+.cpp.source-cpp .sy2 {color: #000040;}
+.cpp.source-cpp .sy3 {color: #000040;}
+.cpp.source-cpp .sy4 {color: #008080;}
+.cpp.source-cpp .st0 {color: #008000;}
+.cpp.source-cpp .nu0 {color: #000080;}
+.cpp.source-cpp .nu6 {color: #000080;}
+.cpp.source-cpp .nu8 {color: #000080;}
+.cpp.source-cpp .nu12 {color: #000080;}
+.cpp.source-cpp .nu16 {color:#000080;}
+.cpp.source-cpp .nu17 {color:#000080;}
+.cpp.source-cpp .nu18 {color:#000080;}
+.cpp.source-cpp .nu19 {color:#000080;}
+.cpp.source-cpp .ln-xtra, .cpp.source-cpp li.ln-xtra, .cpp.source-cpp div.ln-xtra {background-color: #ffc;}
+.cpp.source-cpp span.xtra { display:block; }
+
+/*]]>*/
+</style><style type="text/css">/*<![CDATA[*/
+.source-text {line-height: normal;}
+.source-text li, .source-text pre {
+	line-height: normal; border: 0px none white;
+}
+/**
+ * GeSHi Dynamically Generated Stylesheet
+ * --------------------------------------
+ * Dynamically generated stylesheet for text
+ * CSS class: source-text, CSS id: 
+ * GeSHi (C) 2004 - 2007 Nigel McNie, 2007 - 2008 Benny Baumann
+ * (http://qbnz.com/highlighter/ and http://geshi.org/)
+ * --------------------------------------
+ */
+.text.source-text .de1, .text.source-text .de2 {font: normal normal 1em/1.2em monospace; margin:0; padding:0; background:none; vertical-align:top;}
+.text.source-text  {font-family:monospace;}
+.text.source-text .imp {font-weight: bold; color: red;}
+.text.source-text li, .text.source-text .li1 {font-weight: normal; vertical-align:top;}
+.text.source-text .ln {width:1px;text-align:right;margin:0;padding:0 2px;vertical-align:top;}
+.text.source-text .li2 {font-weight: bold; vertical-align:top;}
+.text.source-text .ln-xtra, .text.source-text li.ln-xtra, .text.source-text div.ln-xtra {background-color: #ffc;}
+.text.source-text span.xtra { display:block; }
+
+/*]]>*/
+</style><!--[if lt IE 7]><style type="text/css">body{behavior:url("/mwiki/skins/cppreference2/csshover.min.htc")}</style><![endif]--></head>
+<body class="mediawiki ltr sitedir-ltr ns-0 ns-subject page-cpp_language_operator_comparison skin-cppreference2 action-view cpp-navbar">
+        <!-- header -->
+        <div id="mw-head" class="noprint">
+            <div id="cpp-head-first-base">
+                <div id="cpp-head-first">
+                    <h5><a href="../../../index.html">
+                        cppreference.com                        </a></h5>
+                    <div id="cpp-head-search">
+                        
+<!-- 0 -->
+<div id="p-search">
+<form action="https://duckduckgo.com/" method="get">
+  <input type="hidden" name="sites" value="cppreference.com">
+  <input type="search" name="q">
+  <input type="submit" value="Search">
+</form>
+</div>
+
+<!-- /0 -->
+                    </div>
+                    <div id="cpp-head-personal" hidden>
+                        
+<!-- 0 -->
+<div id="p-personal" class="">
+<span id="pt-createaccount"><a href="https://en.cppreference.com/mwiki/index.php?title=Special:UserLogin&amp;returnto=cpp%2Flanguage%2Foperator+comparison&amp;type=signup">Create account</a></span>	<div class="menu">
+        <ul>
+<li id="pt-login"><a href="https://en.cppreference.com/mwiki/index.php?title=Special:UserLogin&amp;returnto=cpp%2Flanguage%2Foperator+comparison" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o">Log in</a></li>        </ul>
+    </div>
+</div>
+
+<!-- /0 -->
+                    </div>
+
+                </div>
+            </div>
+            <div id="cpp-head-second-base">
+                <div id="cpp-head-second">
+                    <div id="cpp-head-tools-left">
+                        
+<!-- 0 -->
+<div id="p-namespaces" class="vectorTabs">
+	<h5>Namespaces</h5>
+	<ul>
+					<li  id="ca-nstab-main" class="selected"><span><a href="operator_comparison.html"  title="View the content page [c]" accesskey="c">Page</a></span></li>
+					<li  id="ca-talk"><span><a href="../../Talk%253Acpp/language/operator_comparison.html"  title="Discussion about the content page [t]" accesskey="t">Discussion</a></span></li>
+			</ul>
+</div>
+
+<!-- /0 -->
+
+<!-- 1 -->
+<div id="p-variants" class="vectorMenu emptyPortlet">
+		<h5><span>Variants</span><a href="operator_comparison.html#"></a></h5>
+	<div class="menu">
+		<ul>
+					</ul>
+	</div>
+</div>
+
+<!-- /1 -->
+                    </div>
+                    <div id="cpp-head-tools-right">
+                        
+<!-- 0 -->
+<div id="p-views" hidden class="vectorTabs">
+	<h5>Views</h5>
+	<ul>
+					<li id="ca-view" class="selected"><span><a href="operator_comparison.html" >View</a></span></li>
+					<li id="ca-edit"><span><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit"  title="You can edit this page. Please use the preview button before saving [e]" accesskey="e">Edit</a></span></li>
+					<li id="ca-history" class="collapsible"><span><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=history"  title="Past revisions of this page [h]" accesskey="h">History</a></span></li>
+			</ul>
+</div>
+
+<!-- /0 -->
+
+<!-- 1 -->
+<div id="p-cactions" class="vectorMenu emptyPortlet">
+	<h5><span>Actions</span><a href="operator_comparison.html#"></a></h5>
+	<div class="menu">
+		<ul>
+					</ul>
+	</div>
+</div>
+
+<!-- /1 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- /header -->
+        <!-- content -->
+<style type="text/css">
+#carbonads {
+  display: block;
+  overflow: hidden;
+  position: absolute;
+  text-align: center;
+  left: -170px;
+  max-width: 150px;
+  border-radius: 4px;
+  border: solid 1px hsla(0, 0%, 0%, .1);
+  background-color: hsl(0, 0%, 98%);
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu,
+  Cantarell, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+#carbonads a {
+  color: inherit;
+  text-decoration: none;
+}
+
+#carbonads a:hover {
+  color: inherit;
+}
+
+#carbonads span {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+
+.carbon-img {
+  display: block;
+  margin-bottom: 8px;
+  max-width: 150px;
+  line-height: 1;
+}
+
+.carbon-img img {
+  display: block;
+  margin: 0 auto;
+  max-width: 150px !important;
+  width: 150px;
+  height: auto;
+}
+
+.carbon-text {
+  display: block;
+  padding: 0 1em 8px;
+}
+
+.carbon-poweredby {
+  display: block;
+  padding: 8px 12px;
+  background: repeating-linear-gradient(-45deg, transparent, transparent 5px, hsla(0, 0%, 0%, .025) 5px, hsla(0, 0%, 0%, .025) 10px) hsla(203, 11%, 95%, .4);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  font-weight: 600;
+  font-size: 9px;
+  line-height: 1;
+}
+html { font-variant-ligatures: no-common-ligatures; }
+</style>
+        <div id="cpp-content-base">
+            <div id="content">
+                <a id="top"></a>
+                <div id="mw-js-message" style="display:none;"></div>
+                                <!-- firstHeading -->
+<script async type="text/javascript" src="https://cdn.carbonads.com/carbon.js?serve=CKYITK7M&amp;placement=cppreferencecom" id="_carbonads_js"></script>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-8HW0LXMYCY"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-8HW0LXMYCY');
+</script>
+                <h1 id="firstHeading" class="firstHeading">Comparison operators</h1>
+                <!-- /firstHeading -->
+                <!-- bodyContent -->
+                <div id="bodyContent">
+                                        <!-- tagline -->
+                    <div id="siteSub">From cppreference.com</div>
+                    <!-- /tagline -->
+                                        <!-- subtitle -->
+                    <div id="contentSub"><span class="subpages">&lt; <a href="../../cpp.html" title="cpp">cpp</a>&lrm; | <a href="../language.html" title="cpp/language">language</a></span></div>
+                    <!-- /subtitle -->
+                                                            <!-- bodycontent -->
+                    <div id="mw-content-text" lang="en" dir="ltr" class="mw-content-ltr"><div class="t-navbar" style=""><div class="t-navbar-sep">&#160;</div><div class="t-navbar-head"><a href="../../cpp.html" title="cpp">C++</a><div class="t-navbar-menu"><div><div><table class="t-nv-begin" cellpadding="0" style="line-height:1.1em;">
+<tr class="t-nv"><td colspan="5"><a href="../compiler_support.html" title="cpp/compiler support">Compiler support</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../freestanding.html" title="cpp/freestanding">Freestanding and hosted</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../language.html" title="cpp/language">Language</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../standard_library.html" title="cpp/standard library">Standard library</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../headers.html" title="cpp/header">Standard library headers</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../iterator/concepts.html" title="cpp/named req">Named requirements</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../experimental/feature_test.html" title="cpp/feature test">Feature test macros</a> <span class="t-mark-rev t-since-cxx20">(C++20)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../utility.html#Language_support" title="cpp/utility">Language support library</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../concepts.html" title="cpp/concepts">Concepts library</a> <span class="t-mark-rev t-since-cxx20">(C++20)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../error.html" title="cpp/error">Diagnostics library</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../memory.html" title="cpp/memory">Memory management library</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../meta.html" title="cpp/meta">Metaprogramming library</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../utility.html" title="cpp/utility">General utilities library</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../container.html" title="cpp/container">Containers library</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../iterator.html" title="cpp/iterator">Iterators library</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../ranges.html" title="cpp/ranges">Ranges library</a> <span class="t-mark-rev t-since-cxx20">(C++20)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../algorithm.html" title="cpp/algorithm">Algorithms library</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../string.html" title="cpp/string">Strings library</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../text.html" title="cpp/text">Text processing library</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../numeric.html" title="cpp/numeric">Numerics library</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../chrono.html" title="cpp/chrono">Date and time library</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../io.html" title="cpp/io">Input/output library</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../filesystem.html" title="cpp/filesystem">Filesystem library</a> <span class="t-mark-rev t-since-cxx17">(C++17)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../atomic.html" title="cpp/thread">Concurrency support library</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../experimental/execution.html" title="cpp/execution">Execution control library</a> <span class="t-mark-rev t-since-cxx26">(C++26)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../experimental.html" title="cpp/experimental">Technical specifications</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../symbol_index.html" title="cpp/symbol index">Symbols index</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../links/libs.html" title="cpp/links/libs">External libraries</a></td></tr>
+</table></div><div><span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/navbar_content&amp;action=edit">&#91;edit&#93;</a></span></div></div></div></div><div class="t-navbar-sep">&#160;</div><div class="t-navbar-head"><a href="../language.html" title="cpp/language">C++ language</a><div class="t-navbar-menu"><div><div style="display:inline-block">
+<div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv-h1"><td colspan="5">General topics</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="../preprocessor.html" title="cpp/preprocessor">Preprocessor</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="../comments.html" title="cpp/comment">Comments</a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="../keywords.html" title="cpp/keyword">Keywords</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="escape.html" title="cpp/language/escape">Escape sequences</a></td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h1"><td colspan="5"><a href="statements.html" title="cpp/language/statements">Flow control</a></td></tr>
+<tr class="t-nv-h2"><td colspan="5">Conditional execution statements</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="if.html" title="cpp/language/if"><tt>if</tt></a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="switch.html" title="cpp/language/switch"><tt>switch</tt></a></td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h2"><td colspan="5">Iteration statements (loops)</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="for.html" title="cpp/language/for"><tt>for</tt></a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="range-for.html" title="cpp/language/range-for">range-<code>for</code></a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="while.html" title="cpp/language/while"><tt>while</tt></a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="do.html" title="cpp/language/do"><code>do-while</code></a></td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h2"><td colspan="5">Jump statements</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="continue.html" title="cpp/language/continue"><tt>continue</tt></a> - <a href="break.html" title="cpp/language/break"><tt>break</tt></a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="goto.html" title="cpp/language/goto"><tt>goto</tt></a> - <a href="return.html" title="cpp/language/return"><tt>return</tt></a></td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h1"><td colspan="5"><a href="functions.html" title="cpp/language/functions">Functions</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="function.html" title="cpp/language/function">Function declaration</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="lambda.html" title="cpp/language/lambda">Lambda function expression</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="inline.html" title="cpp/language/inline"><code>inline</code> specifier</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="except_spec.html" title="cpp/language/except spec">Dynamic exception specifications</a> <span class="t-mark">(<span title="deprecated in C++11">until C++17*</span>)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="noexcept_spec.html" title="cpp/language/noexcept spec"><code>noexcept</code> specifier</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv-h1"><td colspan="5">Exceptions</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="throw.html" title="cpp/language/throw"><code>throw</code>-expression</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="try.html" title="cpp/language/try"><code>try</code> block</a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><br />
+</td></tr>
+<tr class="t-nv"><td colspan="5"><a href="catch.html" title="cpp/language/catch"><code>catch</code> handler</a></td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h1"><td colspan="5">Namespaces</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="namespace.html" title="cpp/language/namespace">Namespace declaration</a><code>&#160;&#160;</code></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="namespace_alias.html" title="cpp/language/namespace alias">Namespace aliases</a></td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h1"><td colspan="5">Types</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="types.html" title="cpp/language/types">Fundamental types</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="enum.html" title="cpp/language/enum">Enumeration types</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="function.html" title="cpp/language/function">Function types</a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="class.html" title="cpp/language/class">Class/struct types</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="union.html" title="cpp/language/union">Union types</a></td></tr>
+<tr class="t-nv"><td colspan="5"><br />
+</td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h2"><td colspan="5">Specifiers</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="cv.html" title="cpp/language/cv"><code>const</code>/<code>volatile</code></a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="decltype.html" title="cpp/language/decltype"><tt>decltype</tt></a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="auto.html" title="cpp/language/auto"><tt>auto</tt></a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="constexpr.html" title="cpp/language/constexpr"><tt>constexpr</tt></a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="consteval.html" title="cpp/language/consteval"><tt>consteval</tt></a> <span class="t-mark-rev t-since-cxx20">(C++20)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="constinit.html" title="cpp/language/constinit"><tt>constinit</tt></a> <span class="t-mark-rev t-since-cxx20">(C++20)</span></td></tr>
+</table></div></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="storage_duration.html" title="cpp/language/storage duration">Storage duration specifiers</a></td></tr>
+<tr class="t-nv-h2"><td colspan="5"><a href="initialization.html" title="cpp/language/initialization">Initialization</a></td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="default_initialization.html" title="cpp/language/default initialization">Default-initialization</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="value_initialization.html" title="cpp/language/value initialization">Value-initialization</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="zero_initialization.html" title="cpp/language/zero initialization">Zero-initialization</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="copy_initialization.html" title="cpp/language/copy initialization">Copy-initialization</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="direct_initialization.html" title="cpp/language/direct initialization">Direct-initialization</a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="aggregate_initialization.html" title="cpp/language/aggregate initialization">Aggregate initialization</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="list_initialization.html" title="cpp/language/list initialization">List-initialization</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span><code>&#160;&#160;</code></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="constant_initialization.html" title="cpp/language/constant initialization">Constant initialization</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="reference_initialization.html" title="cpp/language/reference initialization">Reference initialization</a></td></tr>
+<tr class="t-nv"><td colspan="5"><br />
+</td></tr>
+</table></div></td></tr>
+</table></div>
+</div>
+<div style="display:inline-block">
+<div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv-h1"><td colspan="5"><a href="expressions.html" title="cpp/language/expressions">Expressions</a></td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="value_category.html" title="cpp/language/value category">Value categories</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="eval_order.html" title="cpp/language/eval order">Order of evaluation</a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="operators.html" title="cpp/language/operators">Operators</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="operator_precedence.html" title="cpp/language/operator precedence">Operator precedence</a></td></tr>
+</table></div></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="operator_alternative.html" title="cpp/language/operator alternative">Alternative representations</a></td></tr>
+<tr class="t-nv-h2"><td colspan="5"><a href="expressions.html#Literals" title="cpp/language/expressions">Literals</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="bool_literal.html" title="cpp/language/bool literal">Boolean</a> - <a href="integer_literal.html" title="cpp/language/integer literal">Integer</a> - <a href="floating_literal.html" title="cpp/language/floating literal">Floating-point</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="character_literal.html" title="cpp/language/character literal">Character</a> - <a href="string_literal.html" title="cpp/language/string literal">String</a> - <a href="nullptr.html" title="cpp/language/nullptr"><tt>nullptr</tt></a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="user_literal.html" title="cpp/language/user literal">User-defined</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv-h1"><td colspan="5">Utilities</td></tr>
+<tr class="t-nv"><td colspan="5"><a href="attributes.html" title="cpp/language/attributes">Attributes</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv-h2"><td colspan="5">Types</td></tr>
+<tr class="t-nv"><td colspan="5"><a href="typedef.html" title="cpp/language/typedef"><code>typedef</code> declaration</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="type_alias.html" title="cpp/language/type alias">Type alias declaration</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv-h2"><td colspan="5">Casts</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="implicit_cast.html" title="cpp/language/implicit conversion">Implicit conversions</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="static_cast.html" title="cpp/language/static cast"><tt>static_cast</tt></a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="const_cast.html" title="cpp/language/const cast"><tt>const_cast</tt></a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="explicit_cast.html" title="cpp/language/explicit cast">Explicit conversions</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="dynamic_cast.html" title="cpp/language/dynamic cast"><tt>dynamic_cast</tt></a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="reinterpret_cast.html" title="cpp/language/reinterpret cast"><tt>reinterpret_cast</tt></a></td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h2"><td colspan="5">Memory allocation</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="new.html" title="cpp/language/new"><code>new</code> expression</a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="delete.html" title="cpp/language/delete"><code>delete</code> expression</a></td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h1"><td colspan="5"><a href="classes.html" title="cpp/language/classes">Classes</a></td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="class.html" title="cpp/language/class">Class declaration</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="initializer_list.html" title="cpp/language/constructor">Constructors</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="this.html" title="cpp/language/this"><code>this</code> pointer</a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="access.html" title="cpp/language/access">Access specifiers</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="friend.html" title="cpp/language/friend"><code>friend</code> specifier</a></td></tr>
+<tr class="t-nv"><td colspan="5"><br />
+</td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h2"><td colspan="5">Class-specific function properties</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="virtual.html" title="cpp/language/virtual">Virtual function</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="override.html" title="cpp/language/override"><code>override</code> specifier</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span><code>&#160;&#160;</code></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="final.html" title="cpp/language/final"><code>final</code> specifier</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="explicit.html" title="cpp/language/explicit"><tt>explicit</tt></a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="static.html" title="cpp/language/static"><tt>static</tt></a></td></tr>
+<tr class="t-nv"><td colspan="5"><br />
+</td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h2"><td colspan="5">Special member functions</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="default_constructor.html" title="cpp/language/default constructor">Default constructor</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="copy_constructor.html" title="cpp/language/copy constructor">Copy constructor</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="move_constructor.html" title="cpp/language/move constructor">Move constructor</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="as_operator.html" title="cpp/language/as operator" class="mw-redirect">Copy assignment</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="move_operator.html" title="cpp/language/move operator" class="mw-redirect">Move assignment</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="destructor.html" title="cpp/language/destructor">Destructor</a></td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h1"><td colspan="5"><a href="templates.html" title="cpp/language/templates">Templates</a></td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="class_template.html" title="cpp/language/class template">Class template</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="function_template.html" title="cpp/language/function template">Function template</a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="template_specialization.html" title="cpp/language/template specialization">Template specialization</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="parameter_pack.html" title="cpp/language/pack">Parameter packs</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h1"><td colspan="5">Miscellaneous</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="asm.html" title="cpp/language/asm">Inline assembly</a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="history.html" title="cpp/language/history">History of C++</a></td></tr>
+</table></div></td></tr>
+</table></div>
+</div><div><span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/language/navbar_content&amp;action=edit">&#91;edit&#93;</a></span></div></div></div></div><div class="t-navbar-sep">&#160;</div><div class="t-navbar-head"><a href="expressions.html" title="cpp/language/expressions"> Expressions</a><div class="t-navbar-menu"><div><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv-h2"><td colspan="5">General</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="value_category.html" title="cpp/language/value category">Value categories</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="eval_order.html" title="cpp/language/eval order">Order of evaluation</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="constant_expression.html" title="cpp/language/constant expression">Constant expressions</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="expressions.html#Primary_expressions" title="cpp/language/expressions">Primary expressions</a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="lambda.html" title="cpp/language/lambda">Lambda expressions</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="requires.html" title="cpp/language/requires">Requires expressions</a> <span class="t-mark-rev t-since-cxx20">(C++20)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="pack_indexing.html#Pack_indexing_expression" title="cpp/language/pack indexing">Pack indexing expression</a> <span class="t-mark-rev t-since-cxx26">(C++26)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="expressions.html#Potentially-evaluated_expressions" title="cpp/language/expressions">Potentially-evaluated expressions</a></td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h2"><td colspan="5">Literals</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="integer_literal.html" title="cpp/language/integer literal">Integer literals</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="floating_literal.html" title="cpp/language/floating literal">Floating-point literals</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="bool_literal.html" title="cpp/language/bool literal">Boolean literals</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="character_literal.html" title="cpp/language/character literal">Character literals</a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="escape.html" title="cpp/language/escape">Escape sequences</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="string_literal.html" title="cpp/language/string literal">String literals</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="nullptr.html" title="cpp/language/nullptr">Null pointer literal</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="user_literal.html" title="cpp/language/user literal">User-defined literal</a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h2"><td colspan="5">Operators</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="operator_assignment.html" title="cpp/language/operator assignment">Assignment operators</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="operator_incdec.html" title="cpp/language/operator incdec">Increment and decrement</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="operator_arithmetic.html" title="cpp/language/operator arithmetic">Arithmetic operators</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="operator_logical.html" title="cpp/language/operator logical">Logical operators</a></td></tr>
+<tr class="t-nv"><td colspan="5"><strong class="selflink">Comparison operators</strong></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="operator_member_access.html" title="cpp/language/operator member access">Member access operators</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="operator_other.html" title="cpp/language/operator other">Other operators</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="new.html" title="cpp/language/new"><code>new</code>-expression</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="delete.html" title="cpp/language/delete"><code>delete</code>-expression</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="throw.html" title="cpp/language/throw"><code>throw</code>-expression</a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="alignof.html" title="cpp/language/alignof"><code>alignof</code></a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="sizeof.html" title="cpp/language/sizeof"><code>sizeof</code></a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="sizeof....html" title="cpp/language/sizeof..."><code>sizeof...</code></a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="typeid.html" title="cpp/language/typeid"><code>typeid</code></a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="noexcept.html" title="cpp/language/noexcept"><code>noexcept</code></a> <span class="t-mark-rev t-since-cxx11">(C++11)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="fold.html" title="cpp/language/fold">Fold expressions</a> <span class="t-mark-rev t-since-cxx17">(C++17)</span></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="operator_alternative.html" title="cpp/language/operator alternative">Alternative representations of operators</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="operator_precedence.html" title="cpp/language/operator precedence">Precedence and associativity</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="operators.html" title="cpp/language/operators">Operator overloading</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="default_comparisons.html" title="cpp/language/default comparisons">Default comparisons</a> <span class="t-mark-rev t-since-cxx20">(C++20)</span></td></tr>
+</table></div></td></tr>
+<tr class="t-nv-h2"><td colspan="5">Conversions</td></tr>
+<tr class="t-nv-col-table"><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="implicit_cast.html" title="cpp/language/implicit conversion">Implicit conversions</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="explicit_cast.html" title="cpp/language/explicit cast">Explicit conversions</a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="usual_arithmetic_conversions.html" title="cpp/language/usual arithmetic conversions">Usual arithmetic conversions</a>&#160;&#160;&#160;&#160;</td></tr>
+<tr class="t-nv"><td colspan="5"><a href="cast_operator.html" title="cpp/language/cast operator">User-defined conversion</a></td></tr>
+</table></div></td><td><div><table class="t-nv-begin" cellpadding="0" style="">
+<tr class="t-nv"><td colspan="5"><a href="const_cast.html" title="cpp/language/const cast"><code>const_cast</code></a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="static_cast.html" title="cpp/language/static cast"><code>static_cast</code></a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="dynamic_cast.html" title="cpp/language/dynamic cast"><code>dynamic_cast</code></a></td></tr>
+<tr class="t-nv"><td colspan="5"><a href="reinterpret_cast.html" title="cpp/language/reinterpret cast"><code>reinterpret_cast</code></a></td></tr>
+</table></div></td></tr>
+</table></div><div><span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/language/expressions/navbar_content&amp;action=edit">&#91;edit&#93;</a></span></div></div></div></div><div class="t-navbar-sep">&#160;</div></div>
+<p>Compares the arguments.
+</p>
+<table class="wikitable" style="font-size: 85%;">
+
+<tr>
+<th rowspan="2">Operator name
+</th>
+<th rowspan="2">&#160;Syntax&#160;
+</th>
+<th rowspan="2"><a href="operators.html" title="cpp/language/operators">Over<span style="display:inline-block"></span>load<span style="display:inline-block"></span>able</a>
+</th>
+<th colspan="2">Prototype examples (for <span class="mw-geshi cpp source-cpp"><span class="kw1">class</span> T</span>)
+</th></tr>
+<tr>
+<th>Inside class definition
+</th>
+<th>Outside class definition
+</th></tr>
+<tr>
+<td>Equal to
+</td>
+<td><code>a == b</code>
+</td>
+<td style="background: #90ff90; color: black; vertical-align: middle; text-align: center;" class="table-yes">Yes
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> T<span class="sy4">::</span><span class="me2">operator</span><span class="sy1">==</span><span class="br0">&#40;</span><span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span> <span class="kw4">const</span><span class="sy4">;</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">==</span><span class="br0">&#40;</span><span class="kw4">const</span> T<span class="sy3">&amp;</span> a, <span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span><span class="sy4">;</span></span></span>
+</td></tr>
+<tr>
+<td>Not equal to
+</td>
+<td><code>a&#160;!= b</code>
+</td>
+<td style="background: #90ff90; color: black; vertical-align: middle; text-align: center;" class="table-yes">Yes
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> T<span class="sy4">::</span><span class="me2">operator</span><span class="sy3">!</span><span class="sy1">=</span><span class="br0">&#40;</span><span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span> <span class="kw4">const</span><span class="sy4">;</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy3">!</span><span class="sy1">=</span><span class="br0">&#40;</span><span class="kw4">const</span> T<span class="sy3">&amp;</span> a, <span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span><span class="sy4">;</span></span></span>
+</td></tr>
+<tr>
+<td>Less than
+</td>
+<td><code>a &lt; b</code>
+</td>
+<td style="background: #90ff90; color: black; vertical-align: middle; text-align: center;" class="table-yes">Yes
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> T<span class="sy4">::</span><span class="me2">operator</span><span class="sy1">&lt;</span><span class="br0">&#40;</span><span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span> <span class="kw4">const</span><span class="sy4">;</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">&lt;</span><span class="br0">&#40;</span><span class="kw4">const</span> T<span class="sy3">&amp;</span> a, <span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span><span class="sy4">;</span></span></span>
+</td></tr>
+<tr>
+<td>Greater than
+</td>
+<td><code>a &gt; b</code>
+</td>
+<td style="background: #90ff90; color: black; vertical-align: middle; text-align: center;" class="table-yes">Yes
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> T<span class="sy4">::</span><span class="me2">operator</span><span class="sy1">&gt;</span><span class="br0">&#40;</span><span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span> <span class="kw4">const</span><span class="sy4">;</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">&gt;</span><span class="br0">&#40;</span><span class="kw4">const</span> T<span class="sy3">&amp;</span> a, <span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span><span class="sy4">;</span></span></span>
+</td></tr>
+<tr>
+<td>Less than or equal to
+</td>
+<td><code>a &lt;= b</code>
+</td>
+<td style="background: #90ff90; color: black; vertical-align: middle; text-align: center;" class="table-yes">Yes
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> T<span class="sy4">::</span><span class="me2">operator</span><span class="sy1">&lt;=</span><span class="br0">&#40;</span><span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span> <span class="kw4">const</span><span class="sy4">;</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">&lt;=</span><span class="br0">&#40;</span><span class="kw4">const</span> T<span class="sy3">&amp;</span> a, <span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span><span class="sy4">;</span></span></span>
+</td></tr>
+<tr>
+<td>Greater than or equal to
+</td>
+<td><code>a &gt;= b</code>
+</td>
+<td style="background: #90ff90; color: black; vertical-align: middle; text-align: center;" class="table-yes">Yes
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> T<span class="sy4">::</span><span class="me2">operator</span><span class="sy1">&gt;=</span><span class="br0">&#40;</span><span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span> <span class="kw4">const</span><span class="sy4">;</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">&gt;=</span><span class="br0">&#40;</span><span class="kw4">const</span> T<span class="sy3">&amp;</span> a, <span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span><span class="sy4">;</span></span></span>
+</td></tr>
+<tr>
+<td>Three-way comparison <span class="t-mark-rev t-since-cxx20">(C++20)</span>
+</td>
+<td><code>a&#160;&lt;=&gt;&#160;b</code>
+</td>
+<td style="background: #90ff90; color: black; vertical-align: middle; text-align: center;" class="table-yes">Yes
+</td>
+<td><span class="t-c"><code><i>R&#160;</i></code><span class="mw-geshi cpp source-cpp">T<span class="sy4">::</span><span class="me2">operator</span><span class="sy1">&lt;=&gt;</span><span class="br0">&#40;</span><span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span> <span class="kw4">const</span><span class="sy4">;</span></span></span><sup id="cite_ref-R_1-0" class="reference"><a href="operator_comparison.html#cite_note-R-1">[1]</a></sup>
+</td>
+<td><span class="t-c"><code><i>R&#160;</i></code><span class="mw-geshi cpp source-cpp">operator<span class="sy1">&lt;=&gt;</span><span class="br0">&#40;</span><span class="kw4">const</span> T<span class="sy3">&amp;</span> a, <span class="kw4">const</span> U<span class="sy3">&amp;</span> b<span class="br0">&#41;</span><span class="sy4">;</span></span></span><sup id="cite_ref-R_1-1" class="reference"><a href="operator_comparison.html#cite_note-R-1">[1]</a></sup>
+</td></tr>
+<tr>
+<td colspan="5">
+<dl><dd><b>Notes</b><br />
+</dd></dl>
+<ul><li> Where built-in operators return <span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span></span>, most <a href="operators.html" title="cpp/language/operators">user-defined overloads</a> also return <span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span></span> so that the user-defined operators can be used in the same manner as the built-ins. However, in a user-defined operator overload, any type can be used as return type (including <span class="mw-geshi cpp source-cpp"><span class="kw4">void</span></span>).
+</li><li> <code>U</code> can be any type including <code>T</code>.
+</li></ul>
+<ol class="references">
+<li id="cite_note-R-1"><span class="mw-cite-backlink">↑ <sup><a href="operator_comparison.html#cite_ref-R_1-0">1.0</a></sup> <sup><a href="operator_comparison.html#cite_ref-R_1-1">1.1</a></sup></span> <span class="reference-text"><code><i>R</i></code> is the return type of <code>operator&lt;=&gt;</code> (<a href="operator_comparison.html#Three-way_comparison">see below</a>)</span>
+</li>
+</ol>
+</td></tr></table>
+<table id="toc" class="toc"><tr><td><div id="toctitle"><h2>Contents</h2></div>
+<ul>
+<li class="toclevel-1 tocsection-1"><a href="operator_comparison.html#Two-way_comparison"><span class="tocnumber">1</span> <span class="toctext">Two-way comparison</span></a>
+<ul>
+<li class="toclevel-2 tocsection-2"><a href="operator_comparison.html#Relational_operators"><span class="tocnumber">1.1</span> <span class="toctext">Relational operators</span></a></li>
+<li class="toclevel-2 tocsection-3"><a href="operator_comparison.html#Equality_operators"><span class="tocnumber">1.2</span> <span class="toctext">Equality operators</span></a></li>
+<li class="toclevel-2 tocsection-4"><a href="operator_comparison.html#Built-in_two-way_comparison_operators"><span class="tocnumber">1.3</span> <span class="toctext">Built-in two-way comparison operators</span></a></li>
+<li class="toclevel-2 tocsection-5"><a href="operator_comparison.html#Built-in_arithmetic_comparison"><span class="tocnumber">1.4</span> <span class="toctext">Built-in arithmetic comparison</span></a></li>
+<li class="toclevel-2 tocsection-6"><a href="operator_comparison.html#Built-in_pointer_equality_comparison"><span class="tocnumber">1.5</span> <span class="toctext">Built-in pointer equality comparison</span></a></li>
+<li class="toclevel-2 tocsection-7"><a href="operator_comparison.html#Built-in_pointer_relational_comparison"><span class="tocnumber">1.6</span> <span class="toctext">Built-in pointer relational comparison</span></a></li>
+<li class="toclevel-2 tocsection-8"><a href="operator_comparison.html#Pointer_total_order"><span class="tocnumber">1.7</span> <span class="toctext">Pointer total order</span></a></li>
+<li class="toclevel-2 tocsection-9"><a href="operator_comparison.html#Overloads"><span class="tocnumber">1.8</span> <span class="toctext">Overloads</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1"><a href="operator_comparison.html#Three-way_comparison"><span class="tocnumber">2</span> <span class="toctext">Three-way comparison</span></a>
+<ul>
+<li class="toclevel-2"><a href="operator_comparison.html#Overloads_2"><span class="tocnumber">2.1</span> <span class="toctext">Overloads</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-12"><a href="operator_comparison.html#Notes"><span class="tocnumber">3</span> <span class="toctext">Notes</span></a></li>
+<li class="toclevel-1 tocsection-13"><a href="operator_comparison.html#Standard_library"><span class="tocnumber">4</span> <span class="toctext">Standard library</span></a></li>
+<li class="toclevel-1 tocsection-14"><a href="operator_comparison.html#Defect_reports"><span class="tocnumber">5</span> <span class="toctext">Defect reports</span></a></li>
+<li class="toclevel-1 tocsection-15"><a href="operator_comparison.html#See_also"><span class="tocnumber">6</span> <span class="toctext">See also</span></a></li>
+</ul>
+</td></tr></table>
+<h3><span class="editsection">[<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit&amp;section=1" title="Edit section: Two-way comparison">edit</a>]</span> <span class="mw-headline" id="Two-way_comparison">Two-way comparison</span></h3>
+<p>The two-way comparison operator expressions have the form 
+</p>
+<h5><span class="editsection">[<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit&amp;section=2" title="Edit section: Relational operators">edit</a>]</span> <span class="mw-headline" id="Relational_operators">Relational operators</span></h5>
+<table class="t-sdsc-begin">
+
+<tr>
+<td colspan="10" class="t-sdsc-sep">
+</td></tr>
+<tr class="t-sdsc">
+<td> <span class="t-spar">lhs</span> <code><b>&lt;</b></code> <span class="t-spar">rhs</span>
+</td>
+<td> (1)
+</td>
+<td class="t-sdsc-nopad">
+</td></tr>
+
+
+
+<tr>
+<td colspan="10" class="t-sdsc-sep">
+</td></tr>
+<tr class="t-sdsc">
+<td> <span class="t-spar">lhs</span> <code><b>&gt;</b></code> <span class="t-spar">rhs</span>
+</td>
+<td> (2)
+</td>
+<td class="t-sdsc-nopad">
+</td></tr>
+
+
+
+<tr>
+<td colspan="10" class="t-sdsc-sep">
+</td></tr>
+<tr class="t-sdsc">
+<td> <span class="t-spar">lhs</span> <code><b>&lt;=</b></code> <span class="t-spar">rhs</span>
+</td>
+<td> (3)
+</td>
+<td class="t-sdsc-nopad">
+</td></tr>
+
+
+
+<tr>
+<td colspan="10" class="t-sdsc-sep">
+</td></tr>
+<tr class="t-sdsc">
+<td> <span class="t-spar">lhs</span> <code><b>&gt;=</b></code> <span class="t-spar">rhs</span>
+</td>
+<td> (4)
+</td>
+<td class="t-sdsc-nopad">
+</td></tr>
+
+
+
+<tr>
+<td colspan="10" class="t-sdsc-sep">
+</td></tr></table>
+<h5><span class="editsection">[<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit&amp;section=3" title="Edit section: Equality operators">edit</a>]</span> <span class="mw-headline" id="Equality_operators">Equality operators</span></h5>
+<table class="t-sdsc-begin">
+
+<tr>
+<td colspan="10" class="t-sdsc-sep">
+</td></tr>
+<tr class="t-sdsc">
+<td> <span class="t-spar">lhs</span> <code><b>==</b></code> <span class="t-spar">rhs</span>
+</td>
+<td> (5)
+</td>
+<td class="t-sdsc-nopad">
+</td></tr>
+
+
+
+<tr>
+<td colspan="10" class="t-sdsc-sep">
+</td></tr>
+<tr class="t-sdsc">
+<td> <span class="t-spar">lhs</span> <code><b>!=</b></code> <span class="t-spar">rhs</span>
+</td>
+<td> (6)
+</td>
+<td class="t-sdsc-nopad">
+</td></tr>
+
+
+
+<tr>
+<td colspan="10" class="t-sdsc-sep">
+</td></tr></table>
+<div class="t-li1"><span class="t-li">1)</span> Returns <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span> if <span class="t-spar">lhs</span> is less than <span class="t-spar">rhs</span>, <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span> otherwise.</div>
+<div class="t-li1"><span class="t-li">2)</span> Returns <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span> if <span class="t-spar">lhs</span> is greater than <span class="t-spar">rhs</span>, <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span> otherwise.</div>
+<div class="t-li1"><span class="t-li">3)</span> Returns <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span> if <span class="t-spar">lhs</span> is less than or equal to <span class="t-spar">rhs</span>, <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span> otherwise.</div>
+<div class="t-li1"><span class="t-li">4)</span> Returns <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span> if <span class="t-spar">lhs</span> is greater than or equal to <span class="t-spar">rhs</span>, <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span> otherwise.</div>
+<div class="t-li1"><span class="t-li">5)</span> Returns <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span> if <span class="t-spar">lhs</span> is equal to <span class="t-spar">rhs</span>, <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span> otherwise.</div>
+<div class="t-li1"><span class="t-li">6)</span> Returns <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span> if <span class="t-spar">lhs</span> is not equal to <span class="t-spar">rhs</span>, <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span> otherwise.</div>
+<h4><span class="editsection">[<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit&amp;section=4" title="Edit section: Built-in two-way comparison operators">edit</a>]</span> <span class="mw-headline" id="Built-in_two-way_comparison_operators">Built-in two-way comparison operators</span></h4>
+<p>For built-in two-way comparison operators, <a href="implicit_cast.html#Lvalue-to-rvalue_conversion" title="cpp/language/implicit conversion">lvalue-to-rvalue conversions</a><span class="t-rev-inl t-until-cxx26"><span>, <a href="implicit_cast.html#Array-to-pointer_conversion" title="cpp/language/implicit conversion">array-to-pointer conversions</a></span><span><span class="t-mark-rev t-until-cxx26">(until C++26)</span></span></span> and <a href="implicit_cast.html#Function-to-pointer_conversion" title="cpp/language/implicit conversion">function-to-pointer conversions</a> are applied to <span class="t-spar">lhs</span> and <span class="t-spar">rhs</span>&#x200a;&#xfeff;.
+</p>
+<table class="t-rev-begin">
+<tr class="t-rev t-since-cxx20 t-until-cxx26"><td>
+<p>The comparison is deprecated if both <span class="t-spar">lhs</span> and <span class="t-spar">rhs</span> have array type prior to the application of these conversions.
+</p>
+</td>
+<td><span class="t-mark-rev t-since-cxx20">(since C++20)</span><br /><span class="t-mark-rev t-until-cxx26">(until C++26)</span></td></tr>
+<tr class="t-rev t-since-cxx26"><td>
+<p>For built-in relational operators, if one of the operands is a pointer, the <a href="implicit_cast.html#Array-to-pointer_conversion" title="cpp/language/implicit conversion">array-to-pointer conversion</a> is performed on the other operand.
+</p><p>For built-in equality operators, if one of the operands is a pointer or a <a href="pointer.html#Null_pointers" title="cpp/language/pointer">null pointer constant</a>, the array-to-pointer conversion is performed on the other operand.
+</p>
+</td>
+<td><span class="t-mark-rev t-since-cxx26">(since C++26)</span></td></tr>
+</table>
+<p>For built-in two-way comparison operators, the result is a <span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span></span> prvalue.
+</p>
+<h4><span class="editsection">[<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit&amp;section=5" title="Edit section: Built-in arithmetic comparison">edit</a>]</span> <span class="mw-headline" id="Built-in_arithmetic_comparison">Built-in arithmetic comparison</span></h4>
+<p>If the converted operands both have arithmetic or enumeration type (scoped or unscoped), <a href="usual_arithmetic_conversions.html" title="cpp/language/usual arithmetic conversions">usual arithmetic conversions</a> are performed on both operands. The values are compared after conversions:
+</p>
+<div class="t-example"><div class="t-example-live-link"><div class="coliru-btn coliru-btn-run-init">Run this code</div></div>
+<div dir="ltr" class="mw-geshi" style="text-align: left;"><div class="cpp source-cpp"><pre class="de1"><span class="co2">#include &lt;iostream&gt;</span>
+&#160;
+<span class="kw4">int</span> main<span class="br0">&#40;</span><span class="br0">&#41;</span>
+<span class="br0">&#123;</span>
+    static_assert<span class="br0">&#40;</span>sizeof<span class="br0">&#40;</span><span class="kw4">unsigned</span> <span class="kw4">char</span><span class="br0">&#41;</span> <span class="sy1">&lt;</span> sizeof<span class="br0">&#40;</span><span class="kw4">int</span><span class="br0">&#41;</span>,
+                  <span class="st0">&quot;Cannot compare signed and smaller unsigned properly&quot;</span><span class="br0">&#41;</span><span class="sy4">;</span>
+    <span class="kw4">int</span> a <span class="sy1">=</span> <span class="sy2">-</span><span class="nu0">1</span><span class="sy4">;</span>
+    <span class="kw4">int</span> b <span class="sy1">=</span> <span class="nu0">1</span><span class="sy4">;</span>
+    <span class="kw4">unsigned</span> <span class="kw4">int</span> c <span class="sy1">=</span> <span class="nu0">1</span><span class="sy4">;</span>
+    <span class="kw4">unsigned</span> <span class="kw4">char</span> d <span class="sy1">=</span> <span class="nu0">1</span><span class="sy4">;</span>
+&#160;
+    <a href="../io/cout.html"><span class="kw1776">std::<span class="me2">cout</span></span></a> <span class="sy1">&lt;&lt;</span> <a href="../io/manip/boolalpha.html"><span class="kw1782">std::<span class="me2">boolalpha</span></span></a>
+              <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;Comparing two signed values:<span class="es1">\n</span>&quot;</span>
+                 <span class="st0">&quot; -1 == 1&#160;? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>a <span class="sy1">==</span> b<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;<span class="es1">\n</span>&quot;</span>
+                 <span class="st0">&quot; -1 &lt;  1&#160;? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>a <span class="sy1">&lt;</span>  b<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;<span class="es1">\n</span>&quot;</span>
+                 <span class="st0">&quot; -1 &gt;  1&#160;? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>a <span class="sy1">&gt;</span>  b<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;<span class="es1">\n</span>&quot;</span>
+                 <span class="st0">&quot;Comparing signed and unsigned:<span class="es1">\n</span>&quot;</span>
+                 <span class="co1">// may issue different-signedness warning:</span>
+                 <span class="st0">&quot; -1 == 1&#160;? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>a <span class="sy1">==</span> c<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;<span class="es1">\n</span>&quot;</span>
+                 <span class="co1">// may issue different-signedness warning:</span>
+                 <span class="st0">&quot; -1 &lt;  1&#160;? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>a <span class="sy1">&lt;</span>  c<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;<span class="es1">\n</span>&quot;</span>
+                 <span class="co1">// may issue different-signedness warning:</span>
+                 <span class="st0">&quot; -1 &gt;  1&#160;? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>a <span class="sy1">&gt;</span>  c<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;<span class="es1">\n</span>&quot;</span>
+                 <span class="st0">&quot;Comparing signed and smaller unsigned:<span class="es1">\n</span>&quot;</span>
+                 <span class="st0">&quot; -1 == 1&#160;? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>a <span class="sy1">==</span> d<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;<span class="es1">\n</span>&quot;</span>
+                 <span class="st0">&quot; -1 &lt;  1&#160;? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>a <span class="sy1">&lt;</span>  d<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;<span class="es1">\n</span>&quot;</span>
+                 <span class="st0">&quot; -1 &gt;  1&#160;? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>a <span class="sy1">&gt;</span>  d<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">'<span class="es1">\n</span>'</span><span class="sy4">;</span>
+<span class="br0">&#125;</span></pre></div></div>
+<p>Output:
+</p>
+<div dir="ltr" class="mw-geshi" style="text-align: left;"><div class="text source-text"><pre class="de1">Comparing two signed values:
+ -1 == 1&#160;? false
+ -1 &lt;  1&#160;? true
+ -1 &gt;  1&#160;? false
+Comparing signed and unsigned:
+ -1 == 1&#160;? false
+ -1 &lt;  1&#160;? false
+ -1 &gt;  1&#160;? true
+Comparing signed and smaller unsigned:
+ -1 == 1&#160;? false
+ -1 &lt;  1&#160;? true
+ -1 &gt;  1&#160;? false</pre></div></div> 
+</div>
+<h4><span class="editsection">[<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit&amp;section=6" title="Edit section: Built-in pointer equality comparison">edit</a>]</span> <span class="mw-headline" id="Built-in_pointer_equality_comparison">Built-in pointer equality comparison</span></h4>
+<p>The converted operands of equality operators <code>==</code> and <code>!=</code> can also have<span class="t-rev-inl t-since-cxx11"><span> the type <span class="t-lc"><a href="../types/nullptr_t.html" title="cpp/types/nullptr t">std::nullptr_t</a></span>,</span><span><span class="t-mark-rev t-since-cxx11">(since C++11)</span></span></span> pointer type or pointer-to-member type.
+</p><p>Built-in pointer equality comparison has three possible results: equal, unequal and unspecified. The values yielded by equality operators for built-in pointer equality comparison is listed below:
+</p>
+<table class="wikitable" style="text-align: center;">
+
+<tr>
+<th rowspan="2">&#160;Comparison result&#160;<br />of <span class="t-c"><span class="mw-geshi cpp source-cpp">p</span></span> and <span class="t-c"><span class="mw-geshi cpp source-cpp">q</span></span>
+</th>
+<th colspan="2">Value yielded by
+</th></tr>
+<tr>
+<th><span class="t-c"><span class="mw-geshi cpp source-cpp">p <span class="sy1">==</span> q</span></span>
+</th>
+<th><span class="t-c"><span class="mw-geshi cpp source-cpp">p <span class="sy3">!</span><span class="sy1">=</span> q</span></span>
+</th></tr>
+<tr>
+<td>equal
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span>
+</td></tr>
+<tr>
+<td>unequal
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span>
+</td></tr>
+<tr>
+<td>unspecified
+</td>
+<td colspan="2">&#160;unspecified <span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span></span> value&#160;
+</td></tr></table>
+<p>If at least one of converted <span class="t-spar">lhs</span> and <span class="t-spar">rhs</span> is a pointer, <a href="implicit_cast.html#Pointer_conversions" title="cpp/language/implicit conversion">pointer conversions</a><span class="t-rev-inl t-since-cxx17"><span>, <a href="implicit_cast.html#Function_pointer_conversions" title="cpp/language/implicit conversion">function pointer conversions</a></span><span><span class="t-mark-rev t-since-cxx17">(since C++17)</span></span></span> and <a href="implicit_cast.html#Qualification_conversions" title="cpp/language/implicit conversion">qualification conversions</a> are performed on both converted operands to bring them to their <a href="pointer.html#Composite_pointer_type" title="cpp/language/pointer">composite pointer type</a>. The two pointers of the composite pointer type are compared as follows:
+</p>
+<ul><li> If one pointer <a href="pointer.html#Pointers" title="cpp/language/pointer">represents the address</a> of a complete object, and another pointer
+</li></ul>
+<dl><dd><ul><li> represents the address past the end of a different complete non-array object, or
+</li><li> represents the address one past the last element of a different complete array object,
+</li></ul>
+</dd><dd> the result of the comparison is unspecified.
+</dd></dl>
+<ul><li> Otherwise, if the pointers are both null, both point to the same function, or both represent the same address (i.e., they point to or are past the end of the same object), they compare equal.
+</li><li> Otherwise, the pointers compare unequal.
+</li></ul>
+<p>If at least one of converted <span class="t-spar">lhs</span> and <span class="t-spar">rhs</span> is a pointer to member, <a href="implicit_cast.html#Pointer-to-member_conversions" title="cpp/language/implicit conversion">pointer-to-member conversions</a><span class="t-rev-inl t-since-cxx17"><span>, <a href="implicit_cast.html#Function_pointer_conversions" title="cpp/language/implicit conversion">function pointer conversions</a></span><span><span class="t-mark-rev t-since-cxx17">(since C++17)</span></span></span> and <a href="implicit_cast.html#Qualification_conversions" title="cpp/language/implicit conversion">qualification conversions</a> are performed on both converted operands to bring them to their <a href="pointer.html#Composite_pointer_type" title="cpp/language/pointer">composite pointer type</a>. The two pointers to members of the composite pointer type are compared as follows:
+</p>
+<ul><li> If two pointers to members are both the null member pointer value, they compare equal.
+</li><li> If only one of two pointers to members is the null member pointer value, they compare unequal.
+</li><li> If either is a pointer to a <a href="virtual.html" title="cpp/language/virtual">virtual member function</a>, the result is unspecified.
+</li><li> If one refers to a member of class <code>C1</code> and the other refers to a member of a different class <code>C2</code>, where neither is a base class of the other, the result is unspecified.
+</li><li> If both refer to (possibly different) members of the same <a href="union.html" title="cpp/language/union">union</a>, they compare equal.
+</li><li> Otherwise, two pointers to members compare equal if they would refer to the same member of the same <a href="objects.html#Subobjects" title="cpp/language/object">most derived object</a> or the same subobject if indirection with a hypothetical object of the associated class type were performed, otherwise they compare unequal.
+</li></ul>
+<div dir="ltr" class="mw-geshi" style="text-align: left;"><div class="cpp source-cpp"><pre class="de1"><span class="kw1">struct</span> P <span class="br0">&#123;</span><span class="br0">&#125;</span><span class="sy4">;</span>
+<span class="kw1">struct</span> Q <span class="sy4">:</span> P <span class="br0">&#123;</span> <span class="kw4">int</span> x<span class="sy4">;</span> <span class="br0">&#125;</span><span class="sy4">;</span>
+<span class="kw1">struct</span> R <span class="sy4">:</span> P <span class="br0">&#123;</span> <span class="kw4">int</span> x<span class="sy4">;</span> <span class="br0">&#125;</span><span class="sy4">;</span>
+&#160;
+<span class="kw4">int</span> P<span class="sy4">::</span><span class="sy2">*</span>bx <span class="sy1">=</span> <span class="br0">&#40;</span><span class="kw4">int</span><span class="br0">&#40;</span>P<span class="sy4">::</span><span class="sy2">*</span><span class="br0">&#41;</span><span class="br0">&#41;</span> <span class="sy3">&amp;</span>Q<span class="sy4">::</span><span class="me2">x</span><span class="sy4">;</span>
+<span class="kw4">int</span> P<span class="sy4">::</span><span class="sy2">*</span>cx <span class="sy1">=</span> <span class="br0">&#40;</span><span class="kw4">int</span><span class="br0">&#40;</span>P<span class="sy4">::</span><span class="sy2">*</span><span class="br0">&#41;</span><span class="br0">&#41;</span> <span class="sy3">&amp;</span>R<span class="sy4">::</span><span class="me2">x</span><span class="sy4">;</span>
+&#160;
+<span class="kw4">bool</span> b1 <span class="sy1">=</span> <span class="br0">&#40;</span>bx <span class="sy1">==</span> cx<span class="br0">&#41;</span><span class="sy4">;</span> <span class="co1">// unspecified</span>
+&#160;
+<span class="kw1">struct</span> B
+<span class="br0">&#123;</span>
+    <span class="kw4">int</span> f<span class="br0">&#40;</span><span class="br0">&#41;</span><span class="sy4">;</span>
+<span class="br0">&#125;</span><span class="sy4">;</span>
+<span class="kw1">struct</span> L <span class="sy4">:</span> B <span class="br0">&#123;</span><span class="br0">&#125;</span><span class="sy4">;</span>
+<span class="kw1">struct</span> R <span class="sy4">:</span> B <span class="br0">&#123;</span><span class="br0">&#125;</span><span class="sy4">;</span>
+<span class="kw1">struct</span> D <span class="sy4">:</span> L, R <span class="br0">&#123;</span><span class="br0">&#125;</span><span class="sy4">;</span>
+&#160;
+<span class="kw4">int</span> <span class="br0">&#40;</span>B<span class="sy4">::</span><span class="sy2">*</span>pb<span class="br0">&#41;</span><span class="br0">&#40;</span><span class="br0">&#41;</span> <span class="sy1">=</span> <span class="sy3">&amp;</span>B<span class="sy4">::</span><span class="me2">f</span><span class="sy4">;</span>
+<span class="kw4">int</span> <span class="br0">&#40;</span>L<span class="sy4">::</span><span class="sy2">*</span>pl<span class="br0">&#41;</span><span class="br0">&#40;</span><span class="br0">&#41;</span> <span class="sy1">=</span> pb<span class="sy4">;</span>
+<span class="kw4">int</span> <span class="br0">&#40;</span>R<span class="sy4">::</span><span class="sy2">*</span>pr<span class="br0">&#41;</span><span class="br0">&#40;</span><span class="br0">&#41;</span> <span class="sy1">=</span> pb<span class="sy4">;</span>
+<span class="kw4">int</span> <span class="br0">&#40;</span>D<span class="sy4">::</span><span class="sy2">*</span>pdl<span class="br0">&#41;</span><span class="br0">&#40;</span><span class="br0">&#41;</span> <span class="sy1">=</span> pl<span class="sy4">;</span>
+<span class="kw4">int</span> <span class="br0">&#40;</span>D<span class="sy4">::</span><span class="sy2">*</span>pdr<span class="br0">&#41;</span><span class="br0">&#40;</span><span class="br0">&#41;</span> <span class="sy1">=</span> pr<span class="sy4">;</span>
+&#160;
+<span class="kw4">bool</span> x <span class="sy1">=</span> <span class="br0">&#40;</span>pdl <span class="sy1">==</span> pdr<span class="br0">&#41;</span><span class="sy4">;</span> <span class="co1">// false</span>
+<span class="kw4">bool</span> y <span class="sy1">=</span> <span class="br0">&#40;</span>pb <span class="sy1">==</span> pl<span class="br0">&#41;</span><span class="sy4">;</span>   <span class="co1">// true</span></pre></div></div>
+<table class="t-rev-begin">
+<tr class="t-rev t-since-cxx11"><td>
+<p>Two operands of type <span class="t-lc"><a href="../types/nullptr_t.html" title="cpp/types/nullptr t">std::nullptr_t</a></span> or one operand of type <span class="t-lc"><a href="../types/nullptr_t.html" title="cpp/types/nullptr t">std::nullptr_t</a></span> and the other a null pointer constant compare equal.
+</p>
+</td>
+<td><span class="t-mark-rev t-since-cxx11">(since C++11)</span></td></tr>
+</table>
+<h4><span class="editsection">[<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit&amp;section=7" title="Edit section: Built-in pointer relational comparison">edit</a>]</span> <span class="mw-headline" id="Built-in_pointer_relational_comparison">Built-in pointer relational comparison</span></h4>
+<p>The converted operands of relational operators <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code> and <code>&lt;=</code> can also have pointer type.
+</p><p>Built-in pointer relational comparison on unequal pointers <span class="t-c"><span class="mw-geshi cpp source-cpp">p</span></span> and <span class="t-c"><span class="mw-geshi cpp source-cpp">q</span></span> has three possible results: <span class="t-c"><span class="mw-geshi cpp source-cpp">p</span></span> is greater, <span class="t-c"><span class="mw-geshi cpp source-cpp">q</span></span> is greater and unspecified. The values yielded by relational operators for built-in pointer relational comparison is listed below:
+</p>
+<table class="wikitable" style="text-align: center;">
+
+<tr>
+<th rowspan="2">&#160;Comparison result&#160;<br />of <span class="t-c"><span class="mw-geshi cpp source-cpp">p</span></span> and <span class="t-c"><span class="mw-geshi cpp source-cpp">q</span></span>
+</th>
+<th colspan="4">Value yielded by
+</th></tr>
+<tr>
+<th>&#160;<span class="t-c"><span class="mw-geshi cpp source-cpp">p <span class="sy1">&gt;</span> q</span></span>&#160;
+</th>
+<th>&#160;<span class="t-c"><span class="mw-geshi cpp source-cpp">p <span class="sy1">&lt;</span> q</span></span>&#160;
+</th>
+<th>&#160;<span class="t-c"><span class="mw-geshi cpp source-cpp">p <span class="sy1">&gt;=</span> q</span></span>&#160;
+</th>
+<th>&#160;<span class="t-c"><span class="mw-geshi cpp source-cpp">p <span class="sy1">&lt;=</span> q</span></span>&#160;
+</th></tr>
+<tr>
+<td>equal
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span>
+</td></tr>
+<tr>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp">p</span></span> is greater
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span>
+</td></tr>
+<tr>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp">q</span></span> is greater
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span>
+</td>
+<td><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span>
+</td></tr>
+<tr>
+<td>unspecified
+</td>
+<td colspan="4">unspecified <span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span></span> value
+</td></tr></table>
+<p>If converted <span class="t-spar">lhs</span> and <span class="t-spar">rhs</span> are both pointers, <a href="implicit_cast.html#Pointer_conversions" title="cpp/language/implicit conversion">pointer conversions</a><span class="t-rev-inl t-since-cxx17"><span>, <a href="implicit_cast.html#Function_pointer_conversions" title="cpp/language/implicit conversion">function pointer conversions</a></span><span><span class="t-mark-rev t-since-cxx17">(since C++17)</span></span></span> and <a href="implicit_cast.html#Qualification_conversions" title="cpp/language/implicit conversion">qualification conversions</a> are performed on both converted operands to bring them to their <a href="pointer.html#Composite_pointer_type" title="cpp/language/pointer">composite pointer type</a>. The two pointers of the composite pointer type are compared as follows:
+</p>
+<ul><li> If the pointers compare equal or the equality comparison result is unspecified, the relational comparison result falls into the same category.
+</li><li> Otherwise (the pointers compare unequal), if any of the pointers is not a pointer to object, the result is unspecified.
+</li><li> Otherwise (both pointers point to objects), the result is defined in terms of a partial order consistent with the following rules:
+</li></ul>
+<dl><dd><ul><li> Given two different elements <span class="t-c"><span class="mw-geshi cpp source-cpp">high</span></span> and <span class="t-c"><span class="mw-geshi cpp source-cpp">low</span></span> of an array such than <span class="t-c"><span class="mw-geshi cpp source-cpp">high</span></span> has higher subscript than <span class="t-c"><span class="mw-geshi cpp source-cpp">low</span></span>, if one pointer points to <span class="t-c"><span class="mw-geshi cpp source-cpp">high</span></span> (or a subobject of <span class="t-c"><span class="mw-geshi cpp source-cpp">high</span></span>) and the other pointer points to <span class="t-c"><span class="mw-geshi cpp source-cpp">low</span></span> (or a subobject of <span class="t-c"><span class="mw-geshi cpp source-cpp">low</span></span>), the former compares greater than the latter.
+</li><li> If one pointer points to an element <span class="t-c"><span class="mw-geshi cpp source-cpp">elem</span></span> (or to a subobject of <span class="t-c"><span class="mw-geshi cpp source-cpp">elem</span></span>) of an array, and the other pointer is past the end of the same array, the past-the-end pointer compares greater than the other pointer.
+</li><li> If one pointer points to a complete object, a base class subobject or a member subobject <span class="t-c"><span class="mw-geshi cpp source-cpp">obj</span></span> (or to a subobject of <span class="t-c"><span class="mw-geshi cpp source-cpp">obj</span></span>), and the other pointer is past the end of <span class="t-c"><span class="mw-geshi cpp source-cpp">obj</span></span>, the past-the-end pointer compares greater than the other pointer.
+</li></ul>
+</dd></dl>
+<p><span id="Member_layout"></span>
+</p>
+<dl><dd><ul><li> If the pointers point to different<span class="t-rev-inl t-since-cxx20"><span> <a href="attributes/no_unique_address.html" title="cpp/language/attributes/no unique address">non-zero-sized</a></span><span><span class="t-mark-rev t-since-cxx20">(since C++20)</span></span></span> non-static data members<span class="t-rev-inl t-until-cxx23"><span> with the same <a href="access.html" title="cpp/language/access">member access</a></span><span><span class="t-mark-rev t-until-cxx23">(until C++23)</span></span></span> of the same object of a non-union class type, or to subobjects of such members, recursively, the pointer to the later declared member compares greater than the other pointer.
+</li><li> Otherwise, the result is unspecified.
+</li></ul>
+</dd></dl>
+<h4><span class="editsection">[<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit&amp;section=8" title="Edit section: Pointer total order">edit</a>]</span> <span class="mw-headline" id="Pointer_total_order">Pointer total order</span></h4>
+<p>There exists an <i>implementation-defined strict total order over pointers</i> in each program. The strict total order is consistent with the partial order described above: unspecified results become implementation-defined, while other results stay the same.
+</p><p>Pointer comparison with the strict total order is applied in the following cases:
+</p>
+<ul><li> Calling the <span class="mw-geshi cpp source-cpp">operator<span class="br0">&#40;</span><span class="br0">&#41;</span></span> of the pointer type specializations of <span class="t-lc"><a href="../utility/functional/less.html" title="cpp/utility/functional/less">std::less</a></span>, <span class="t-lc"><a href="../utility/functional/greater.html" title="cpp/utility/functional/greater">std::greater</a></span>, <span class="t-lc"><a href="../utility/functional/less_equal.html" title="cpp/utility/functional/less equal">std::less_equal</a></span>, and <span class="t-lc"><a href="../utility/functional/greater_equal.html" title="cpp/utility/functional/greater equal">std::greater_equal</a></span>.
+</li></ul>
+<table class="t-rev-begin">
+<tr class="t-rev t-since-cxx14"><td>
+<ul><li> Calling built-in operators comparing pointers from the <span class="mw-geshi cpp source-cpp">operator<span class="br0">&#40;</span><span class="br0">&#41;</span></span> of specializations <a href="../utility/functional/less_void.html" title="cpp/utility/functional/less void"><tt>std::less&lt;void&gt;</tt></a>, <a href="../utility/functional/greater_void.html" title="cpp/utility/functional/greater void"><tt>std::greater&lt;void&gt;</tt></a>, <a href="../utility/functional/less_equal_void.html" title="cpp/utility/functional/less equal void"><tt>std::less_equal&lt;void&gt;</tt></a>, and <a href="../utility/functional/greater_equal_void.html" title="cpp/utility/functional/greater equal void"><tt>std::greater_equal&lt;void&gt;</tt></a>.
+</li></ul>
+</td>
+<td><span class="t-mark-rev t-since-cxx14">(since C++14)</span></td></tr>
+<tr class="t-rev t-since-cxx20"><td>
+<ul><li> Calling built-in <span class="mw-geshi cpp source-cpp">operator<span class="sy1">&lt;=&gt;</span></span> comparing pointers from the <span class="mw-geshi cpp source-cpp">operator<span class="br0">&#40;</span><span class="br0">&#41;</span></span> of <span class="t-lc"><a href="../utility/compare/compare_three_way.html" title="cpp/utility/compare/compare three way">std::compare_three_way</a></span>.
+</li><li> Calling built-in <span class="mw-geshi cpp source-cpp">operator<span class="sy1">==</span></span> comparing pointers from the <span class="mw-geshi cpp source-cpp">operator<span class="br0">&#40;</span><span class="br0">&#41;</span></span> of <a href="../utility/functional/ranges/equal_to.html" title="cpp/utility/functional/ranges/equal to"><tt>std::ranges::equal_to</tt></a> and <a href="../utility/functional/ranges/not_equal_to.html" title="cpp/utility/functional/ranges/not equal to"><tt>std::ranges::not_equal_to</tt></a>.
+</li><li> Calling built-in <span class="mw-geshi cpp source-cpp">operator<span class="sy1">&lt;</span></span> comparing pointers from the <span class="mw-geshi cpp source-cpp">operator<span class="br0">&#40;</span><span class="br0">&#41;</span></span> of <a href="../utility/functional/ranges/less.html" title="cpp/utility/functional/ranges/less"><tt>std::ranges::less</tt></a>, <a href="../utility/functional/ranges/greater.html" title="cpp/utility/functional/ranges/greater"><tt>std::ranges::greater</tt></a>, <a href="../utility/functional/ranges/less_equal.html" title="cpp/utility/functional/ranges/less equal"><tt>std::ranges::less_equal</tt></a>, and <a href="../utility/functional/ranges/greater_equal.html" title="cpp/utility/functional/ranges/greater equal"><tt>std::ranges::greater_equal</tt></a>.
+</li></ul>
+</td>
+<td><span class="t-mark-rev t-since-cxx20">(since C++20)</span></td></tr>
+</table>
+<p><span id="Overloads_of_two-way_comparison_operators"></span>
+</p>
+<h4><span class="editsection">[<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit&amp;section=9" title="Edit section: Overloads">edit</a>]</span> <span class="mw-headline" id="Overloads">Overloads</span></h4>
+<p>In <a href="overload_resolution.html#Call_to_an_overloaded_operator" title="cpp/language/overload resolution">overload resolution against user-defined operators</a>, for every pair of promoted arithmetic types <code>L</code> and <code>R</code>, including enumeration types, the following function signatures participate in overload resolution:
+</p>
+<table class="t-dcl-begin"><tbody>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">&lt;</span><span class="br0">&#40;</span>L, R<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">&gt;</span><span class="br0">&#40;</span>L, R<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">&lt;=</span><span class="br0">&#40;</span>L, R<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">&gt;=</span><span class="br0">&#40;</span>L, R<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">==</span><span class="br0">&#40;</span>L, R<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy3">!</span><span class="sy1">=</span><span class="br0">&#40;</span>L, R<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl-sep"><td></td><td></td><td></td></tr>
+</tbody></table>
+<p>For every type <code>P</code> which is either pointer to object or pointer to function, the following function signatures participate in overload resolution:
+</p>
+<table class="t-dcl-begin"><tbody>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">&lt;</span><span class="br0">&#40;</span>P, P<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">&gt;</span><span class="br0">&#40;</span>P, P<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">&lt;=</span><span class="br0">&#40;</span>P, P<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">&gt;=</span><span class="br0">&#40;</span>P, P<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">==</span><span class="br0">&#40;</span>P, P<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy3">!</span><span class="sy1">=</span><span class="br0">&#40;</span>P, P<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl-sep"><td></td><td></td><td></td></tr>
+</tbody></table>
+<p>For every type <code>MP</code> that is a pointer to member object or pointer to member function<span class="t-rev-inl t-since-cxx11"><span> or <span class="t-lc"><a href="../types/nullptr_t.html" title="cpp/types/nullptr t">std::nullptr_t</a></span></span><span><span class="t-mark-rev t-since-cxx11">(since C++11)</span></span></span>, the following function signatures participate in overload resolution:
+</p>
+<table class="t-dcl-begin"><tbody>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy1">==</span><span class="br0">&#40;</span>MP, MP<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span> operator<span class="sy3">!</span><span class="sy1">=</span><span class="br0">&#40;</span>MP, MP<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl-sep"><td></td><td></td><td></td></tr>
+</tbody></table>
+<div class="t-example"><div class="t-example-live-link"><div class="coliru-btn coliru-btn-run-init">Run this code</div></div>
+<div dir="ltr" class="mw-geshi" style="text-align: left;"><div class="cpp source-cpp"><pre class="de1"><span class="co2">#include &lt;iostream&gt;</span>
+&#160;
+<span class="kw1">struct</span> Foo
+<span class="br0">&#123;</span>
+    <span class="kw4">int</span> n1<span class="sy4">;</span>
+    <span class="kw4">int</span> n2<span class="sy4">;</span>
+<span class="br0">&#125;</span><span class="sy4">;</span>
+&#160;
+<span class="kw1">union</span> Union
+<span class="br0">&#123;</span>
+    <span class="kw4">int</span> n<span class="sy4">;</span>
+    <span class="kw4">double</span> d<span class="sy4">;</span>
+<span class="br0">&#125;</span><span class="sy4">;</span>
+&#160;
+<span class="kw4">int</span> main<span class="br0">&#40;</span><span class="br0">&#41;</span>
+<span class="br0">&#123;</span>
+    <a href="../io/cout.html"><span class="kw1776">std::<span class="me2">cout</span></span></a> <span class="sy1">&lt;&lt;</span> <a href="../io/manip/boolalpha.html"><span class="kw1782">std::<span class="me2">boolalpha</span></span></a><span class="sy4">;</span>
+&#160;
+    <span class="kw4">char</span> a<span class="br0">&#91;</span><span class="nu0">4</span><span class="br0">&#93;</span> <span class="sy1">=</span> <span class="st0">&quot;abc&quot;</span><span class="sy4">;</span>
+    <span class="kw4">char</span><span class="sy2">*</span> p1 <span class="sy1">=</span> <span class="sy3">&amp;</span>a<span class="br0">&#91;</span><span class="nu0">1</span><span class="br0">&#93;</span><span class="sy4">;</span>
+    <span class="kw4">char</span><span class="sy2">*</span> p2 <span class="sy1">=</span> <span class="sy3">&amp;</span>a<span class="br0">&#91;</span><span class="nu0">2</span><span class="br0">&#93;</span><span class="sy4">;</span>
+    <a href="../io/cout.html"><span class="kw1776">std::<span class="me2">cout</span></span></a> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;Pointers to array elements:<span class="es1">\n</span>&quot;</span>
+              <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;p1 == p2? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>p1 <span class="sy1">==</span> p2<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">'<span class="es1">\n</span>'</span>
+              <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;p1 &lt;  p2? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>p1 <span class="sy1">&lt;</span>  p2<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">'<span class="es1">\n</span>'</span><span class="sy4">;</span>
+&#160;
+    Foo f<span class="sy4">;</span>
+    <span class="kw4">int</span><span class="sy2">*</span> p3 <span class="sy1">=</span> <span class="sy3">&amp;</span>f.<span class="me1">n1</span><span class="sy4">;</span>
+    <span class="kw4">int</span><span class="sy2">*</span> p4 <span class="sy1">=</span> <span class="sy3">&amp;</span>f.<span class="me1">n2</span><span class="sy4">;</span>
+    <a href="../io/cout.html"><span class="kw1776">std::<span class="me2">cout</span></span></a> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;Pointers to members of a class:<span class="es1">\n</span>&quot;</span>
+              <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;p3 == p4? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>p3 <span class="sy1">==</span> p4<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">'<span class="es1">\n</span>'</span>
+              <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;p3 &lt;  p4? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>p3 <span class="sy1">&lt;</span>  p4<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">'<span class="es1">\n</span>'</span><span class="sy4">;</span>
+&#160;
+    Union u<span class="sy4">;</span>
+    <span class="kw4">int</span><span class="sy2">*</span> p5 <span class="sy1">=</span> <span class="sy3">&amp;</span>u.<span class="me1">n</span><span class="sy4">;</span>
+    <span class="kw4">double</span><span class="sy2">*</span> p6 <span class="sy1">=</span> <span class="sy3">&amp;</span>u.<span class="me1">d</span><span class="sy4">;</span>
+    <a href="../io/cout.html"><span class="kw1776">std::<span class="me2">cout</span></span></a> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;Pointers to members of a union:<span class="es1">\n</span>&quot;</span>
+              <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;p5 == (void*)p6? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>p5 <span class="sy1">==</span> <span class="br0">&#40;</span><span class="kw4">void</span><span class="sy2">*</span><span class="br0">&#41;</span>p6<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">'<span class="es1">\n</span>'</span>
+              <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;p5 &lt;  (void*)p6? &quot;</span> <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>p5 <span class="sy1">&lt;</span>  <span class="br0">&#40;</span><span class="kw4">void</span><span class="sy2">*</span><span class="br0">&#41;</span>p6<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">'<span class="es1">\n</span>'</span><span class="sy4">;</span>
+<span class="br0">&#125;</span></pre></div></div>
+<p>Output:
+</p>
+<div dir="ltr" class="mw-geshi" style="text-align: left;"><div class="text source-text"><pre class="de1">Pointers to array elements:
+p1 == p2? false
+p1 &lt;  p2? true
+Pointers to members of a class:
+p3 == p4? false
+p3 &lt;  p4? true
+Pointers to members of a union:
+p5 == (void*)p6? true
+p5 &lt;  (void*)p6? false</pre></div></div> 
+</div>
+<table class="t-rev-begin">
+<tr class="t-rev t-since-cxx20"><td>
+<h3> <span class="mw-headline" id="Three-way_comparison">Three-way comparison</span></h3>
+<p>The three-way comparison operator expressions have the form 
+</p>
+<table class="t-sdsc-begin">
+
+<tr>
+<td colspan="10" class="t-sdsc-sep">
+</td></tr>
+<tr class="t-sdsc">
+<td class="t-sdsc-nopad"> <span class="t-spar">a</span> <code><b>&lt;=&gt;</b></code> <span class="t-spar">b</span>
+</td>
+<td class="t-sdsc-nopad">
+</td>
+<td class="t-sdsc-nopad">
+</td></tr>
+
+
+
+<tr>
+<td colspan="10" class="t-sdsc-sep">
+</td></tr></table>
+<p>The expression returns an object such that
+</p>
+<ul><li> <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="br0">&#40;</span>a <span class="sy1">&lt;=&gt;</span> b<span class="br0">&#41;</span> <span class="sy1">&lt;</span> <span class="nu0">0</span></span></span> if <span class="t-c"><span class="mw-geshi cpp source-cpp">a <span class="sy1">&lt;</span> b</span></span>,
+</li><li> <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="br0">&#40;</span>a <span class="sy1">&lt;=&gt;</span> b<span class="br0">&#41;</span> <span class="sy1">&gt;</span> <span class="nu0">0</span></span></span> if <span class="t-c"><span class="mw-geshi cpp source-cpp">a <span class="sy1">&gt;</span> b</span></span>,
+</li><li> <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="br0">&#40;</span>a <span class="sy1">&lt;=&gt;</span> b<span class="br0">&#41;</span> <span class="sy1">==</span> <span class="nu0">0</span></span></span> if <span class="t-c"><span class="mw-geshi cpp source-cpp">a</span></span> and <span class="t-c"><span class="mw-geshi cpp source-cpp">b</span></span> are equal/equivalent.
+</li></ul>
+<p>If one of the operands is of type <span class="mw-geshi cpp source-cpp"><span class="kw4">bool</span></span> and the other is not, the program is ill-formed.
+</p><p>If both operands have arithmetic types, or if one operand has unscoped enumeration type and the other has integral type, the usual arithmetic conversions are applied to the operands, and then
+</p>
+<ul><li> If a narrowing conversion is required, other than from an integral type to a floating point type, the program is ill-formed.
+</li><li> Otherwise, if the operands have integral type, the operator yields a prvalue of type <a href="../utility/compare/strong_ordering.html" title="cpp/utility/compare/strong ordering"><tt>std::strong_ordering</tt></a>:
+</li></ul>
+<dl><dd><ul><li> <span class="t-lc">std::strong_ordering::equal</span> if both operands are arithmetically equal,
+</li><li> <span class="t-lc">std::strong_ordering::less</span> if the first operand is arithmetically less than the second,
+</li><li> <span class="t-lc">std::strong_ordering::greater</span> otherwise.
+</li></ul>
+</dd></dl>
+<ul><li> Otherwise, the operands have floating-point type, and the operator yields a prvalue of type <a href="../utility/compare/partial_ordering.html" title="cpp/utility/compare/partial ordering"><tt>std::partial_ordering</tt></a>. The expression <span class="t-c"><span class="mw-geshi cpp source-cpp">a <span class="sy1">&lt;=&gt;</span> b</span></span> yields 
+</li></ul>
+<dl><dd><ul><li> <span class="t-lc">std::partial_ordering::less</span> if <span class="t-c"><span class="mw-geshi cpp source-cpp">a</span></span> is less than <span class="t-c"><span class="mw-geshi cpp source-cpp">b</span></span>,
+</li><li> <span class="t-lc">std::partial_ordering::greater</span> if <span class="t-c"><span class="mw-geshi cpp source-cpp">a</span></span> is greater than <span class="t-c"><span class="mw-geshi cpp source-cpp">b</span></span>,
+</li><li> <span class="t-lc">std::partial_ordering::equivalent</span> if <span class="t-c"><span class="mw-geshi cpp source-cpp">a</span></span> is equivalent to <span class="t-c"><span class="mw-geshi cpp source-cpp">b</span></span> (<span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="sy2">-</span><span class="nu0">0</span> <span class="sy1">&lt;=&gt;</span> <span class="sy2">+</span><span class="nu0">0</span></span></span> is equivalent),
+</li><li> <span class="t-lc">std::partial_ordering::unordered</span> (<span class="t-c"><span class="mw-geshi cpp source-cpp">NaN <span class="sy1">&lt;=&gt;</span> anything</span></span> is unordered).
+</li></ul>
+</dd></dl>
+<p>If both operands have the same enumeration type <code>E</code>, the operator yields the result of converting the operands to the underlying type of E and applying <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="sy1">&lt;=&gt;</span></span></span> to the converted operands.
+</p><p>If at least one of the operands is a pointer to object or pointer to member, <a href="implicit_cast.html#Array-to-pointer_conversion" title="cpp/language/implicit conversion">array-to-pointer conversions</a>, <a href="implicit_cast.html#Pointer_conversions" title="cpp/language/implicit conversion">pointer conversions</a> and <a href="implicit_cast.html#Qualification_conversions" title="cpp/language/implicit conversion">qualification conversions</a> are applied to both operands to bring them to their <a href="pointer.html#Composite_pointer_type" title="cpp/language/pointer">composite pointer type</a>.
+</p><p>For converted pointer operands <span class="t-c"><span class="mw-geshi cpp source-cpp">p</span></span> and <span class="t-c"><span class="mw-geshi cpp source-cpp">q</span></span>, <span class="t-c"><span class="mw-geshi cpp source-cpp">p <span class="sy1">&lt;=&gt;</span> q</span></span> returns a prvalue of type <a href="../utility/compare/strong_ordering.html" title="cpp/utility/compare/strong ordering"><tt>std::strong_ordering</tt></a>:
+</p>
+<ul><li> <span class="t-lc">std::strong_ordering::equal</span> if they <a href="operator_comparison.html#Built-in_pointer_equality_comparison">compare equal</a>,
+</li><li> <span class="t-lc">std::strong_ordering::less</span> if <span class="t-c"><span class="mw-geshi cpp source-cpp">q</span></span> <a href="operator_comparison.html#Built-in_pointer_relational_comparison">compares greater than</a> <span class="t-c"><span class="mw-geshi cpp source-cpp">p</span></span>,
+</li><li> <span class="t-lc">std::strong_ordering::greater</span> if <span class="t-c"><span class="mw-geshi cpp source-cpp">p</span></span> compares greater than <span class="t-c"><span class="mw-geshi cpp source-cpp">q</span></span>,
+</li><li> unspecified result if the two-way comparison result is unspecified.
+</li></ul>
+<p>Otherwise, the program is ill-formed.
+</p><p><span id="Overloads_of_three-way_comparison_operators"></span>
+</p>
+<h4> <span class="mw-headline" id="Overloads_2">Overloads</span></h4>
+<p>In <a href="overload_resolution.html#Call_to_an_overloaded_operator" title="cpp/language/overload resolution">overload resolution against user-defined operators</a>, for pointer or enumeration type <code>T</code>, the following function signature participates in overload resolution:
+</p>
+<table class="t-dcl-begin"><tbody>
+<tr class="t-dcl">
+<td class="t-dcl-nopad"> <div><span class="mw-geshi cpp source-cpp">R operator<span class="sy1">&lt;=&gt;</span><span class="br0">&#40;</span>T, T<span class="br0">&#41;</span><span class="sy4">;</span></span></div></td>
+<td class="t-dcl-nopad">  </td>
+<td class="t-dcl-nopad">  </td>
+</tr>
+<tr class="t-dcl-sep"><td></td><td></td><td></td></tr>
+</tbody></table>
+<p>Where <code>R</code> is the ordering category type defined above.
+</p>
+<div class="t-example"><div class="t-example-live-link"><div class="coliru-btn coliru-btn-run-init">Run this code</div></div>
+<div dir="ltr" class="mw-geshi" style="text-align: left;"><div class="cpp source-cpp"><pre class="de1"><span class="co2">#include &lt;compare&gt;</span>
+<span class="co2">#include &lt;iostream&gt;</span>
+&#160;
+<span class="kw4">int</span> main<span class="br0">&#40;</span><span class="br0">&#41;</span>
+<span class="br0">&#123;</span>
+    <span class="kw4">double</span> foo <span class="sy1">=</span> <span class="sy2">-</span><span class="nu16">0.0</span><span class="sy4">;</span>
+    <span class="kw4">double</span> bar <span class="sy1">=</span> <span class="nu16">0.0</span><span class="sy4">;</span>
+&#160;
+    <span class="kw4">auto</span> res <span class="sy1">=</span> foo <span class="sy1">&lt;=&gt;</span> bar<span class="sy4">;</span>
+&#160;
+    <span class="kw1">if</span> <span class="br0">&#40;</span>res <span class="sy1">&lt;</span> <span class="nu0">0</span><span class="br0">&#41;</span>
+        <a href="../io/cout.html"><span class="kw1776">std::<span class="me2">cout</span></span></a> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;-0 is less than 0&quot;</span><span class="sy4">;</span>
+    <span class="kw1">else</span> <span class="kw1">if</span> <span class="br0">&#40;</span>res <span class="sy1">&gt;</span> <span class="nu0">0</span><span class="br0">&#41;</span>
+        <a href="../io/cout.html"><span class="kw1776">std::<span class="me2">cout</span></span></a> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;-0 is greater than 0&quot;</span><span class="sy4">;</span>
+    <span class="kw1">else</span> <span class="kw1">if</span> <span class="br0">&#40;</span>res <span class="sy1">==</span> <span class="nu0">0</span><span class="br0">&#41;</span>
+        <a href="../io/cout.html"><span class="kw1776">std::<span class="me2">cout</span></span></a> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;-0 and 0 are equal&quot;</span><span class="sy4">;</span>
+    <span class="kw1">else</span>
+        <a href="../io/cout.html"><span class="kw1776">std::<span class="me2">cout</span></span></a> <span class="sy1">&lt;&lt;</span> <span class="st0">&quot;-0 and 0 are unordered&quot;</span><span class="sy4">;</span>
+<span class="br0">&#125;</span></pre></div></div>
+<p>Output:
+</p>
+<div dir="ltr" class="mw-geshi" style="text-align: left;"><div class="text source-text"><pre class="de1">-0 and 0 are equal</pre></div></div> 
+</div>
+</td>
+<td><span class="t-mark-rev t-since-cxx20">(since C++20)</span></td></tr>
+</table>
+<h3><span class="editsection">[<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit&amp;section=12" title="Edit section: Notes">edit</a>]</span> <span class="mw-headline" id="Notes">Notes</span></h3>
+<p>Because comparison operators group left-to-right, the expression <span class="t-c"><span class="mw-geshi cpp source-cpp">a <span class="sy1">&lt;</span> b <span class="sy1">&lt;</span> c</span></span> is parsed <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="br0">&#40;</span>a <span class="sy1">&lt;</span> b<span class="br0">&#41;</span> <span class="sy1">&lt;</span> c</span></span>, and not <span class="t-c"><span class="mw-geshi cpp source-cpp">a <span class="sy1">&lt;</span> <span class="br0">&#40;</span>b <span class="sy1">&lt;</span> c<span class="br0">&#41;</span></span></span> or <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="br0">&#40;</span>a <span class="sy1">&lt;</span> b<span class="br0">&#41;</span> <span class="sy3">&amp;&amp;</span> <span class="br0">&#40;</span>b <span class="sy1">&lt;</span> c<span class="br0">&#41;</span></span></span>.
+</p>
+<div class="t-example"><div class="t-example-live-link"><div class="coliru-btn coliru-btn-run-init">Run this code</div></div>
+<div dir="ltr" class="mw-geshi" style="text-align: left;"><div class="cpp source-cpp"><pre class="de1"><span class="co2">#include &lt;iostream&gt;</span>
+&#160;
+<span class="kw4">int</span> main<span class="br0">&#40;</span><span class="br0">&#41;</span>
+<span class="br0">&#123;</span>
+    <span class="kw4">int</span> a <span class="sy1">=</span> <span class="nu0">3</span>, b <span class="sy1">=</span> <span class="nu0">2</span>, c <span class="sy1">=</span> <span class="nu0">1</span><span class="sy4">;</span>
+&#160;
+    <a href="../io/cout.html"><span class="kw1776">std::<span class="me2">cout</span></span></a> <span class="sy1">&lt;&lt;</span> <a href="../io/manip/boolalpha.html"><span class="kw1782">std::<span class="me2">boolalpha</span></span></a>
+        <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>a <span class="sy1">&lt;</span> b <span class="sy1">&lt;</span> c<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">'<span class="es1">\n</span>'</span> <span class="co1">// true; maybe warning</span>
+        <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span><span class="br0">&#40;</span>a <span class="sy1">&lt;</span> b<span class="br0">&#41;</span> <span class="sy1">&lt;</span> c<span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">'<span class="es1">\n</span>'</span> <span class="co1">// true</span>
+        <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span>a <span class="sy1">&lt;</span> <span class="br0">&#40;</span>b <span class="sy1">&lt;</span> c<span class="br0">&#41;</span><span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">'<span class="es1">\n</span>'</span> <span class="co1">// false</span>
+        <span class="sy1">&lt;&lt;</span> <span class="br0">&#40;</span><span class="br0">&#40;</span>a <span class="sy1">&lt;</span> b<span class="br0">&#41;</span> <span class="sy3">&amp;&amp;</span> <span class="br0">&#40;</span>b <span class="sy1">&lt;</span> c<span class="br0">&#41;</span><span class="br0">&#41;</span> <span class="sy1">&lt;&lt;</span> <span class="st0">'<span class="es1">\n</span>'</span><span class="sy4">;</span> <span class="co1">// false</span>
+<span class="br0">&#125;</span></pre></div></div>
+</div>
+<p>A common requirement for <a href="operators.html#Comparison_operators" title="cpp/language/operators">user-defined operator&lt;</a> is <a href="https://en.wikipedia.org/wiki/Strict_weak_ordering" class="extiw" title="enwiki:Strict weak ordering">strict weak ordering</a>. In particular, this is required by the standard algorithms and containers that work with <a href="../named_req/Compare.html" title="cpp/named req/Compare"><span style="font-family: Georgia, &#39;DejaVu Serif&#39;, serif; font-style:italic">Compare</span></a> types: <span class="t-lc"><a href="../algorithm/sort.html" title="cpp/algorithm/sort">std::sort</a></span>, <span class="t-lc"><a href="../algorithm/max_element.html" title="cpp/algorithm/max element">std::max_element</a></span>, <span class="t-lc"><a href="../container/map.html" title="cpp/container/map">std::map</a></span>, etc.
+</p><p>The <a href="operator_comparison.html#Member_layout">comparison result</a> of pointers to different non-static data members of the same class implies that non-static data members<span class="t-rev-inl t-until-cxx23"><span> in each of the three <a href="access.html" title="cpp/language/access">member access modes</a></span><span><span class="t-mark-rev t-until-cxx23">(until C++23)</span></span></span> are positioned in memory in order of declaration.
+</p><p>Although the results of comparing pointers of random origin (e.g. not all pointing to members of the same array) is unspecified, many implementations provide <a href="https://en.wikipedia.org/wiki/Total_order#Strict_total_order" class="extiw" title="enwiki:Total order">strict total ordering</a> of pointers, e.g. if they are implemented as addresses within continuous virtual address space. Those implementations that do not (e.g. where not all bits of the pointer are part of a memory address and have to be ignored for comparison, or an additional calculation is required or otherwise pointer and integer is not a 1 to 1 relationship), provide a specialization of <span class="t-lc"><a href="../utility/functional/less.html" title="cpp/utility/functional/less">std::less</a></span> for pointers that has that guarantee. This makes it possible to use all pointers of random origin as keys in standard associative containers such as <span class="t-lc"><a href="../container/set.html" title="cpp/container/set">std::set</a></span> or <span class="t-lc"><a href="../container/map.html" title="cpp/container/map">std::map</a></span>.
+</p><p>For the types that are both <a href="../named_req/EqualityComparable.html" title="cpp/named req/EqualityComparable"><span style="font-family: Georgia, &#39;DejaVu Serif&#39;, serif; font-style:italic">EqualityComparable</span></a> and <a href="../named_req/LessThanComparable.html" title="cpp/named req/LessThanComparable"><span style="font-family: Georgia, &#39;DejaVu Serif&#39;, serif; font-style:italic">LessThanComparable</span></a>, the C++ standard library makes a distinction between <i>equality</i>, which is the value of the expression <span class="t-c"><span class="mw-geshi cpp source-cpp">a <span class="sy1">==</span> b</span></span> and <i>equivalence</i>, which is the value of the expression <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="sy3">!</span><span class="br0">&#40;</span>a <span class="sy1">&lt;</span> b<span class="br0">&#41;</span> <span class="sy3">&amp;&amp;</span> <span class="sy3">!</span><span class="br0">&#40;</span>b <span class="sy1">&lt;</span> a<span class="br0">&#41;</span></span></span>.
+</p><p>Comparison between pointers and null pointer constants was removed by the resolution of <a rel="nofollow" class="external text" href="https://cplusplus.github.io/CWG/issues/583.html">CWG issue 583</a> included in <a rel="nofollow" class="external text" href="https://wg21.link/N3624">N3624</a>:
+</p>
+<div class="t-example"><div class="t-example-live-link"><div class="coliru-btn coliru-btn-run-init">Run this code</div></div>
+<div dir="ltr" class="mw-geshi" style="text-align: left;"><div class="cpp source-cpp"><pre class="de1"><span class="kw4">void</span> f<span class="br0">&#40;</span><span class="kw4">char</span><span class="sy2">*</span> p<span class="br0">&#41;</span>
+<span class="br0">&#123;</span>
+    <span class="kw1">if</span> <span class="br0">&#40;</span>p <span class="sy1">&gt;</span> <span class="nu0">0</span><span class="br0">&#41;</span> <span class="br0">&#123;</span> <span class="coMULTI">/*...*/</span> <span class="br0">&#125;</span> <span class="co1">// Error with N3624, compiled before N3624</span>
+    <span class="kw1">if</span> <span class="br0">&#40;</span>p <span class="sy1">&gt;</span> nullptr<span class="br0">&#41;</span> <span class="br0">&#123;</span> <span class="coMULTI">/*...*/</span> <span class="br0">&#125;</span> <span class="co1">// Error with N3624, compiled before N3624</span>
+<span class="br0">&#125;</span>
+&#160;
+<span class="kw4">int</span> main<span class="br0">&#40;</span><span class="br0">&#41;</span> <span class="br0">&#123;</span><span class="br0">&#125;</span></pre></div></div>
+</div>
+<p>Three-way comparison can be automatically generated for class types, see <a href="default_comparisons.html" title="cpp/language/default comparisons">default comparisons</a>.
+</p><p>If both of the operands are arrays, three-way comparison is ill-formed.
+</p>
+<div dir="ltr" class="mw-geshi" style="text-align: left;"><div class="cpp source-cpp"><pre class="de1"><span class="kw4">unsigned</span> <span class="kw4">int</span> i <span class="sy1">=</span> <span class="nu0">1</span><span class="sy4">;</span>
+<span class="kw4">auto</span> r <span class="sy1">=</span> <span class="sy2">-</span><span class="nu0">1</span> <span class="sy1">&lt;</span> i<span class="sy4">;</span>    <span class="co1">// existing pitfall: returns ‘false’</span>
+<span class="kw4">auto</span> r2 <span class="sy1">=</span> <span class="sy2">-</span><span class="nu0">1</span> <span class="sy1">&lt;=&gt;</span> i<span class="sy4">;</span> <span class="co1">// Error: narrowing conversion required</span></pre></div></div>
+<table class="wikitable ftm-begin">
+
+<tr>
+<th><a href="../utility/feature_test.html" title="cpp/utility/feature test">Feature-test</a> macro
+</th>
+<th><abbr title="The year/month in which the feature was adopted. The hyperlink under each value opens a compiler support page with entry for given feature.">Value</abbr>
+</th>
+<th><abbr title="Standard in which the feature is introduced; DR means defect report against that revision">Std</abbr>
+</th>
+<th>Feature
+</th></tr>
+<tr>
+<td><a href="../experimental/feature_test.html#cpp_impl_three_way_comparison" title="cpp/feature test"><code>__cpp_impl_three_way_comparison</code></a></td>
+<td><a href="../compiler_support/20.html#cpp_impl_three_way_comparison_201907L" title="cpp/compiler support/20"><code>201907L</code></a></td>
+<td><span class="t-mark">(C++20)</span></td>
+<td>Three-way comparison (compiler support)
+</td></tr>
+<tr>
+<td><a href="../experimental/feature_test.html#cpp_lib_three_way_comparison" title="cpp/feature test"><code>__cpp_lib_three_way_comparison</code></a></td>
+<td><a href="../compiler_support/20.html#cpp_lib_three_way_comparison_201907L" title="cpp/compiler support/20"><code>201907L</code></a></td>
+<td><span class="t-mark">(C++20)</span></td>
+<td>Three-way comparison (library support); adding three-way comparison to the library
+</td></tr></table>
+<h3><span class="editsection">[<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit&amp;section=13" title="Edit section: Standard library">edit</a>]</span> <span class="mw-headline" id="Standard_library">Standard library</span></h3>
+<p>Comparison operators are overloaded for many classes in the standard library.
+</p>
+<table class="t-dsc-begin">
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../types/type_info/operator_cmp.html" title="cpp/types/type info/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  checks whether the objects refer to the same type <br /> <span class="t-mark">(public member function of <code>std::type_info</code>)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/types/type_info/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../error/error_code/operator_cmp.html" title="cpp/error/error code/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  compares two <code>error_code</code>s <br /> <span class="t-mark">(function)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/error/error_code/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../error/error_condition/operator_cmp.html" title="cpp/error/error condition/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  compares <code>error_condition</code>s and <code>error_code</code>s <br /> <span class="t-mark">(function)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/error/error_condition/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../utility/pair/operator_cmp.html" title="cpp/utility/pair/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values in the <code>pair</code> <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/utility/pair/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../utility/tuple/operator_cmp.html" title="cpp/utility/tuple/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values in the tuple <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/utility/tuple/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../utility/bitset/operator_cmp.html" title="cpp/utility/bitset/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares the contents <br /> <span class="t-mark">(public member function of <code>std::bitset&lt;N&gt;</code>)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/utility/bitset/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../memory/allocator/operator_cmp.html" title="cpp/memory/allocator/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares two allocator instances <br /> <span class="t-mark">(public member function of <code>std::allocator&lt;T&gt;</code>)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/memory/allocator/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../memory/unique_ptr/operator_cmp.html" title="cpp/memory/unique ptr/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span></span><span></span><span></span><span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  compares to another <code>unique_ptr</code> or with <span class="t-c"><span class="mw-geshi cpp source-cpp">nullptr</span></span> <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/memory/unique_ptr/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../memory/shared_ptr/operator_cmp.html" title="cpp/memory/shared ptr/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  compares with another <code>shared_ptr</code> or with <span class="t-c"><span class="mw-geshi cpp source-cpp">nullptr</span></span> <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/memory/shared_ptr/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../utility/functional/function/operator_cmp.html" title="cpp/utility/functional/function/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares a <span class="t-lc"><a href="../utility/functional/function.html" title="cpp/utility/functional/function">std::function</a></span> with <span class="t-c"><span class="mw-geshi cpp source-cpp">nullptr</span></span> <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/utility/functional/function/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../chrono/duration/operator_cmp.html" title="cpp/chrono/duration/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  compares two durations <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/chrono/duration/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../chrono/time_point/operator_cmp.html" title="cpp/chrono/time point/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  compares two time points <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/chrono/time_point/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../memory/scoped_allocator_adaptor/operator_cmp.html" title="cpp/memory/scoped allocator adaptor/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares two <code>scoped_allocator_adaptor</code> objects <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/memory/scoped_allocator_adaptor/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../types/type_index/operator_cmp.html" title="cpp/types/type index/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span></span><span></span><span></span><span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  compares the underlying <span class="t-lc"><a href="../types/type_index.html" title="cpp/types/type index">std::type_index</a></span> objects <br /> <span class="t-mark">(public member function of <code>std::type_index</code>)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/types/type_index/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../string/basic_string/operator_cmp.html" title="cpp/string/basic string/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&gt;</span><span>operator&lt;=</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares two strings <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/string/basic_string/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../locale/locale/operator_cmp.html" title="cpp/locale/locale/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  equality comparison between locale objects <br /> <span class="t-mark">(public member function of <code>std::locale</code>)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/locale/locale/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/array/operator_cmp.html" title="cpp/container/array/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values of two <code>array</code>s <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/deque/operator_cmp.html" title="cpp/container/deque/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values of two <code>deque</code>s <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/forward_list/operator_cmp.html" title="cpp/container/forward list/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values of two <code>forward_list</code>s <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/list/operator_cmp.html" title="cpp/container/list/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values of two <code>list</code>s <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/vector/operator_cmp.html" title="cpp/container/vector/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values of two <code>vector</code>s <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/map/operator_cmp.html" title="cpp/container/map/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values of two <code>map</code>s <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/multimap/operator_cmp.html" title="cpp/container/multimap/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values of two <code>multimap</code>s <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/set/operator_cmp.html" title="cpp/container/set/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values of two <code>set</code>s <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/multiset/operator_cmp.html" title="cpp/container/multiset/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values of two <code>multiset</code>s <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/unordered_map/operator_cmp.html" title="cpp/container/unordered map/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares the values in the unordered_map <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp_unord&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/unordered_multimap/operator_cmp.html" title="cpp/container/unordered multimap/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares the values in the unordered_multimap <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp_unord&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/unordered_set/operator_cmp.html" title="cpp/container/unordered set/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares the values in the unordered_set <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp_unord&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/unordered_multiset/operator_cmp.html" title="cpp/container/unordered multiset/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares the values in the unordered_multiset <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp_unord&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/queue/operator_cmp.html" title="cpp/container/queue/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span></span><span></span><span></span><span></span><span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values of two <code>queue</code>s <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../container/stack/operator_cmp.html" title="cpp/container/stack/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span></span><span></span><span></span><span></span><span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values of two <code>stack</code>s <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/container/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../iterator/reverse_iterator/operator_cmp.html" title="cpp/iterator/reverse iterator/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span></span><span></span><span></span><span></span><span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  compares the underlying iterators <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/iterator/adaptor/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../iterator/move_iterator/operator_cmp.html" title="cpp/iterator/move iterator/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  compares the underlying iterators <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/iterator/adaptor/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../iterator/istream_iterator/operator_cmp.html" title="cpp/iterator/istream iterator/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares two <code>istream_iterator</code>s <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/iterator/istream_iterator/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../iterator/istreambuf_iterator/operator_cmp.html" title="cpp/iterator/istreambuf iterator/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares two <code>istreambuf_iterator</code>s <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/iterator/istreambuf_iterator/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../numeric/complex/operator_cmp.html" title="cpp/numeric/complex/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares two complex numbers or a complex and a scalar <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/numeric/complex/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../numeric/valarray/operator_cmp.html" title="cpp/numeric/valarray/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span></span></a></div></div>
+</td>
+<td>  compares two valarrays or a valarray with a value <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/numeric/valarray/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../numeric/random/linear_congruential_engine/operator_cmp.html" title="cpp/numeric/random/linear congruential engine/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares the internal states of two pseudo-random number engines <br /> <span class="t-mark">(function)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/numeric/random/engine/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+<tr>
+<td>
+</td></tr>
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../numeric/random/poisson_distribution/operator_cmp.html" title="cpp/numeric/random/poisson distribution/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span><span class="t-mark-rev t-since-cxx11">(C++11)</span></span><span><span class="t-mark-rev t-since-cxx11">(C++11)</span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares two distribution objects <br /> <span class="t-mark">(function)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/numeric/random/distribution/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../regex/sub_match/operator_cmp.html" title="cpp/regex/sub match/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  compares a <code>sub_match</code> with another <code>sub_match</code>, a string, or a character <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/regex/sub_match/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../regex/match_results/operator_cmp.html" title="cpp/regex/match results/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  lexicographically compares the values in the two match result <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/regex/match_results/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../regex/regex_iterator/operator_cmp.html" title="cpp/regex/regex iterator/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares two <code>regex_iterator</code>s <br /> <span class="t-mark">(public member function of <code>std::regex_iterator&lt;BidirIt,CharT,Traits&gt;</code>)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/regex/regex_iterator/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../regex/regex_token_iterator/operator_cmp.html" title="cpp/regex/regex token iterator/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span></span></div></div>
+</td>
+<td>  compares two <code>regex_token_iterator</code>s <br /> <span class="t-mark">(public member function of <code>std::regex_token_iterator&lt;BidirIt,CharT,Traits&gt;</code>)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/regex/regex_token_iterator/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../thread/thread/id/operator_cmp.html" title="cpp/thread/thread/id/operator cmp"> <span class="t-lines"><span>operator==</span><span>operator!=</span><span>operator&lt;</span><span>operator&lt;=</span><span>operator&gt;</span><span>operator&gt;=</span><span>operator&lt;=&gt;</span></span></a></div><div><span class="t-lines"><span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-until-cxx20">(removed in C++20)</span></span><span><span class="t-mark-rev t-since-cxx20">(C++20)</span></span></span></div></div>
+</td>
+<td>  compares two <code>thread::id</code> objects <br /> <span class="t-mark">(function)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/thread/thread/id/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+</table>
+<p>The namespace <a href="../utility/rel_ops/operator_cmp.html" title="cpp/utility/rel ops/operator cmp"><tt>std::rel_ops</tt></a> provides generic operators <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="sy3">!</span><span class="sy1">=</span></span></span>, <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="sy1">&gt;</span></span></span>, <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="sy1">&lt;=</span></span></span>, and <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="sy1">&gt;=</span></span></span>:
+</p>
+<table class="t-dsc-begin">
+
+<tr class="t-dsc-header">
+<td colspan="2"> <div>Defined in header <code><a href="../header/utility.html" title="cpp/header/utility">&lt;utility&gt;</a></code> </div>
+</td></tr>
+
+<tr class="t-dsc-header">
+<td colspan="2"> <div>Defined in  namespace <code>std::rel_ops</code> </div>
+</td></tr>
+
+<tr class="t-dsc">
+<td>  <div class="t-dsc-member-div"><div><a href="../utility/rel_ops/operator_cmp.html" title="cpp/utility/rel ops/operator cmp"> <span class="t-lines"><span>operator!=</span><span>operator&gt;</span><span>operator&lt;=</span><span>operator&gt;=</span></span></a></div><div><span class="t-lines"><span><span class="t-mark">(deprecated in C++20)</span></span></span></div></div>
+</td>
+<td>  automatically generates comparison operators based on user-defined <span class="t-c"><span class="mw-geshi cpp source-cpp">operator<span class="sy1">==</span></span></span> and <span class="t-c"><span class="mw-geshi cpp source-cpp">operator<span class="sy1">&lt;</span></span></span> <br /> <span class="t-mark">(function template)</span> <span class="editsection noprint plainlinks" title="Edit this template"><a rel="nofollow" class="external text" href="https://en.cppreference.com/mwiki/index.php?title=Template:cpp/utility/rel_ops/dsc_operator_cmp&amp;action=edit">&#91;edit&#93;</a></span>
+</td></tr>
+</table>
+<h3><span class="editsection">[<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit&amp;section=14" title="Edit section: Defect reports">edit</a>]</span> <span class="mw-headline" id="Defect_reports">Defect reports</span></h3>
+<p>The following behavior-changing defect reports were applied retroactively to previously published C++ standards.
+</p>
+<table class="dsctable" style="font-size:0.8em">
+<tr>
+<th>DR
+</th>
+<th>Applied to
+</th>
+<th>Behavior as published
+</th>
+<th>Correct behavior
+</th></tr>
+<tr>
+<td><a rel="nofollow" class="external text" href="https://cplusplus.github.io/CWG/issues/583.html">CWG 583</a><br />(<a rel="nofollow" class="external text" href="https://wg21.link/N3624">N3624</a>)
+</td>
+<td>C++98
+</td>
+<td>all six comparison operators could be used to<br />compare a pointer with a null pointer constant
+</td>
+<td>only equality operators<br />are allowed
+</td></tr>
+<tr>
+<td><a rel="nofollow" class="external text" href="https://cplusplus.github.io/CWG/issues/661.html">CWG 661</a>
+</td>
+<td>C++98
+</td>
+<td>the actual semantics of arithmetic comparisons (e.g.<br />whether <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="nu0">1</span> <span class="sy1">&lt;</span> <span class="nu0">2</span></span></span> yields <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">true</span></span></span> or <span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="kw2">false</span></span></span>) were unspecified
+</td>
+<td>specification added
+</td></tr>
+<tr>
+<td><a rel="nofollow" class="external text" href="https://cplusplus.github.io/CWG/issues/879.html">CWG 879</a>
+</td>
+<td>C++98
+</td>
+<td>pointers to function types and pointers<br />to <span class="mw-geshi cpp source-cpp"><span class="kw4">void</span></span> did not have built-in comparisons
+</td>
+<td>added comparison<br />specification for these pointers
+</td></tr>
+<tr>
+<td><a rel="nofollow" class="external text" href="https://cplusplus.github.io/CWG/issues/1596.html">CWG 1596</a>
+</td>
+<td>C++98
+</td>
+<td>non-array objects were considered to belong to arrays with<br />one element only for the purpose of pointer arithmetic
+</td>
+<td>the rule is also<br />applied to comparison
+</td></tr>
+<tr>
+<td><a rel="nofollow" class="external text" href="https://cplusplus.github.io/CWG/issues/1598.html">CWG 1598</a>
+</td>
+<td>C++98
+</td>
+<td>two pointers to members of classes that are different and<br />neither is the base class of the other did not compare equal<br />even if the offsets of the pointed members can be the same
+</td>
+<td>the result is<br />unspecified<br />in this case
+</td></tr>
+<tr>
+<td><a rel="nofollow" class="external text" href="https://cplusplus.github.io/CWG/issues/1858.html">CWG 1858</a>
+</td>
+<td>C++98
+</td>
+<td>it was not clear whether two pointers to members<br />that refer to different members of the same union<br />compare equal as if they refer to the same member
+</td>
+<td>they compare<br />equal in this case
+</td></tr>
+<tr>
+<td><a rel="nofollow" class="external text" href="https://cplusplus.github.io/CWG/issues/2419.html">CWG 2419</a>
+</td>
+<td>C++98
+</td>
+<td>a pointer to non-array object was only treated as a<br />pointer to the first element of an array with size 1<br />in pointer comparison if the pointer is obtained by <code>&amp;</code>
+</td>
+<td>applies to all pointers<br />to non-array objects
+</td></tr>
+<tr>
+<td><a rel="nofollow" class="external text" href="https://cplusplus.github.io/CWG/issues/2526.html">CWG 2526</a>
+</td>
+<td>C++98
+</td>
+<td>the definition of relational comparison (<code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code> and <code>&lt;=</code>) of<br />pointers to <span class="mw-geshi cpp source-cpp"><span class="kw4">void</span></span> and function pointers were removed by <a rel="nofollow" class="external text" href="https://wg21.link/N3624">N3624</a>
+</td>
+<td>restored
+</td></tr>
+<tr>
+<td><a rel="nofollow" class="external text" href="https://cplusplus.github.io/CWG/issues/2796.html">CWG 2796</a>
+</td>
+<td>C++17
+</td>
+<td>function pointer conversions were not performed on the converted<br />pointer operands during built-in pointer relational comparisons
+</td>
+<td>performs these<br />conversions in this case
+</td></tr></table>
+<h3><span class="editsection">[<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=edit&amp;section=15" title="Edit section: See also">edit</a>]</span> <span class="mw-headline" id="See_also">See also</span></h3>
+<ul><li> <a href="operator_precedence.html" title="cpp/language/operator precedence">Operator precedence</a>
+</li><li> <a href="operators.html" title="cpp/language/operators">Operator overloading</a>
+</li><li> <a href="../named_req/Compare.html" title="cpp/named req/Compare"><span style="font-family: Georgia, &#39;DejaVu Serif&#39;, serif; font-style:italic">Compare</span></a> (named requirements)
+</li></ul>
+<table class="wikitable">
+
+<tr style="text-align:center">
+<th colspan="7">Common operators
+</th></tr>
+<tr style="text-align:center">
+<td><a href="operator_assignment.html" title="cpp/language/operator assignment">assignment</a>
+</td>
+<td><a href="operator_incdec.html" title="cpp/language/operator incdec">increment<br />decrement</a>
+</td>
+<td><a href="operator_arithmetic.html" title="cpp/language/operator arithmetic">arithmetic</a>
+</td>
+<td><a href="operator_logical.html" title="cpp/language/operator logical">logical</a>
+</td>
+<td><strong class="selflink">comparison</strong>
+</td>
+<td><a href="operator_member_access.html" title="cpp/language/operator member access">member<br />access</a>
+</td>
+<td><a href="operator_other.html" title="cpp/language/operator other">other</a>
+</td></tr>
+<tr style="text-align:center">
+<td rowspan="3">
+<p><span class="t-c"><span class="mw-geshi cpp source-cpp">a <span class="sy1">=</span> b<br />
+a <span class="sy2">+</span><span class="sy1">=</span> b<br />
+a <span class="sy2">-</span><span class="sy1">=</span> b<br />
+a <span class="sy2">*</span><span class="sy1">=</span> b<br />
+a <span class="sy2">/</span><span class="sy1">=</span> b<br />
+a <span class="sy2">%</span><span class="sy1">=</span> b<br />
+a <span class="sy3">&amp;</span><span class="sy1">=</span> b<br />
+a <span class="sy3">|</span><span class="sy1">=</span> b<br />
+a <span class="sy3">^</span><span class="sy1">=</span> b<br />
+a <span class="sy1">&lt;&lt;=</span> b<br />
+a <span class="sy1">&gt;&gt;=</span> b</span></span>
+</p>
+</td>
+<td rowspan="3">
+<p><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="sy2">++</span>a<br />
+<span class="sy2">--</span>a<br />
+a<span class="sy2">++</span><br />
+a<span class="sy2">--</span></span></span>
+</p>
+</td>
+<td rowspan="3">
+<p><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="sy2">+</span>a<br />
+<span class="sy2">-</span>a<br />
+a <span class="sy2">+</span> b<br />
+a <span class="sy2">-</span> b<br />
+a <span class="sy2">*</span> b<br />
+a <span class="sy2">/</span> b<br />
+a <span class="sy2">%</span> b<br />
+~a<br />
+a <span class="sy3">&amp;</span> b<br />
+a <span class="sy3">|</span> b<br />
+a <span class="sy3">^</span> b<br />
+a <span class="sy1">&lt;&lt;</span> b<br />
+a <span class="sy1">&gt;&gt;</span> b</span></span>
+</p>
+</td>
+<td rowspan="3">
+<p><span class="t-c"><span class="mw-geshi cpp source-cpp"><span class="sy3">!</span>a<br />
+a <span class="sy3">&amp;&amp;</span> b<br />
+a <span class="sy3">||</span> b</span></span>
+</p>
+</td>
+<td rowspan="3">
+<p><span class="t-c"><span class="mw-geshi cpp source-cpp">a <span class="sy1">==</span> b<br />
+a <span class="sy3">!</span><span class="sy1">=</span> b<br />
+a <span class="sy1">&lt;</span> b<br />
+a <span class="sy1">&gt;</span> b<br />
+a <span class="sy1">&lt;=</span> b<br />
+a <span class="sy1">&gt;=</span> b<br />
+a <span class="sy1">&lt;=&gt;</span> b</span></span>
+</p>
+</td>
+<td rowspan="3">
+<p><span class="t-c"><span class="mw-geshi cpp source-cpp">a<span class="br0">&#91;</span>...<span class="br0">&#93;</span><br />
+<span class="sy2">*</span>a<br />
+<span class="sy3">&amp;</span>a<br />
+a<span class="sy2">-</span><span class="sy1">&gt;</span>b<br />
+a.<span class="me1">b</span><br />
+a<span class="sy2">-</span><span class="sy1">&gt;</span><span class="sy2">*</span>b<br />
+a.<span class="sy2">*</span>b</span></span>
+</p>
+</td>
+<td>function call<br /><br /><span class="t-c"><span class="mw-geshi cpp source-cpp">a<span class="br0">&#40;</span>...<span class="br0">&#41;</span></span></span>
+</td></tr>
+<tr style="text-align:center">
+<td>comma<br /><br /><span class="t-c"><span class="mw-geshi cpp source-cpp">a, b</span></span>
+</td></tr>
+<tr style="text-align:center">
+<td>conditional<br /><br /><span class="t-c"><span class="mw-geshi cpp source-cpp">a <span class="sy4">?</span> b <span class="sy4">:</span> c</span></span>
+</td></tr>
+<tr>
+<th colspan="7">Special operators
+</th></tr>
+<tr>
+<td colspan="7">
+<p><a href="static_cast.html" title="cpp/language/static cast"><tt>static_cast</tt></a> converts one type to another related type<br />
+<a href="dynamic_cast.html" title="cpp/language/dynamic cast"><tt>dynamic_cast</tt></a> converts within inheritance hierarchies<br />
+<a href="const_cast.html" title="cpp/language/const cast"><tt>const_cast</tt></a> adds or removes <a href="cv.html" title="cpp/language/cv">cv</a>-qualifiers<br />
+<a href="reinterpret_cast.html" title="cpp/language/reinterpret cast"><tt>reinterpret_cast</tt></a> converts type to unrelated type<br />
+<a href="explicit_cast.html" title="cpp/language/explicit cast">C-style cast</a> converts one type to another by a mix of <span class="mw-geshi cpp source-cpp"><span class="kw1">static_cast</span></span>, <span class="mw-geshi cpp source-cpp"><span class="kw1">const_cast</span></span>, and <span class="mw-geshi cpp source-cpp"><span class="kw1">reinterpret_cast</span></span><br />
+<a href="new.html" title="cpp/language/new"><tt>new</tt></a> creates objects with dynamic storage duration<br />
+<a href="delete.html" title="cpp/language/delete"><tt>delete</tt></a> destructs objects previously created by the new expression and releases obtained memory area<br />
+<a href="sizeof.html" title="cpp/language/sizeof"><tt>sizeof</tt></a> queries the size of a type<br />
+<a href="sizeof....html" title="cpp/language/sizeof..."><tt>sizeof...</tt></a> queries the size of a <a href="parameter_pack.html" title="cpp/language/pack">pack</a> <span class="t-mark-rev t-since-cxx11">(since C++11)</span><br />
+<a href="typeid.html" title="cpp/language/typeid"><tt>typeid</tt></a> queries the type information of a type<br />
+<a href="noexcept.html" title="cpp/language/noexcept"><tt>noexcept</tt></a> checks if an expression can throw an exception <span class="t-mark-rev t-since-cxx11">(since C++11)</span><br />
+<a href="alignof.html" title="cpp/language/alignof"><tt>alignof</tt></a> queries alignment requirements of a type <span class="t-mark-rev t-since-cxx11">(since C++11)</span>
+</p>
+</td></tr></table>
+<table class="t-dsc-begin">
+
+<tr class="t-dsc">
+<td colspan="2"> <div class="t-dsc-see"><span><a href="../../c/language/operator_comparison.html" title="c/language/operator comparison">C documentation</a></span> for <span class=""><span>Comparison operators</span></span></div>
+</td></tr>
+
+</table>
+
+<!-- 
+NewPP limit report
+Preprocessor visited node count: 20997/1000000
+Preprocessor generated node count: 26759/1000000
+Post‐expand include size: 714676/4194304 bytes
+Template argument size: 172780/4194304 bytes
+Highest expansion depth: 32/40
+Expensive parser function count: 0/100
+-->
+
+<!-- Saved in parser cache with key mwiki1-mwiki_en_:pcache:idhash:705-0!*!0!!en!*!* and timestamp 20250418073340 -->
+</div>                    <!-- /bodycontent -->
+                                        <!-- printfooter -->
+                    <div class="printfooter">
+                    Retrieved from "<a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;oldid=177936">https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;oldid=177936</a>"                    </div>
+                    <!-- /printfooter -->
+                                                            <!-- catlinks -->
+                    <div id='catlinks' class='catlinks catlinks-allhidden'></div>                    <!-- /catlinks -->
+                                                            <div class="visualClear"></div>
+                    <!-- debughtml -->
+                                        <!-- /debughtml -->
+                </div>
+                <!-- /bodyContent -->
+            </div>
+        </div>
+        <!-- /content -->
+        <!-- footer -->
+        <div id="cpp-footer-base" class="noprint">
+            <div id="footer" hidden>
+                        <div id="cpp-navigationn" hidden>
+            <h5>Navigation</h5>
+            <ul>
+<li id="n-Support-us"><a href="http://www.cppreference.com/support" rel="nofollow">Support us</a></li><li id="n-recentchanges"><a href="https://en.cppreference.com/w/Special:RecentChanges" title="A list of recent changes in the wiki [r]" accesskey="r">Recent changes</a></li><li id="n-FAQ"><a href="../../Cppreference%253AAbout.html">FAQ</a></li><li id="n-Offline-version"><a href="../../Cppreference%253AArchives.html">Offline version</a></li>            </ul>
+        </div>
+                        <div id="cpp-toolbox" hidden>
+            <h5><span>Toolbox</span><a href="operator_comparison.html#"></a></h5>
+            <ul>
+<li id="t-whatlinkshere"><a href="https://en.cppreference.com/w/Special:WhatLinksHere/cpp/language/operator_comparison" title="A list of all wiki pages that link here [j]" accesskey="j">What links here</a></li><li id="t-recentchangeslinked"><a href="https://en.cppreference.com/w/Special:RecentChangesLinked/cpp/language/operator_comparison" title="Recent changes in pages linked from this page [k]" accesskey="k">Related changes</a></li><li id="t-upload"><a href="http://upload.cppreference.com/w/Special:Upload" title="Upload files [u]" accesskey="u">Upload file</a></li><li id="t-specialpages"><a href="https://en.cppreference.com/w/Special:SpecialPages" title="A list of all special pages [q]" accesskey="q">Special pages</a></li><li id="t-print"><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;printable=yes" rel="alternate" title="Printable version of this page [p]" accesskey="p">Printable version</a></li><li id="t-permalink"><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;oldid=177936" title="Permanent link to this revision of the page">Permanent link</a></li><li id="t-info"><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/language/operator_comparison&amp;action=info">Page information</a></li>            </ul>
+        </div>
+                        <div id="cpp-languagess" hidden>
+            <div><ul><li>In other languages</li></ul></div>
+            <div><ul>
+<li class="interwiki-de"><a href="http://de.cppreference.com/w/cpp/language/operator_comparison" title="cpp/language/operator comparison" lang="de" hreflang="de">Deutsch</a></li><li class="interwiki-es"><a href="http://es.cppreference.com/w/cpp/language/operator_comparison" title="cpp/language/operator comparison" lang="es" hreflang="es">Español</a></li><li class="interwiki-fr"><a href="http://fr.cppreference.com/w/cpp/language/operator_comparison" title="cpp/language/operator comparison" lang="fr" hreflang="fr">Français</a></li><li class="interwiki-it"><a href="http://it.cppreference.com/w/cpp/language/operator_comparison" title="cpp/language/operator comparison" lang="it" hreflang="it">Italiano</a></li><li class="interwiki-ja"><a href="http://ja.cppreference.com/w/cpp/language/operator_comparison" title="cpp/language/operator comparison" lang="ja" hreflang="ja">日本語</a></li><li class="interwiki-pt"><a href="http://pt.cppreference.com/w/cpp/language/operator_comparison" title="cpp/language/operator comparison" lang="pt" hreflang="pt">Português</a></li><li class="interwiki-ru"><a href="http://ru.cppreference.com/w/cpp/language/operator_comparison" title="cpp/language/operator comparison" lang="ru" hreflang="ru">Русский</a></li><li class="interwiki-zh"><a href="http://zh.cppreference.com/w/cpp/language/operator_comparison" title="cpp/language/operator comparison" lang="zh" hreflang="zh">中文</a></li>            </ul></div>
+        </div>
+            <ul id="footer-info">
+                                    <li id="footer-info-lastmod"> This page was last modified on 24 November 2024, at 23:28.</li>
+                            </ul>
+                    <ul id="footer-places">
+                                    <li id="footer-places-privacy"><a href="../../Cppreference%253APrivacy_policy.html" title="Cppreference:Privacy policy">Privacy policy</a></li>
+                                    <li id="footer-places-about"><a href="../../Cppreference%253AAbout.html" title="Cppreference:About">About cppreference.com</a></li>
+                                    <li id="footer-places-disclaimer"><a href="../../Cppreference%253AGeneral_disclaimer.html" title="Cppreference:General disclaimer">Disclaimers</a></li>
+                            </ul>
+                                    <ul id="footer-icons" class="noprint">
+                                    <li id="footer-poweredbyico">
+                                            <a href="https://www.mediawiki.org/"><img src="../../../mwiki/skins/common/images/poweredby_mediawiki_88x31.png" alt="Powered by MediaWiki" width="88" height="31" /></a>                                            <a href="http://qbnz.com/highlighter/"><img src="https://upload.cppreference.com/mwiki/images/2/2b/powered_by_geshi_88x31.png" alt="Powered by GeSHi" height="31" width="88" /></a>                                            <a href="http://www.tigertech.net/referral/cppreference.com"><img src="https://upload.cppreference.com/mwiki/images/9/94/powered_by_tigertech_88x31.png" alt="Hosted by Tiger Technologies" height="31" width="88" /></a>                                        </li>
+                                </ul>
+                        <div style="clear:both">
+            </div>
+            </div>
+        </div>
+        <!-- /footer -->
+        <script>if(window.mw){
+mw.loader.state({"site":"loading","user":"missing","user.groups":"ready"});
+}</script>
+<script src="../../../mwiki/load.php@debug=false&amp;lang=en&amp;modules=skins.cppreference2&amp;only=scripts&amp;skin=cppreference2&amp;%252A"></script>
+<script>if(window.mw){
+mw.loader.load(["mediawiki.action.view.postEdit","mediawiki.user","mediawiki.page.ready","mediawiki.searchSuggest","mediawiki.hidpi","ext.gadget.ColiruCompiler","ext.gadget.StandardRevisions","ext.gadget.MathJax"], null, true);
+}</script>
+<script src="../../../mwiki/load.php@debug=false&amp;lang=en&amp;modules=site&amp;only=scripts&amp;skin=cppreference2&amp;%252A"></script>
+<!-- Served in 29.153 secs. -->
+	</body>
+<!-- Cached 20250418073340 -->
+</html>

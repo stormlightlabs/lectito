@@ -131,6 +131,7 @@ pub mod siteextractors;
 pub use article::{Article, OutputFormat};
 pub use dom_tree::{DomNode, DomTree, build_dom_tree};
 pub use error::{LectitoError, Result};
+pub use extract::{CandidateScoreDiagnostic, ExtractionDiagnostics, ExtractionPassDiagnostic, RemovalLogEntry};
 #[doc(hidden)]
 pub use extract::{ExtractConfig, ExtractedContent};
 pub use extract::{extract_content, extract_content_with_config};

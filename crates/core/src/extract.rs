@@ -7,6 +7,7 @@ use super::scoring::{ScoreConfig, ScoreResult, calculate_score};
 use super::siteconfig::{SiteConfig, SiteConfigProcessing, SiteConfigXPath};
 use super::{LectitoError, Result, preprocess};
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::OnceLock;
 
@@ -53,6 +54,76 @@ pub struct Candidate<'a> {
 }
 
 /// The result of content extraction
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ExtractionDiagnostics {
+    /// Approximate word count of the full page before extraction.
+    pub page_word_count: usize,
+    /// Approximate text length of the full page before extraction.
+    pub page_text_chars: usize,
+    /// Word count of the extracted content.
+    pub content_word_count: usize,
+    /// Character count of the extracted content text.
+    pub content_text_chars: usize,
+    /// Extracted word count divided by page word count.
+    pub content_word_ratio: f64,
+    /// Top candidate score after candidate selection.
+    pub top_candidate_score: Option<f64>,
+    /// Score of the runner-up candidate when available.
+    pub second_candidate_score: Option<f64>,
+    /// Normalized spread between the best and second-best candidates.
+    pub score_spread: Option<f64>,
+    /// Link density of the selected candidate.
+    pub top_candidate_link_density: Option<f64>,
+    /// Candidate summaries for the strongest scoring nodes.
+    pub candidate_scores: Vec<CandidateScoreDiagnostic>,
+    /// Nodes removed before scoring because they matched clutter heuristics.
+    pub removal_log: Vec<RemovalLogEntry>,
+    /// Pass execution history, populated by the higher-level readability pipeline.
+    pub pass_history: Vec<ExtractionPassDiagnostic>,
+    /// Name of the pass that produced the final extraction.
+    pub selected_pass: Option<String>,
+    /// Matched site extractor, when extraction bypassed generic scoring.
+    pub site_extractor: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CandidateScoreDiagnostic {
+    pub tag_name: String,
+    pub class: Option<String>,
+    pub id: Option<String>,
+    pub text_chars: usize,
+    pub word_count: usize,
+    pub base_score: f64,
+    pub class_weight: f64,
+    pub content_density: f64,
+    pub link_density: f64,
+    pub final_score: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemovalLogEntry {
+    pub reason: String,
+    pub selector: Option<String>,
+    pub tag_name: String,
+    pub attrs: Option<String>,
+    pub text_chars: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtractionPassDiagnostic {
+    pub name: String,
+    pub strategy: String,
+    pub succeeded: bool,
+    pub word_count: usize,
+    pub top_score: Option<f64>,
+    pub confidence: Option<f64>,
+    pub min_score_threshold: f64,
+    pub remove_unlikely: bool,
+    pub remove_hidden: bool,
+    pub used_site_extractor: bool,
+    pub error: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct ExtractedContent {
     /// The main content element
@@ -61,6 +132,10 @@ pub struct ExtractedContent {
     pub top_score: f64,
     /// Number of elements extracted
     pub element_count: usize,
+    /// Confidence score for the extraction (0.0-1.0).
+    pub confidence: f64,
+    /// Diagnostics captured during extraction.
+    pub diagnostics: ExtractionDiagnostics,
 }
 
 impl<'a> Candidate<'a> {
@@ -261,23 +336,37 @@ fn remove_html_snippets(mut html: String, mut snippets: Vec<String>) -> String {
     html
 }
 
-fn prepare_scoring_document(doc: &Document, config: &ExtractConfig) -> Option<Document> {
+#[derive(Default)]
+struct PrepareScoringResult {
+    document: Option<Document>,
+    removal_log: Vec<RemovalLogEntry>,
+}
+
+fn prepare_scoring_document(doc: &Document, config: &ExtractConfig) -> PrepareScoringResult {
     if !config.pre_score_selector_removal {
-        return None;
+        return PrepareScoringResult::default();
     }
 
     let original_html = doc.as_string();
     let mut snippets = Vec::new();
+    let mut removal_log = Vec::new();
     let protected_html = protected_cleanup_html(doc);
 
     for selector in PRE_SCORE_EXACT_SELECTORS {
         if let Ok(elements) = doc.select(selector) {
-            snippets.extend(
-                elements
-                    .into_iter()
-                    .filter(|element| !should_protect_from_cleanup(element, &protected_html))
-                    .map(|el| el.outer_html()),
-            );
+            for element in elements {
+                if should_protect_from_cleanup(&element, &protected_html) {
+                    continue;
+                }
+                snippets.push(element.outer_html());
+                removal_log.push(RemovalLogEntry {
+                    reason: "exact-selector".to_string(),
+                    selector: Some((*selector).to_string()),
+                    tag_name: element.tag_name(),
+                    attrs: trimmed_selector_attrs(&element),
+                    text_chars: element.text().chars().count(),
+                });
+            }
         }
     }
 
@@ -288,20 +377,30 @@ fn prepare_scoring_document(doc: &Document, config: &ExtractConfig) -> Option<Do
             }
             if should_remove_partial_selector_candidate(&element) {
                 snippets.push(element.outer_html());
+                removal_log.push(RemovalLogEntry {
+                    reason: "partial-selector-pattern".to_string(),
+                    selector: None,
+                    tag_name: element.tag_name(),
+                    attrs: trimmed_selector_attrs(&element),
+                    text_chars: element.text().chars().count(),
+                });
             }
         }
     }
 
     if snippets.is_empty() {
-        return None;
+        return PrepareScoringResult { document: None, removal_log };
     }
 
     let filtered_html = remove_html_snippets(original_html.clone(), snippets);
     if filtered_html == original_html {
-        return None;
+        return PrepareScoringResult { document: None, removal_log };
     }
 
-    Document::parse_with_base_url(&filtered_html, doc.base_url().cloned()).ok()
+    PrepareScoringResult {
+        document: Document::parse_with_base_url(&filtered_html, doc.base_url().cloned()).ok(),
+        removal_log,
+    }
 }
 
 fn protected_cleanup_html(doc: &Document) -> HashSet<String> {
@@ -329,6 +428,12 @@ fn should_protect_from_cleanup(element: &Element<'_>, protected_html: &HashSet<S
         .select("figure, iframe, embed, object, video, audio, source")
         .ok()
         .is_some_and(|matches| !matches.is_empty())
+}
+
+fn trimmed_selector_attrs(element: &Element<'_>) -> Option<String> {
+    let attrs = selector_attrs(element);
+    let trimmed = attrs.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_string())
 }
 
 /// Identify all candidate elements from the document
@@ -656,6 +761,106 @@ fn sibling_class_bonus(candidate: &Candidate<'_>, top_candidate_classes: &HashSe
     }
 }
 
+fn candidate_diagnostics(candidates: &[Candidate<'_>], limit: usize) -> Vec<CandidateScoreDiagnostic> {
+    candidates
+        .iter()
+        .take(limit)
+        .map(|candidate| CandidateScoreDiagnostic {
+            tag_name: candidate.score_result.tag_name.clone(),
+            class: candidate.score_result.class.clone(),
+            id: candidate.score_result.id.clone(),
+            text_chars: candidate.element.text().chars().count(),
+            word_count: count_words(&candidate.element.text()),
+            base_score: candidate.score_result.base_score,
+            class_weight: candidate.score_result.class_weight,
+            content_density: candidate.score_result.content_density,
+            link_density: candidate.score_result.link_density,
+            final_score: candidate.score_result.final_score,
+        })
+        .collect()
+}
+
+fn normalized_score_spread(top_score: f64, second_score: Option<f64>) -> Option<f64> {
+    second_score.map(|second| ((top_score - second) / top_score.abs().max(1.0)).clamp(0.0, 1.0))
+}
+
+fn clamp01(value: f64) -> f64 {
+    value.clamp(0.0, 1.0)
+}
+
+fn confidence_from_diagnostics(diagnostics: &ExtractionDiagnostics) -> f64 {
+    let length_factor = clamp01(diagnostics.content_word_count as f64 / 900.0);
+    let ratio_factor = clamp01(diagnostics.content_word_ratio / 0.35);
+    let link_factor = diagnostics
+        .top_candidate_link_density
+        .map(|value| clamp01(1.0 - (value / 0.7)))
+        .unwrap_or(0.5);
+    let spread_factor = diagnostics.score_spread.unwrap_or(0.5);
+    let retry_factor = diagnostics
+        .selected_pass
+        .as_deref()
+        .map(pass_reliability_factor)
+        .unwrap_or(0.8);
+    let extractor_factor = if diagnostics.site_extractor.is_some() { 1.0 } else { 0.0 };
+
+    clamp01(
+        (length_factor * 0.28)
+            + (link_factor * 0.22)
+            + (spread_factor * 0.18)
+            + (retry_factor * 0.16)
+            + (ratio_factor * 0.08)
+            + (extractor_factor * 0.08),
+    )
+}
+
+pub(crate) fn pass_reliability_factor(pass_name: &str) -> f64 {
+    match pass_name {
+        "site-extractor" => 0.98,
+        "pass-0-default" => 1.0,
+        "pass-1-relaxed-selectors" => 0.88,
+        "pass-2-hidden-disabled" => 0.76,
+        "pass-3-hidden-subtree" => 0.62,
+        "pass-4-no-score-threshold" => 0.52,
+        "pass-5-schema-org" => 0.45,
+        _ => 0.75,
+    }
+}
+
+fn build_extraction_diagnostics(
+    source_doc: &Document, content: &str, top_candidate: &Candidate<'_>, candidates: &[Candidate<'_>],
+    removal_log: Vec<RemovalLogEntry>,
+) -> ExtractionDiagnostics {
+    let page_text = source_doc.text_content();
+    let page_word_count = count_words(&page_text);
+    let content_text = Document::parse(content)
+        .map(|doc| doc.text_content())
+        .unwrap_or_default();
+    let content_word_count = count_words(&content_text);
+    let top_score = top_candidate.score();
+    let second_score = candidates
+        .iter()
+        .filter(|candidate| candidate.element.outer_html() != top_candidate.element.outer_html())
+        .map(Candidate::score)
+        .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+    ExtractionDiagnostics {
+        page_word_count,
+        page_text_chars: page_text.chars().count(),
+        content_word_count,
+        content_text_chars: content_text.chars().count(),
+        content_word_ratio: if page_word_count == 0 { 0.0 } else { content_word_count as f64 / page_word_count as f64 },
+        top_candidate_score: Some(top_score),
+        second_candidate_score: second_score,
+        score_spread: normalized_score_spread(top_score, second_score),
+        top_candidate_link_density: Some(top_candidate.score_result.link_density),
+        candidate_scores: candidate_diagnostics(candidates, 5),
+        removal_log,
+        pass_history: Vec::new(),
+        selected_pass: None,
+        site_extractor: None,
+    }
+}
+
 fn select_preferred_entry_candidate<'a>(
     entry_candidates: &'a [EntryPointCandidate<'a>], dom_tree: Option<&DomTree>,
 ) -> Option<&'a EntryPointCandidate<'a>> {
@@ -901,8 +1106,9 @@ fn select_siblings<'a>(
 /// 5. Post-processes the extracted content
 /// 6. Returns the cleaned content
 pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<ExtractedContent> {
-    let filtered_doc = prepare_scoring_document(doc, config);
-    let mut working_doc = filtered_doc.as_ref().unwrap_or(doc);
+    let prepared = prepare_scoring_document(doc, config);
+    let filtered_doc = prepared.document.as_ref();
+    let mut working_doc = filtered_doc.unwrap_or(doc);
     let score_config = ScoreConfig::default();
     let mut entry_candidates = identify_entry_point_candidates(working_doc, &score_config);
 
@@ -1003,8 +1209,10 @@ pub fn extract_content(doc: &Document, config: &ExtractConfig) -> Result<Extract
     let content = postprocess_html(&content, &config.postprocess);
 
     let element_count = 1 + leading.len() + trailing.len();
+    let diagnostics = build_extraction_diagnostics(doc, &content, &top_candidate, &candidates, prepared.removal_log);
+    let confidence = confidence_from_diagnostics(&diagnostics);
 
-    Ok(ExtractedContent { content, top_score: top_candidate.score(), element_count })
+    Ok(ExtractedContent { content, top_score: top_candidate.score(), element_count, confidence, diagnostics })
 }
 
 fn parent_id_for(element: &Element<'_>, dom_tree: &DomTree) -> Option<usize> {
@@ -1117,7 +1325,36 @@ pub(crate) fn extract_largest_hidden_subtree(doc: &Document) -> Option<Extracted
         return None;
     }
 
-    Some(ExtractedContent { content: best_html, top_score: best_word_count as f64, element_count: 1 })
+    let content_text = Document::parse(&best_html)
+        .map(|doc| doc.text_content())
+        .unwrap_or_default();
+    let page_text = doc.text_content();
+    let page_word_count = count_words(&page_text);
+    let diagnostics = ExtractionDiagnostics {
+        page_word_count,
+        page_text_chars: page_text.chars().count(),
+        content_word_count: best_word_count,
+        content_text_chars: content_text.chars().count(),
+        content_word_ratio: best_word_count as f64 / page_word_count.max(1) as f64,
+        top_candidate_score: Some(best_word_count as f64),
+        second_candidate_score: None,
+        score_spread: None,
+        top_candidate_link_density: None,
+        candidate_scores: Vec::new(),
+        removal_log: Vec::new(),
+        pass_history: Vec::new(),
+        selected_pass: None,
+        site_extractor: None,
+    };
+    let confidence = confidence_from_diagnostics(&diagnostics);
+
+    Some(ExtractedContent {
+        content: best_html,
+        top_score: best_word_count as f64,
+        element_count: 1,
+        confidence,
+        diagnostics,
+    })
 }
 
 /// Extract content from schema.org structured data (final fallback in multi-pass retry).
@@ -1133,7 +1370,29 @@ pub(crate) fn extract_schema_org_article(doc: &Document) -> Option<ExtractedCont
             && let Some(el) = elements.first()
             && !el.text().trim().is_empty()
         {
-            return Some(ExtractedContent { content: el.outer_html(), top_score: 100.0, element_count: 1 });
+            let content = el.outer_html();
+            let content_text = el.text();
+            let page_text = doc.text_content();
+            let page_word_count = count_words(&page_text);
+            let content_word_count = count_words(&content_text);
+            let diagnostics = ExtractionDiagnostics {
+                page_word_count,
+                page_text_chars: page_text.chars().count(),
+                content_word_count,
+                content_text_chars: content_text.chars().count(),
+                content_word_ratio: content_word_count as f64 / page_word_count.max(1) as f64,
+                top_candidate_score: Some(100.0),
+                second_candidate_score: None,
+                score_spread: None,
+                top_candidate_link_density: None,
+                candidate_scores: Vec::new(),
+                removal_log: Vec::new(),
+                pass_history: Vec::new(),
+                selected_pass: None,
+                site_extractor: None,
+            };
+            let confidence = confidence_from_diagnostics(&diagnostics);
+            return Some(ExtractedContent { content, top_score: 100.0, element_count: 1, confidence, diagnostics });
         }
     }
 
@@ -1151,10 +1410,33 @@ pub(crate) fn extract_schema_org_article(doc: &Document) -> Option<ExtractedCont
             if let Some(body_text) = value.get(*field).and_then(|v| v.as_str()) {
                 let trimmed = body_text.trim();
                 if !trimmed.is_empty() {
+                    let content = format!("<div>{}</div>", escape_html(trimmed));
+                    let page_text = doc.text_content();
+                    let page_word_count = count_words(&page_text);
+                    let content_word_count = count_words(trimmed);
+                    let diagnostics = ExtractionDiagnostics {
+                        page_word_count,
+                        page_text_chars: page_text.chars().count(),
+                        content_word_count,
+                        content_text_chars: trimmed.chars().count(),
+                        content_word_ratio: content_word_count as f64 / page_word_count.max(1) as f64,
+                        top_candidate_score: Some(100.0),
+                        second_candidate_score: None,
+                        score_spread: None,
+                        top_candidate_link_density: None,
+                        candidate_scores: Vec::new(),
+                        removal_log: Vec::new(),
+                        pass_history: Vec::new(),
+                        selected_pass: None,
+                        site_extractor: None,
+                    };
+                    let confidence = confidence_from_diagnostics(&diagnostics);
                     return Some(ExtractedContent {
-                        content: format!("<div>{}</div>", escape_html(trimmed)),
+                        content,
                         top_score: 100.0,
                         element_count: 1,
+                        confidence,
+                        diagnostics,
                     });
                 }
             }
@@ -1203,8 +1485,31 @@ fn extract_with_site_config(
 
     let element_count = 1;
     let top_score = 100.0;
+    let page_text = doc.text_content();
+    let content_text = Document::parse(&body_content)
+        .map(|doc| doc.text_content())
+        .unwrap_or_default();
+    let page_word_count = count_words(&page_text);
+    let content_word_count = count_words(&content_text);
+    let diagnostics = ExtractionDiagnostics {
+        page_word_count,
+        page_text_chars: page_text.chars().count(),
+        content_word_count,
+        content_text_chars: content_text.chars().count(),
+        content_word_ratio: content_word_count as f64 / page_word_count.max(1) as f64,
+        top_candidate_score: Some(top_score),
+        second_candidate_score: None,
+        score_spread: None,
+        top_candidate_link_density: None,
+        candidate_scores: Vec::new(),
+        removal_log: Vec::new(),
+        pass_history: Vec::new(),
+        selected_pass: None,
+        site_extractor: Some("site-config".to_string()),
+    };
+    let confidence = confidence_from_diagnostics(&diagnostics);
 
-    Ok(ExtractedContent { content: body_content, element_count, top_score })
+    Ok(ExtractedContent { content: body_content, element_count, top_score, confidence, diagnostics })
 }
 
 #[cfg(test)]

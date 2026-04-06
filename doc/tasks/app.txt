@@ -172,7 +172,7 @@ MILESTONE A: Algorithm Improvements
       https://norvig.com/21-days.html
       https://matklad.github.io/2024/03/22/basic-things.html
 
-[ ] Streaming markdown output
+[x] Streaming markdown output
     - Parse srcset width descriptors, select best image URL
     - Restructure link-wrapped block content (<a><h2>...</h2></a>)
     - Detect layout tables → extract content, not markdown table
@@ -197,7 +197,7 @@ MILESTONE A: Algorithm Improvements
       https://arstechnica.com/features/ (paginated features)
       https://www.foreignaffairs.com/ (gated multi-page essays)
 
-[ ] Extraction confidence scoring and diagnostics
+[x] Extraction confidence scoring and diagnostics
     - Return confidence score (0.0–1.0) with every extraction
     - Factors: content length, link density, scoring spread, retry pass,
       site-extractor match, word count vs page size ratio

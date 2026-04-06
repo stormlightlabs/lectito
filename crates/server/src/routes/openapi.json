@@ -276,6 +276,97 @@
           "favicon": { "type": ["string", "null"], "format": "uri" }
         }
       },
+      "CandidateScoreDiagnostic": {
+        "type": "object",
+        "required": [
+          "tag_name",
+          "text_chars",
+          "word_count",
+          "base_score",
+          "class_weight",
+          "content_density",
+          "link_density",
+          "final_score"
+        ],
+        "properties": {
+          "tag_name": { "type": "string" },
+          "class": { "type": ["string", "null"] },
+          "id": { "type": ["string", "null"] },
+          "text_chars": { "type": "integer", "minimum": 0 },
+          "word_count": { "type": "integer", "minimum": 0 },
+          "base_score": { "type": "number" },
+          "class_weight": { "type": "number" },
+          "content_density": { "type": "number" },
+          "link_density": { "type": "number", "minimum": 0 },
+          "final_score": { "type": "number" }
+        }
+      },
+      "RemovalLogEntry": {
+        "type": "object",
+        "required": ["reason", "tag_name", "text_chars"],
+        "properties": {
+          "reason": { "type": "string" },
+          "selector": { "type": ["string", "null"] },
+          "tag_name": { "type": "string" },
+          "attrs": { "type": ["string", "null"] },
+          "text_chars": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "ExtractionPassDiagnostic": {
+        "type": "object",
+        "required": [
+          "name",
+          "strategy",
+          "succeeded",
+          "word_count",
+          "min_score_threshold",
+          "remove_unlikely",
+          "remove_hidden",
+          "used_site_extractor"
+        ],
+        "properties": {
+          "name": { "type": "string" },
+          "strategy": { "type": "string" },
+          "succeeded": { "type": "boolean" },
+          "word_count": { "type": "integer", "minimum": 0 },
+          "top_score": { "type": ["number", "null"] },
+          "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "min_score_threshold": { "type": "number" },
+          "remove_unlikely": { "type": "boolean" },
+          "remove_hidden": { "type": "boolean" },
+          "used_site_extractor": { "type": "boolean" },
+          "error": { "type": ["string", "null"] }
+        }
+      },
+      "ExtractionDiagnostics": {
+        "type": "object",
+        "required": [
+          "page_word_count",
+          "page_text_chars",
+          "content_word_count",
+          "content_text_chars",
+          "content_word_ratio",
+          "candidate_scores",
+          "removal_log",
+          "pass_history"
+        ],
+        "properties": {
+          "page_word_count": { "type": "integer", "minimum": 0 },
+          "page_text_chars": { "type": "integer", "minimum": 0 },
+          "content_word_count": { "type": "integer", "minimum": 0 },
+          "content_text_chars": { "type": "integer", "minimum": 0 },
+          "content_word_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+          "top_candidate_score": { "type": ["number", "null"] },
+          "second_candidate_score": { "type": ["number", "null"] },
+          "score_spread": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "top_candidate_link_density": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "candidate_scores": { "type": "array", "items": { "$ref": "#/components/schemas/CandidateScoreDiagnostic" } },
+          "removal_log": { "type": "array", "items": { "$ref": "#/components/schemas/RemovalLogEntry" } },
+          "pass_history": { "type": "array", "items": { "$ref": "#/components/schemas/ExtractionPassDiagnostic" } },
+          "selected_pass": { "type": ["string", "null"] },
+          "site_extractor": { "type": ["string", "null"] }
+        }
+      },
       "ExtractRequest": {
         "type": "object",
         "required": ["url"],
@@ -298,13 +389,15 @@
       },
       "ExtractResponse": {
         "type": "object",
-        "required": ["url", "format", "content", "metadata", "cached", "extracted_at"],
+        "required": ["url", "format", "content", "metadata", "confidence", "cached", "extracted_at"],
         "properties": {
           "id": { "type": ["string", "null"], "format": "uuid" },
           "url": { "type": "string", "format": "uri" },
           "format": { "$ref": "#/components/schemas/ExtractFormat" },
           "content": { "type": "string" },
           "metadata": { "$ref": "#/components/schemas/CachedMetadata" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "diagnostics": { "anyOf": [{ "$ref": "#/components/schemas/ExtractionDiagnostics" }, { "type": "null" }] },
           "cached": { "type": "boolean" },
           "extracted_at": { "type": "string", "format": "date-time" }
         }

@@ -14,7 +14,9 @@ use lectito_core::formatters::{
     JsonConfig, MarkdownConfig, TextConfig, convert_to_json, convert_to_markdown, convert_to_text,
 };
 use lectito_core::parse::Document;
-use lectito_core::{FetchConfig, PostProcessConfig, Readability, ReadabilityConfig, fetch_url, postprocess_html};
+use lectito_core::{
+    ExtractionDiagnostics, FetchConfig, PostProcessConfig, Readability, ReadabilityConfig, fetch_url, postprocess_html,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::format_description::{self, well_known::Rfc3339};
@@ -117,6 +119,8 @@ struct ExtractResponse {
     format: CachedFormat,
     content: String,
     metadata: CachedMetadata,
+    confidence: f64,
+    diagnostics: Option<ExtractionDiagnostics>,
     cached: bool,
     extracted_at: String,
 }
@@ -233,6 +237,16 @@ struct AdminStatusResponse<'a> {
 struct ExtractedArticle {
     article: Article,
     metadata: CachedMetadata,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+struct CachedArticleRecord {
+    #[serde(flatten)]
+    metadata: CachedMetadata,
+    #[serde(default)]
+    confidence: Option<f64>,
+    #[serde(default)]
+    diagnostics: Option<ExtractionDiagnostics>,
 }
 
 async fn health(State(state): State<AppState>) -> impl IntoResponse {
@@ -436,13 +450,16 @@ async fn library_detail(
     let format = parse_cached_format(row.get::<_, String>("format").as_str())
         .ok_or_else(|| AppError::Internal("Stored article format is invalid".to_string()))?;
     let fetched_at = row.get::<_, OffsetDateTime>("fetched_at");
+    let record = parse_cached_article_record(row.get("metadata"));
 
     Ok(Json(ExtractResponse {
         id: Some(row.get("id")),
         url: row.get("url"),
         format,
         content: row.get("content"),
-        metadata: serde_json::from_value(row.get("metadata")).unwrap_or_default(),
+        metadata: record.metadata,
+        confidence: record.confidence.unwrap_or(0.0),
+        diagnostics: record.diagnostics,
         cached: true,
         extracted_at: fetched_at.format(&Rfc3339).unwrap_or_else(|_| fetched_at.to_string()),
     }))
@@ -528,6 +545,8 @@ async fn handle_extract(
             format: cached.format,
             content: cached.content,
             metadata: cached.metadata,
+            confidence: cached.confidence,
+            diagnostics: cached.diagnostics,
             cached: true,
             extracted_at: cached
                 .fetched_at
@@ -548,6 +567,8 @@ async fn handle_extract(
                 format,
                 content: content.clone(),
                 metadata: extracted.metadata.clone(),
+                confidence: extracted.article.confidence,
+                diagnostics: extracted.article.diagnostics.clone(),
                 fetched_at,
             },
             cache_key,
@@ -567,6 +588,8 @@ async fn handle_extract(
         format,
         content: content.clone(),
         metadata: extracted.metadata.clone(),
+        confidence: extracted.article.confidence,
+        diagnostics: extracted.article.diagnostics.clone(),
         cached: false,
         extracted_at: fetched_at.format(&Rfc3339).unwrap_or_else(|_| fetched_at.to_string()),
     };
@@ -585,6 +608,8 @@ async fn ensure_reader_cache_id(
             format: CachedFormat::Html,
             content: extracted.article.content.clone(),
             metadata: extracted.metadata.clone(),
+            confidence: extracted.article.confidence,
+            diagnostics: extracted.article.diagnostics.clone(),
             fetched_at,
         },
         cache::build_cache_key(normalized_url, CachedFormat::Html),
@@ -738,14 +763,19 @@ async fn read_cached_article(
         )
         .await
     {
-        Ok(Some(row)) => Some(CachedExtractedArticle {
-            id: row.get("id"),
-            url: row.get("url"),
-            format: parse_cached_format(row.get::<_, String>("format").as_str()).unwrap_or(format),
-            content: row.get("content"),
-            metadata: serde_json::from_value(row.get("metadata")).unwrap_or_default(),
-            fetched_at: row.get("fetched_at"),
-        }),
+        Ok(Some(row)) => {
+            let record = parse_cached_article_record(row.get("metadata"));
+            Some(CachedExtractedArticle {
+                id: row.get("id"),
+                url: row.get("url"),
+                format: parse_cached_format(row.get::<_, String>("format").as_str()).unwrap_or(format),
+                content: row.get("content"),
+                metadata: record.metadata,
+                confidence: record.confidence.unwrap_or(0.0),
+                diagnostics: record.diagnostics,
+                fetched_at: row.get("fetched_at"),
+            })
+        }
         Ok(None) => None,
         Err(err) => {
             warn!("cache read failed: {err}");
@@ -777,7 +807,12 @@ async fn execute_cache_upsert(
     client: &deadpool_postgres::Client, state: &AppState, article: &CachedExtractedArticle, cache_key: &[u8],
 ) -> Result<Uuid, tokio_postgres::Error> {
     let expires_at = article.fetched_at + time::Duration::seconds(state.config.cache_ttl_secs as i64);
-    let metadata_json = serde_json::to_value(&article.metadata).unwrap_or_default();
+    let metadata_json = serde_json::to_value(CachedArticleRecord {
+        metadata: article.metadata.clone(),
+        confidence: Some(article.confidence),
+        diagnostics: article.diagnostics.clone(),
+    })
+    .unwrap_or_default();
     let params: [&(dyn tokio_postgres::types::ToSql + Sync); 8] = [
         &article.id,
         &article.url,
@@ -866,7 +901,7 @@ fn trim_optional(value: Option<String>) -> Option<String> {
 fn library_item_from_row(row: &tokio_postgres::Row) -> LibraryItemResponse {
     let url = row.get::<_, String>("url");
     let format = parse_cached_format(row.get::<_, String>("format").as_str()).unwrap_or(CachedFormat::Markdown);
-    let metadata: CachedMetadata = serde_json::from_value(row.get("metadata")).unwrap_or_default();
+    let metadata = parse_cached_article_record(row.get("metadata")).metadata;
     let fetched_at = row.get::<_, OffsetDateTime>("fetched_at");
 
     LibraryItemResponse {
@@ -885,6 +920,14 @@ fn library_item_from_row(row: &tokio_postgres::Row) -> LibraryItemResponse {
         hit_count: row.get::<_, i32>("hit_count") as u64,
         fetched_at: fetched_at.format(&Rfc3339).unwrap_or_else(|_| fetched_at.to_string()),
     }
+}
+
+fn parse_cached_article_record(value: Value) -> CachedArticleRecord {
+    serde_json::from_value::<CachedArticleRecord>(value.clone()).unwrap_or_else(|_| CachedArticleRecord {
+        metadata: serde_json::from_value(value).unwrap_or_default(),
+        confidence: None,
+        diagnostics: None,
+    })
 }
 
 fn domain_from_url(url: &str) -> Option<String> {
@@ -1079,9 +1122,15 @@ mod tests {
     fn openapi_spec_includes_library_detail_path() {
         let spec = openapi_spec("0.1.0");
         let paths = spec.get("paths").and_then(Value::as_object).unwrap();
+        let extract_response = spec
+            .pointer("/components/schemas/ExtractResponse/properties")
+            .and_then(Value::as_object)
+            .unwrap();
 
         assert!(paths.contains_key("/api/v1/library"));
         assert!(paths.contains_key("/api/v1/library/{id}"));
         assert!(paths.contains_key("/api/v1/extract"));
+        assert!(extract_response.contains_key("confidence"));
+        assert!(extract_response.contains_key("diagnostics"));
     }
 }
