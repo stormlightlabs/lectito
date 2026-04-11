@@ -1,5 +1,6 @@
 //! CLI integration tests
 use predicates::prelude::*;
+use serde_json::Value;
 use tempfile::TempDir;
 
 fn cmd() -> assert_cmd::Command {
@@ -191,4 +192,26 @@ fn test_cli_references() {
         .assert()
         .success()
         .stdout(predicate::str::contains("##"));
+}
+
+#[test]
+fn test_cli_json_includes_markdown_and_extraction_summary() {
+    let assert = cmd()
+        .args(["-f", "json", &get_site_fixture_path("wikipedia", "article.html")])
+        .assert()
+        .success();
+
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("stdout should be valid utf-8");
+    let parsed: Value = serde_json::from_str(&stdout).expect("output should be valid JSON");
+
+    assert!(
+        parsed["content"]["markdown"]
+            .as_str()
+            .is_some_and(|value| !value.trim().is_empty()),
+        "expected JSON markdown content to be populated"
+    );
+    assert!(
+        parsed["extraction"]["confidence"].as_f64().is_some(),
+        "expected additive extraction confidence field"
+    );
 }

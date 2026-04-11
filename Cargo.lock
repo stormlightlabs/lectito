@@ -1433,6 +1433,7 @@ dependencies = [
  "lectito-core",
  "owo-colors",
  "predicates",
+ "serde_json",
  "tempfile",
  "tokio",
  "url",

@@ -14,6 +14,9 @@ pub struct JsonOutput {
     /// Optional references array
     #[serde(skip_serializing_if = "Option::is_none")]
     pub references: Option<Vec<JsonReference>>,
+    /// Optional extraction assessment details
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extraction: Option<JsonExtraction>,
 }
 
 /// Content in multiple formats
@@ -39,6 +42,25 @@ pub struct JsonReference {
     pub text: String,
     /// Link URL
     pub url: String,
+}
+
+/// Optional extraction diagnostics summary for JSON output.
+#[derive(Debug, Clone, Serialize)]
+pub struct JsonExtraction {
+    /// Extraction confidence score from 0.0 to 1.0.
+    pub confidence: f64,
+    /// Name of the selected extraction pass when available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selected_pass: Option<String>,
+    /// Matched site extractor, if extraction used a site-specific override.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub site_extractor: Option<String>,
+    /// Top candidate score from the winning pass.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_candidate_score: Option<f64>,
+    /// Ratio of extracted words to full page words.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_word_ratio: Option<f64>,
 }
 
 /// Configuration for JSON output
@@ -100,6 +122,14 @@ fn assign_indices(mut references: Vec<JsonReference>) -> Vec<JsonReference> {
 pub fn convert_to_json(
     html: &str, metadata: &Metadata, config: &JsonConfig, markdown_content: Option<&str>,
 ) -> Result<String> {
+    convert_to_json_with_extraction(html, metadata, config, markdown_content, None)
+}
+
+/// Convert content to JSON format with optional extraction assessment metadata.
+pub fn convert_to_json_with_extraction(
+    html: &str, metadata: &Metadata, config: &JsonConfig, markdown_content: Option<&str>,
+    extraction: Option<&JsonExtraction>,
+) -> Result<String> {
     let content = ContentFormats {
         markdown: if config.include_markdown { markdown_content.map(|s| s.to_string()) } else { None },
         text: if config.include_text { Some(html_to_text(html)) } else { None },
@@ -108,7 +138,7 @@ pub fn convert_to_json(
 
     let references = if config.include_references { Some(assign_indices(extract_links(html)?)) } else { None };
 
-    let output = JsonOutput { metadata: metadata.clone(), content, references };
+    let output = JsonOutput { metadata: metadata.clone(), content, references, extraction: extraction.cloned() };
 
     if config.pretty {
         Ok(serde_json::to_string_pretty(&output).map_err(|e| LectitoError::HtmlParseError(e.to_string()))?)
@@ -346,6 +376,33 @@ mod tests {
     }
 
     #[test]
+    fn test_convert_to_json_with_extraction_summary() {
+        let html = r#"<p>Test content</p>"#;
+        let metadata = Metadata::default();
+        let config = JsonConfig {
+            include_markdown: true,
+            include_text: true,
+            include_html: true,
+            include_references: false,
+            pretty: false,
+        };
+        let extraction = JsonExtraction {
+            confidence: 0.91,
+            selected_pass: Some("pass-0-default".to_string()),
+            site_extractor: None,
+            top_candidate_score: Some(42.0),
+            content_word_ratio: Some(0.56),
+        };
+
+        let json =
+            convert_to_json_with_extraction(html, &metadata, &config, Some("Test content"), Some(&extraction)).unwrap();
+
+        assert!(json.contains(r#""extraction":"#));
+        assert!(json.contains(r#""confidence":0.91"#));
+        assert!(json.contains(r#""selected_pass":"pass-0-default""#));
+    }
+
+    #[test]
     fn test_json_output_complete() {
         let metadata =
             Metadata { title: Some("Title".to_string()), language: Some("en".to_string()), ..Default::default() };
@@ -359,7 +416,7 @@ mod tests {
         let references =
             vec![JsonReference { index: 1, text: "Link".to_string(), url: "https://example.com".to_string() }];
 
-        let output = JsonOutput { metadata, content, references: Some(references) };
+        let output = JsonOutput { metadata, content, references: Some(references), extraction: None };
 
         let json = serde_json::to_string(&output).unwrap();
         assert!(json.contains(r#""metadata":"#));

@@ -13,10 +13,11 @@ pub fn escape_html(value: &str) -> String {
 
 pub fn strip_tags(value: &str) -> String {
     static TAG_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    TAG_RE
+    let stripped = TAG_RE
         .get_or_init(|| regex::Regex::new(r"<[^>]+>").unwrap())
         .replace_all(value, " ")
-        .to_string()
+        .to_string();
+    normalize_whitespace(&stripped)
 }
 
 fn is_cjk_character(ch: char) -> bool {

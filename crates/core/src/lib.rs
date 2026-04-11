@@ -140,8 +140,12 @@ pub use extract::{ExtractConfig, ExtractedContent};
 pub use extract::{extract_content, extract_content_with_config};
 pub use fetch::FetchConfig;
 pub use fetch::{fetch_file, fetch_stdin, fetch_url};
-pub use formatters::{JsonConfig, JsonFormatter, MarkdownConfig, MarkdownFormatter, TextConfig, TextFormatter};
-pub use formatters::{convert_to_json, convert_to_markdown, convert_to_text, metadata_to_json};
+pub use formatters::{
+    JsonConfig, JsonExtraction, JsonFormatter, MarkdownConfig, MarkdownFormatter, TextConfig, TextFormatter,
+};
+pub use formatters::{
+    convert_to_json, convert_to_json_with_extraction, convert_to_markdown, convert_to_text, metadata_to_json,
+};
 pub use metadata::Metadata;
 pub use parse::Document;
 #[doc(hidden)]

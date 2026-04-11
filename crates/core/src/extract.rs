@@ -1588,7 +1588,7 @@ pub fn extract_content_with_config(
 
 /// Extract content using explicit site configuration XPath expressions
 fn extract_with_site_config(
-    doc: &Document, site_config: &SiteConfig, _config: &ExtractConfig,
+    doc: &Document, site_config: &SiteConfig, config: &ExtractConfig,
 ) -> Result<ExtractedContent> {
     let html = doc.html().html();
     let body_content = site_config
@@ -1603,6 +1603,12 @@ fn extract_with_site_config(
     } else {
         body_content
     };
+
+    let mut postprocess_config = config.postprocess.clone();
+    if postprocess_config.base_url.is_none() {
+        postprocess_config.base_url = doc.base_url().cloned();
+    }
+    let body_content = postprocess_html(&body_content, &postprocess_config);
 
     // TODO: we should use this
     let _title = site_config.extract_title(&html)?.or_else(|| doc.title());

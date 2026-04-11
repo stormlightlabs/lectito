@@ -78,14 +78,24 @@ pub fn postprocess_html(html: &str, config: &PostProcessConfig) -> String {
         processed = rewrite_tables(&processed);
     }
 
-    processed = strip_unwanted_attributes(&processed, config.keep_classes);
-
     processed = remove_doc_chrome_nodes(&processed);
     processed = remove_doc_chrome_text_blocks(&processed);
 
     if config.remove_content_patterns {
-        processed = remove_content_patterns(&processed);
+        for _ in 0..2 {
+            let updated = remove_content_patterns(&processed);
+            if updated == processed {
+                break;
+            }
+            processed = updated;
+        }
     }
+
+    if let Some(patterns) = &config.strip_patterns {
+        processed = strip_patterns(&processed, patterns);
+    }
+
+    processed = strip_unwanted_attributes(&processed, config.keep_classes);
 
     if config.remove_empty_nodes {
         processed = remove_empty_nodes(&processed, config.max_empty_node_passes);
@@ -93,10 +103,6 @@ pub fn postprocess_html(html: &str, config: &PostProcessConfig) -> String {
 
     if config.remove_high_link_density {
         processed = remove_high_link_density_nodes(&processed, config.max_link_density);
-    }
-
-    if let Some(patterns) = &config.strip_patterns {
-        processed = strip_patterns(&processed, patterns);
     }
 
     if config.clean_nested_divs {
@@ -863,7 +869,7 @@ fn trailing_heading_regex() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
         Regex::new(
-            r"(?i)^(see also|references|notes|external links|further reading|bibliography|sources|citations|related (?:posts?|articles?|content|stories|reads?|reading)|you (?:might|may|could) (?:also )?(?:like|enjoy|be interested in)|read (?:next|more|also)|more (?:from|articles?|posts?|like this)|about (?:the )?author)$",
+            r"(?i)^(see also|references|notes|external links|further reading|bibliography|sources|citations|related(?: (?:posts?|articles?|content|stories|reads?|reading))?|you (?:might|may|could) (?:also )?(?:like|enjoy|be interested in)|read (?:next|more|also)|more (?:from|articles?|posts?|like this)|about (?:the )?author)[:：]?$",
         )
         .unwrap()
     })
@@ -877,6 +883,55 @@ fn boilerplate_regex() -> &'static Regex {
         )
         .unwrap()
     })
+}
+
+fn next_label_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| Regex::new(r"(?i)^(?:next|read\s+next)\s*[:：]").unwrap())
+}
+
+fn trailing_boilerplate_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(
+            r"(?i)(?:©\s*(?:copyright\s+)?\d{4}|all rights reserved|copyright\s+©?\s*\d{4}|privacy policy|terms of service)",
+        )
+        .unwrap()
+    })
+}
+
+fn newsletter_share_heading_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(
+            r"(?i)^(?:subscribe(?:\s+to)?(?:\s+\S+){0,8}|newsletter(?:\s+\S+){0,8}|share(?:\s+this)?(?:\s+\S+){0,8}|sign[- ]?up(?:\s+\S+){0,8})$",
+        )
+        .unwrap()
+    })
+}
+
+fn trailing_cta_regex() -> &'static Regex {
+    static REGEX: OnceLock<Regex> = OnceLock::new();
+    REGEX.get_or_init(|| {
+        Regex::new(
+            r"(?i)\b(?:visit\s+\S+\s+from\s+any\s+device|learn more about our mission|looking for a new career direction|open positions|get started with our free app|check out our open positions|follow us on)\b",
+        )
+        .unwrap()
+    })
+}
+
+fn strip_leading_wikipedia_banner(mut html: String) -> String {
+    let lower = html.to_lowercase();
+    if let Some(idx) = lower.find("from wikipedia, the free encyclopedia")
+        && idx <= 1600
+    {
+        static REGEX: OnceLock<Regex> = OnceLock::new();
+        let regex = REGEX.get_or_init(|| {
+            Regex::new(r"(?i)[\u{a0}\s]*from wikipedia(?:,\s*the free encyclopedia)?[\u{a0}\s]*").unwrap()
+        });
+        html = regex.replacen(&html, 1, " ").to_string();
+    }
+    html
 }
 
 fn title_word_count(text: &str) -> usize {
@@ -1026,6 +1081,7 @@ fn remove_content_patterns(html: &str) -> String {
     let mut snippets = Vec::new();
     let mut words_before = 0usize;
     let mut truncate_from: Option<String> = None;
+    let full_text_len = full_text.len();
 
     for child in &top_level {
         let text = utils::normalize_whitespace(&child.text());
@@ -1047,6 +1103,11 @@ fn remove_content_patterns(html: &str) -> String {
         }
 
         if words_before >= 8 && words <= 20 && boilerplate_regex().is_match(&text) {
+            truncate_from = Some(child.outer_html());
+            break;
+        }
+
+        if words_before >= 8 && words <= 45 && next_label_regex().is_match(&text) {
             truncate_from = Some(child.outer_html());
             break;
         }
@@ -1073,20 +1134,66 @@ fn remove_content_patterns(html: &str) -> String {
         }
     }
 
-    let candidate_selector = format!(
-        "{} p, {} div, {} span, {} time",
-        root_selector, root_selector, root_selector, root_selector
-    );
+    let candidate_selector = [
+        "p", "div", "span", "strong", "b", "time", "li", "td", "form", "section", "aside", "h2", "h3", "h4", "h5", "h6",
+    ]
+    .iter()
+    .map(|tag| format!("{root_selector} {tag}"))
+    .collect::<Vec<_>>()
+    .join(", ");
     for element in doc.select(&candidate_selector).unwrap_or_default() {
         let text = utils::normalize_whitespace(&element.text());
         let words = utils::count_words(&text);
-        if words == 0 || words > 15 {
+        if words == 0 || words > 140 {
             continue;
         }
-        if let Some(pos) = full_text.find(&text)
-            && is_boundary_metadata(&text, words, pos, full_text.len())
-        {
-            snippets.push(element.outer_html());
+
+        if let Some(pos) = full_text.find(&text) {
+            let chars_after = full_text_len.saturating_sub(pos + text.len());
+            let near_start = pos <= 900;
+            let near_end = chars_after <= 450;
+
+            if words <= 20 && is_boundary_metadata(&text, words, pos, full_text_len) {
+                snippets.push(element.outer_html());
+                continue;
+            }
+
+            if truncate_from.is_none() && near_end {
+                let words_before_marker = utils::count_words(&full_text[..pos]);
+                if words_before_marker >= 8
+                    && words <= 45
+                    && (next_label_regex().is_match(&text) || trailing_boilerplate_regex().is_match(&text))
+                {
+                    truncate_from = Some(element.outer_html());
+                    continue;
+                }
+
+                if words <= 120 && newsletter_regex().is_match(&text) {
+                    truncate_from = Some(element.outer_html());
+                    continue;
+                }
+
+                if words <= 80 && trailing_cta_regex().is_match(&text) {
+                    truncate_from = Some(element.outer_html());
+                    continue;
+                }
+
+                if words_before_marker >= 8 && words <= 6 && trailing_heading_regex().is_match(&text) {
+                    truncate_from = Some(element.outer_html());
+                    continue;
+                }
+            }
+
+            if truncate_from.is_none()
+                && matches!(element.tag_name().as_str(), "h2" | "h3" | "h4" | "h5" | "h6")
+                && near_end
+                && !near_start
+                && words <= 20
+                && newsletter_share_heading_regex().is_match(&text)
+            {
+                truncate_from = Some(element.outer_html());
+                continue;
+            }
         }
     }
 
@@ -1099,6 +1206,8 @@ fn remove_content_patterns(html: &str) -> String {
     {
         result.replace_range(start_idx..end_idx, "");
     }
+
+    result = strip_leading_wikipedia_banner(result);
 
     if let Ok(doc) = Document::parse(&result)
         && let Ok(elements) = doc.select(root_selector)
@@ -1760,5 +1869,126 @@ mod tests {
         let result = postprocess_html(html, &PostProcessConfig::default());
         assert!(result.contains("<math"));
         assert!(result.contains("data-latex=\"x^2 + y^2\""));
+    }
+
+    #[test]
+    fn test_remove_content_patterns_truncates_trailing_next_section() {
+        let html = r#"
+            <p>The article body opens with enough prose to establish context.</p>
+            <p>Another paragraph with meaningful detail and commentary.</p>
+            <p>Next: Why extraction quality matters for downstream indexing?</p>
+            <p>Copyright © 2026 Example Media</p>
+        "#;
+
+        let result = postprocess_html(html, &PostProcessConfig::default());
+        assert!(result.contains("article body opens"));
+        assert!(!result.contains("Next: Why extraction quality"));
+        assert!(!result.contains("Copyright © 2026"));
+    }
+
+    #[test]
+    fn test_remove_content_patterns_removes_nested_copyright_footer() {
+        let html = r#"
+            <section>
+                <p>Main content paragraph with substantial context.</p>
+                <p>Another paragraph that should remain in extracted output.</p>
+                <div>
+                    <div>
+                        <p>All rights reserved.</p>
+                        <p>Copyright © 2026 Example Company</p>
+                    </div>
+                </div>
+            </section>
+        "#;
+
+        let result = postprocess_html(html, &PostProcessConfig::default());
+        assert!(result.contains("Main content paragraph"));
+        assert!(!result.contains("All rights reserved"));
+        assert!(!result.contains("Copyright © 2026"));
+    }
+
+    #[test]
+    fn test_remove_content_patterns_removes_trailing_newsletter_form() {
+        let html = r#"
+            <section>
+                <p>Long-form article content with enough words to avoid fallback behavior.</p>
+                <p>This second paragraph ensures there is substantial content before cleanup.</p>
+            </section>
+            <section>
+                <h2>Subscribe to our editorial newsletter</h2>
+                <form>
+                    <label>Email</label>
+                    <input type="email" />
+                    <button type="submit">Subscribe</button>
+                </form>
+            </section>
+        "#;
+
+        let result = postprocess_html(html, &PostProcessConfig::default());
+        assert!(result.contains("Long-form article content"));
+        assert!(!result.contains("Subscribe to our editorial newsletter"));
+    }
+
+    #[test]
+    fn test_remove_content_patterns_strips_leading_wikipedia_banner_literal() {
+        let html = r#"
+            From Wikipedia, the free encyclopedia
+            <p>Rust is a systems programming language focused on safety.</p>
+            <p>It avoids memory bugs without garbage collection.</p>
+        "#;
+
+        let result = postprocess_html(html, &PostProcessConfig::default());
+        assert!(result.contains("Rust is a systems programming language"));
+        assert!(!result.to_lowercase().contains("from wikipedia, the free encyclopedia"));
+    }
+
+    #[test]
+    fn test_remove_content_patterns_truncates_trailing_related_heading() {
+        let html = r#"
+            <p>The article body contains meaningful content and analysis.</p>
+            <p>Another paragraph with enough substance to represent the core body.</p>
+            <h2>Related:</h2>
+            <ul><li><a href="/next">Another post</a></li></ul>
+        "#;
+
+        let result = postprocess_html(html, &PostProcessConfig::default());
+        assert!(result.contains("article body contains meaningful content"));
+        assert!(!result.contains("Related:"));
+        assert!(!result.contains("Another post"));
+    }
+
+    #[test]
+    fn test_remove_content_patterns_truncates_trailing_related_marker_in_inline_element() {
+        let html = r#"
+            <p>Main body paragraph with substantial context and details.</p>
+            <p>Additional body paragraph that should remain intact.</p>
+            <p><strong>Related:</strong></p>
+            <p><a href="/next">Another post</a></p>
+        "#;
+
+        let result = postprocess_html(html, &PostProcessConfig::default());
+        assert!(result.contains("Main body paragraph"));
+        assert!(!result.contains("Related:"));
+        assert!(!result.contains("Another post"));
+    }
+
+    #[test]
+    fn test_remove_content_patterns_truncates_trailing_link_heavy_tag_block() {
+        let html = r#"
+            <p>Main article paragraph with enough context to survive cleanup.</p>
+            <p>Second paragraph keeps the content window substantial for scoring.</p>
+            <p>Visit https://example.com from any device to get started with our free app.</p>
+            <p>
+                <a href="/tag/news">News</a>
+                <a href="/tag/ai">AI</a>
+                <a href="/tag/cloud">Cloud</a>
+                <a href="/tag/dev">Developers</a>
+            </p>
+        "#;
+
+        let result = postprocess_html(html, &PostProcessConfig::default());
+        assert!(result.contains("Main article paragraph"));
+        assert!(!result.contains("from any device"));
+        assert!(!result.contains("/tag/news"));
     }
 }

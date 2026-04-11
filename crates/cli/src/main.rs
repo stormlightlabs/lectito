@@ -3,7 +3,8 @@ use clap::{CommandFactory, Parser, ValueEnum};
 use clap_complete::{generate, shells::Bash, shells::Fish, shells::PowerShell, shells::Zsh};
 use lectito_cli::echo;
 use lectito_core::article::Article;
-use lectito_core::formatters::{JsonConfig, convert_to_json, metadata_to_json, metadata_to_toml};
+use lectito_core::formatters::{JsonConfig, JsonExtraction};
+use lectito_core::formatters::{convert_to_json_with_extraction, metadata_to_json, metadata_to_toml};
 use lectito_core::siteconfig::{SiteConfig, SiteConfigProcessing};
 use lectito_core::{Document, ExtractConfig, FetchConfig, MarkdownConfig, PostProcessConfig};
 use lectito_core::{Readability, ReadabilityConfig};
@@ -224,6 +225,36 @@ fn build_readability_config(args: &Args) -> ReadabilityConfig {
         .build()
 }
 
+fn build_extraction_summary(
+    confidence: f64, diagnostics: Option<&lectito_core::ExtractionDiagnostics>,
+) -> JsonExtraction {
+    JsonExtraction {
+        confidence,
+        selected_pass: diagnostics.and_then(|value| value.selected_pass.clone()),
+        site_extractor: diagnostics.and_then(|value| value.site_extractor.clone()),
+        top_candidate_score: diagnostics.and_then(|value| value.top_candidate_score),
+        content_word_ratio: diagnostics.map(|value| value.content_word_ratio),
+    }
+}
+
+fn render_json_output(
+    html: &str, metadata: &lectito_core::Metadata, include_references: bool, strip_images: bool,
+    extraction: Option<&JsonExtraction>,
+) -> anyhow::Result<String> {
+    let markdown = convert_to_markdown(
+        html,
+        metadata,
+        &MarkdownConfig { include_frontmatter: false, include_references, strip_images, include_title_heading: true },
+    )
+    .context("Failed to convert content to Markdown for JSON output")?;
+
+    let config =
+        JsonConfig { include_markdown: true, include_text: true, include_html: true, include_references, pretty: true };
+
+    convert_to_json_with_extraction(html, metadata, &config, Some(&markdown), extraction)
+        .context("Failed to convert to JSON")
+}
+
 async fn fetch_article_from_url(args: &Args, input: &str) -> anyhow::Result<Article> {
     let loader = build_config_loader(args);
     let reader = Readability::with_config_and_loader(build_readability_config(args), loader);
@@ -367,27 +398,26 @@ async fn main() -> anyhow::Result<()> {
             OutputFormat::Html => article.content.clone(),
             OutputFormat::Text => article.to_text(),
             OutputFormat::Json => {
-                let config = JsonConfig {
-                    include_markdown: true,
-                    include_text: true,
-                    include_html: true,
-                    include_references: args.references,
-                    pretty: true,
-                };
-                convert_to_json(&article.content, &article.metadata, &config, None)
-                    .context("Failed to convert to JSON")?
+                let extraction = build_extraction_summary(article.confidence, article.diagnostics.as_ref());
+                render_json_output(
+                    &article.content,
+                    &article.metadata,
+                    args.references,
+                    args.no_images,
+                    Some(&extraction),
+                )?
             }
         };
 
         let output = if args.json {
-            let config = JsonConfig {
-                include_markdown: true,
-                include_text: true,
-                include_html: true,
-                include_references: args.references,
-                pretty: true,
-            };
-            convert_to_json(&article.content, &article.metadata, &config, None).context("Failed to convert to JSON")?
+            let extraction = build_extraction_summary(article.confidence, article.diagnostics.as_ref());
+            render_json_output(
+                &article.content,
+                &article.metadata,
+                args.references,
+                args.no_images,
+                Some(&extraction),
+            )?
         } else {
             output
         };
@@ -516,26 +546,26 @@ async fn main() -> anyhow::Result<()> {
             doc.text_content()
         }
         OutputFormat::Json => {
-            let config = JsonConfig {
-                include_markdown: true,
-                include_text: true,
-                include_html: true,
-                include_references: args.references,
-                pretty: true,
-            };
-            convert_to_json(&extracted.content, &metadata, &config, None).context("Failed to convert to JSON")?
+            let extraction = build_extraction_summary(extracted.confidence, Some(&extracted.diagnostics));
+            render_json_output(
+                &extracted.content,
+                &metadata,
+                args.references,
+                args.no_images,
+                Some(&extraction),
+            )?
         }
     };
 
     let output = if args.json {
-        let config = JsonConfig {
-            include_markdown: true,
-            include_text: true,
-            include_html: true,
-            include_references: args.references,
-            pretty: true,
-        };
-        convert_to_json(&extracted.content, &metadata, &config, None).context("Failed to convert to JSON")?
+        let extraction = build_extraction_summary(extracted.confidence, Some(&extracted.diagnostics));
+        render_json_output(
+            &extracted.content,
+            &metadata,
+            args.references,
+            args.no_images,
+            Some(&extraction),
+        )?
     } else {
         output
     };
