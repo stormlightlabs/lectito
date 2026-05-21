@@ -1,38 +1,14 @@
 # To-Dos
 
-## Repository Replacement
-
-Context: this rewrite should eventually replace `stormlightlabs/lectito` as a
-focused parser/extractor project. The old hosted API and web app are not part of
-the important product surface; the core extractor/parser, CLI, fixtures, and
-docs are.
-
-### Drop Or Archive Legacy Surfaces
-
-- Remove or archive the old API/server workspace pieces from the GitHub project.
-- Remove or archive the old web application from the GitHub project.
-- Remove public documentation that describes hosted API behavior as a supported product.
-- Keep replacement scope centered on `lectito-core`, `lectito-cli`, fixtures, and mdBook docs.
-
-### Public API Reset
-
-- Document the new public API around `extract`, `extract_with_diagnostics`, `is_probably_readable`, `Article`, `ReadabilityOptions`, and `ReadableOptions`.
-- Do not add compatibility shims for the old `parse`, `Readability`, or builder-style API.
-- Keep internal scoring, cleanup, recovery, and serialization modules private unless there is a concrete consumer need.
-
-### Markdown First-Class Output
-
-- Treat Markdown as a core output beside cleaned HTML and plain text.
-- Ensure `Article` documentation clearly explains `content`, `markdown`, `text_content`, metadata, and length fields.
-- Make CLI examples show Markdown output directly.
-- Keep Markdown conversion behavior covered by golden tests for headings, links, images, tables, code, math, footnotes, and frontmatter.
-
-### Release Preparation
+## Release Preparation
 
 - Update package metadata for the replacement repository.
-- Keep MPL-2.0 as the project license.
-- Add CI for formatting, tests, and linting before takeover.
-- Write a changelog entry explaining that the project was rewritten around the core extractor/parser and that the old hosted API/web app are no longer supported surfaces.
+- Add CI for formatting, tests, and linting.
+- Write a changelog entry explaining that the project was rewritten around the
+  core extractor/parser and that the old hosted API/web app are no longer supported
+  surfaces.
+- Keep Markdown conversion behavior covered by golden tests for headings, links,
+  images, tables, code, math, footnotes, and frontmatter.
 
 ## Extraction Quality
 
