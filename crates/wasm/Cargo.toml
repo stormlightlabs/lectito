@@ -1,0 +1,12 @@
+[package]
+name = "lectito-wasm"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+lectito-core = { path = "../core" }

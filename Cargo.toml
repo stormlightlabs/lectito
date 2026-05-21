@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/cli", "crates/core", "crates/fixtures"]
+members = ["crates/cli", "crates/core", "crates/fixtures", "crates/wasm"]
 
 [workspace.package]
 license = "MPL-2.0"
