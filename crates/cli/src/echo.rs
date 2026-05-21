@@ -28,7 +28,7 @@ pub fn diagnostics(diagnostics: &ExtractionDiagnostics, format: DiagnosticFormat
             );
         }
         DiagnosticFormat::Pretty => {
-            eprintln!("{}", "readability diagnostics".bold().blue());
+            eprintln!("{}", "lectito diagnostics".bold().blue());
             eprintln!("{} {:?}", "outcome:".bold(), diagnostics.outcome);
             if let Some(selector) = &diagnostics.content_selector {
                 let status =

@@ -12,7 +12,7 @@ mod fetch;
 mod fixtures;
 
 #[derive(Debug, Parser)]
-#[command(name = "readability")]
+#[command(name = "lectito")]
 #[command(about = "Extract and inspect readable article content")]
 struct Cli {
     #[command(subcommand)]
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn parse_accepts_short_input_path() {
-        let cli = Cli::try_parse_from(["readability", "parse", "-i", "article.html", "--format", "markdown"])
+        let cli = Cli::try_parse_from(["lectito", "parse", "-i", "article.html", "--format", "markdown"])
             .expect("parse args should accept -i input");
 
         let Command::Parse(args) = cli.command else {

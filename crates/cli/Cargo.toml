@@ -5,7 +5,7 @@ edition = "2024"
 license.workspace = true
 
 [[bin]]
-name = "readability"
+name = "lectito"
 path = "src/main.rs"
 
 [dependencies]
