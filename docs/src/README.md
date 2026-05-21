@@ -28,7 +28,7 @@ archives.
 ## Main APIs
 
 ```rust
-use lectito_core::{extract, ReadabilityOptions};
+use lectito::{extract, ReadabilityOptions};
 
 let html = r#"<article><h1>Title</h1><p>Article text.</p></article>"#;
 let article = extract(html, Some("https://example.com/post"), &ReadabilityOptions::default())?;
@@ -36,7 +36,7 @@ let article = extract(html, Some("https://example.com/post"), &ReadabilityOption
 if let Some(article) = article {
     println!("{}", article.markdown);
 }
-# Ok::<(), lectito_core::Error>(())
+# Ok::<(), lectito::Error>(())
 ```
 
 Use `extract_with_diagnostics` when tuning extraction or debugging a bad page.

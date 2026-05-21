@@ -22,5 +22,7 @@
 # Reference
 
 - [API Overview](reference/api-overview.md)
+- [Rust Crate API](reference/crate-api.md)
+- [WASM API](reference/wasm-api.md)
 - [Article](reference/article.md)
 - [Options](reference/options.md)

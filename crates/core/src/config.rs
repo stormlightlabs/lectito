@@ -1,6 +1,6 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ReadabilityOptions {
     pub max_elems_to_parse: Option<usize>,
     pub nb_top_candidates: usize,
@@ -29,7 +29,7 @@ impl Default for ReadabilityOptions {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ReadableOptions {
     pub min_content_length: usize,
     pub min_score: f32,
@@ -41,7 +41,21 @@ impl Default for ReadableOptions {
     }
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct MarkdownOptions {
+    pub gfm: bool,
+    pub footnotes: bool,
+    pub math: bool,
+    pub allow_raw_html: bool,
+}
+
+impl Default for MarkdownOptions {
+    fn default() -> Self {
+        Self { gfm: true, footnotes: true, math: true, allow_raw_html: false }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Article {
     pub title: Option<String>,
     pub byline: Option<String>,

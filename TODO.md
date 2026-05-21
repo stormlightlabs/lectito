@@ -12,34 +12,14 @@
 
 ## Public API And WASM
 
-- Rename the public Rust library package from `lectito-core` to `lectito`.
-- Keep the installed CLI binary name `lectito`; consider `lec` only as an
-  optional alias.
-- Add core APIs:
-  - `markdown_to_html(markdown, options)`
-  - `MarkdownOptions`
-  - `clean_article_html(html, base_url, options)`
 - Keep `sanitize_html` out of core unless the project adopts a real sanitizer
   policy. Browser examples should recommend DOMPurify or similar before
   rendering arbitrary HTML.
-- Add `lectito-wasm` at `crates/wasm` with `wasm-bindgen` exports for:
-  - `extract`
-  - `extractWithDiagnostics`
-  - `isProbablyReadable`
-  - `cleanHtml`
-  - `htmlToMarkdown`
-  - `markdownToHtml`
-- Add `serde-wasm-bindgen`, `console_error_panic_hook`, and `wasm-bindgen-test`
-  when the exports are implemented.
-- Use camelCase JS fields and map them to Rust structs internally.
-- Add Rust wrapper DTOs or serde derives for options, articles, and diagnostics
-  as needed by WASM.
 - Add a browser example with dual-pane CodeMirror input and the pipeline:
   HTML input -> DOMPurify sanitize -> Lectito cleanup -> Markdown output.
 - Include example controls for base URL, content selector, char threshold, and
   class preservation.
 - Add WASM smoke tests for extraction, HTML-to-Markdown, and Markdown-to-HTML.
-- Add npm package metadata once naming and distribution are settled.
 - Measure release package size after adding real exports.
 
 ## Extraction Quality

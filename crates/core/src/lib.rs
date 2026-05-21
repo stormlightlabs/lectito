@@ -14,12 +14,12 @@ mod recovery;
 mod scoring;
 mod serialize;
 
-pub use config::{Article, ReadabilityOptions, ReadableOptions};
+pub use config::{Article, MarkdownOptions, ReadabilityOptions, ReadableOptions};
 pub use diagnostics::{
     AttemptDiagnostic, CandidateDiagnostic, CandidateSelection, CleanupDiagnostic, ContentSelectorDiagnostic,
     ExtractionDiagnostics, ExtractionOutcome, ExtractionReport, FlagDiagnostic, NodeDiagnostic, RecoveryDiagnostic,
 };
 pub use error::Error;
-pub use extract::{extract, extract_with_diagnostics};
-pub use markdown::{html_to_markdown, markdown_with_toml_frontmatter};
+pub use extract::{clean_article_html, extract, extract_with_diagnostics};
+pub use markdown::{html_to_markdown, markdown_to_html, markdown_with_toml_frontmatter};
 pub use readable::is_probably_readable;

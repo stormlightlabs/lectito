@@ -7,9 +7,9 @@ URL, and `ReadabilityOptions`. The base URL lets Lectito resolve relative links,
 images, and metadata URLs in the extracted output.
 
 ```rust
-use lectito_core::{extract, ReadabilityOptions};
+use lectito::{extract, ReadabilityOptions};
 
-fn main() -> Result<(), lectito_core::Error> {
+fn main() -> Result<(), lectito::Error> {
     let html = r#"
         <html>
           <head><title>Example</title></head>
@@ -43,10 +43,10 @@ Use `is_probably_readable` when you only need to decide whether a page is worth
 running through full extraction. It is faster and returns a boolean.
 
 ```rust
-use lectito_core::{is_probably_readable, ReadableOptions};
+use lectito::{is_probably_readable, ReadableOptions};
 
 let readable = is_probably_readable(html, &ReadableOptions::default())?;
-# Ok::<(), lectito_core::Error>(())
+# Ok::<(), lectito::Error>(())
 ```
 
 ## CLI

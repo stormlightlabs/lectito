@@ -29,13 +29,13 @@ wasm-pack build crates/wasm --target web
 wasm-pack build crates/wasm --target nodejs
 ```
 
-Planned dependencies:
+Key dependencies:
 
 - `wasm-bindgen` for JavaScript bindings.
 - `serde-wasm-bindgen` for structured option/result conversion.
 - `console_error_panic_hook` for useful browser panic diagnostics in debug
   builds.
-- `lectito` as the core Rust library crate once the core package is renamed.
+- `lectito` as the core Rust library crate.
 
 ## Proposed JavaScript API
 
@@ -64,9 +64,7 @@ export interface MarkdownOptions {
   allowRawHtml?: boolean;
 }
 
-export interface CleanHtmlOptions extends ReadabilityOptions {
-  sanitize?: boolean;
-}
+export type CleanHtmlOptions = ReadabilityOptions;
 
 export interface Article {
   title?: string;
@@ -106,7 +104,7 @@ export function cleanHtml(
   html: string,
   baseUrl?: string | null,
   options?: CleanHtmlOptions,
-): string;
+): string | null;
 
 export function htmlToMarkdown(html: string): string;
 
@@ -116,14 +114,10 @@ export function markdownToHtml(
 ): string;
 ```
 
-`cleanHtml` should be explicit about its behavior:
-
-- If `sanitize` is `false` or omitted, it returns Lectito's cleaned article
-  HTML, which is optimized for readable content extraction.
-- If `sanitize` is `true`, the implementation must use a real sanitizer policy
-  before returning HTML. That can be implemented in Rust or documented as a
-  caller-provided JavaScript sanitizer, but it should not be implied by article
-  cleanup alone.
+`cleanHtml` returns Lectito's cleaned article HTML, which is optimized for
+readable content extraction. It does not sanitize arbitrary HTML. Browser apps
+should run DOMPurify or a similar sanitizer before calling `cleanHtml`, and
+again before rendering any returned HTML if the original input is untrusted.
 
 Errors should throw JavaScript `Error` objects for invalid base URLs, oversized
 documents, serialization failures, and option conversion failures.
@@ -138,7 +132,7 @@ crates/wasm/examples/codemirror-cleanup/
 
 The example should:
 
-- Use CodeMirror for an HTML input editor.
+- Use a dual-pane CodeMirror layout for HTML input and generated output.
 - Run an explicit sanitize step.
 - Run Lectito cleanup/extraction on the sanitized HTML.
 - Render three synchronized outputs:

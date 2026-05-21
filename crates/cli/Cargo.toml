@@ -12,7 +12,7 @@ path = "src/main.rs"
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 lectito-fixtures = { path = "../fixtures" }
-lectito-core = { path = "../core" }
+lectito = { path = "../core" }
 owo-colors = "4.2"
 reqwest = { version = "0.13.3", features = ["blocking"] }
 scraper.workspace = true

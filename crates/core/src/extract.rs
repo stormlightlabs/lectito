@@ -19,6 +19,12 @@ pub fn extract(html: &str, base_url: Option<&str>, options: &ReadabilityOptions)
     Ok(extract_with_diagnostics(html, base_url, options)?.article)
 }
 
+pub fn clean_article_html(
+    html: &str, base_url: Option<&str>, options: &ReadabilityOptions,
+) -> Result<Option<String>, Error> {
+    Ok(extract(html, base_url, options)?.map(|article| article.content))
+}
+
 pub fn extract_with_diagnostics(
     html: &str, base_url: Option<&str>, options: &ReadabilityOptions,
 ) -> Result<ExtractionReport, Error> {

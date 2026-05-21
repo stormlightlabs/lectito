@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 use clap::Args;
 
-use lectito_core::is_probably_readable;
-use lectito_core::{Article, ReadabilityOptions, ReadableOptions, extract};
+use lectito::is_probably_readable;
+use lectito::{Article, ReadabilityOptions, ReadableOptions, extract};
 
 #[derive(Debug, Args)]
 pub struct FixtureArgs {

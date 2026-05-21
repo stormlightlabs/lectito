@@ -6,18 +6,18 @@ scripts, and quick conversions.
 
 ## Library
 
-Add `lectito-core` to your Rust project:
+Add `lectito` to your Rust project:
 
 ```toml
 [dependencies]
-lectito-core = "0.1"
+lectito = "0.1"
 ```
 
 For local development against this workspace:
 
 ```toml
 [dependencies]
-lectito-core = { path = "crates/core" }
+lectito = { path = "crates/core" }
 ```
 
 The core crate has no runtime service requirement. It parses the string you

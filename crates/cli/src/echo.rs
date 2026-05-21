@@ -1,5 +1,5 @@
-use lectito_core::markdown_with_toml_frontmatter;
-use lectito_core::{Article, ExtractionDiagnostics};
+use lectito::markdown_with_toml_frontmatter;
+use lectito::{Article, ExtractionDiagnostics};
 
 use anyhow::Context;
 use clap::ValueEnum;

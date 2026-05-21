@@ -2,8 +2,8 @@ use anyhow::Context;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use lectito_core::{ReadabilityOptions, ReadableOptions};
-use lectito_core::{extract_with_diagnostics, is_probably_readable};
+use lectito::{ReadabilityOptions, ReadableOptions};
+use lectito::{extract_with_diagnostics, is_probably_readable};
 
 use clap::{Args, Parser, Subcommand};
 

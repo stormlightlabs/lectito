@@ -7,7 +7,7 @@ which candidates were considered, which root was selected, and why an extraction
 was accepted or downgraded to a best attempt.
 
 ```rust
-use lectito_core::{extract_with_diagnostics, ReadabilityOptions};
+use lectito::{extract_with_diagnostics, ReadabilityOptions};
 
 let report = extract_with_diagnostics(html, base_url, &ReadabilityOptions::default())?;
 println!("{:?}", report.diagnostics.outcome);

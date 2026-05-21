@@ -7,7 +7,7 @@ usually cleaner in applications because networking, caching, cookies, and
 browser rendering are application concerns.
 
 ```rust
-use lectito_core::{extract, ReadabilityOptions};
+use lectito::{extract, ReadabilityOptions};
 
 let options = ReadabilityOptions::default();
 let article = extract(html, Some("https://example.com/post"), &options)?;
@@ -16,7 +16,7 @@ match article {
     Some(article) => println!("{}", article.text_content),
     None => eprintln!("no article content found"),
 }
-# Ok::<(), lectito_core::Error>(())
+# Ok::<(), lectito::Error>(())
 ```
 
 The base URL is optional. Pass it when the document contains relative links,
@@ -43,7 +43,7 @@ Diagnostics are meant for development and regression work. Most application code
 should call `extract`.
 
 ```rust
-use lectito_core::{extract_with_diagnostics, ReadabilityOptions};
+use lectito::{extract_with_diagnostics, ReadabilityOptions};
 
 let report = extract_with_diagnostics(html, base_url, &ReadabilityOptions::default())?;
 
@@ -53,5 +53,5 @@ if let Some(article) = report.article {
 
 eprintln!("{:?}", report.diagnostics.outcome);
 
-# Ok::<(), lectito_core::Error>(())
+# Ok::<(), lectito::Error>(())
 ```

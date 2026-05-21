@@ -7,7 +7,7 @@ useful and avoid exposing internal scoring knobs unless they affect common
 integration cases.
 
 ```rust
-use lectito_core::ReadabilityOptions;
+use lectito::ReadabilityOptions;
 
 let options = ReadabilityOptions {
     char_threshold: 800,
@@ -43,7 +43,7 @@ Lower `min_content_length` for short posts or documentation pages. Raise
 `min_score` when you want the quick check to reject borderline pages.
 
 ```rust
-use lectito_core::ReadableOptions;
+use lectito::ReadableOptions;
 
 let options = ReadableOptions {
     min_content_length: 140,

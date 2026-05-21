@@ -7,10 +7,13 @@ mod tables;
 
 pub use frontmatter::markdown_with_toml_frontmatter;
 
+use comrak::markdown_to_html as comrak_markdown_to_html;
 use comrak::{Arena, Options};
 use comrak::{escape_commonmark_link_destination, format_commonmark, parse_document};
 use kuchiki::NodeRef;
 use kuchiki::traits::TendrilSink;
+
+use crate::MarkdownOptions;
 
 use super::{dom, patterns, serialize};
 
@@ -25,6 +28,36 @@ pub fn html_to_markdown(html: &str) -> String {
     output.push_str(&footnotes.render_definitions());
     output = normalize_markdown(&output);
     format_with_comrak(&output)
+}
+
+pub fn markdown_to_html(markdown: &str, options: &MarkdownOptions) -> String {
+    comrak_markdown_to_html(markdown, &comrak_options(options))
+}
+
+fn comrak_options(options: &MarkdownOptions) -> Options<'static> {
+    let mut comrak = Options::default();
+
+    if options.gfm {
+        comrak.extension.autolink = true;
+        comrak.extension.strikethrough = true;
+        comrak.extension.table = true;
+        comrak.extension.tagfilter = true;
+        comrak.extension.tasklist = true;
+        comrak.parse.tasklist_in_table = true;
+    }
+
+    if options.footnotes {
+        comrak.extension.footnotes = true;
+        comrak.extension.inline_footnotes = true;
+    }
+
+    if options.math {
+        comrak.extension.math_code = true;
+        comrak.extension.math_dollars = true;
+    }
+
+    comrak.render.r#unsafe = options.allow_raw_html;
+    comrak
 }
 
 #[derive(Clone, Copy)]
@@ -204,8 +237,8 @@ fn format_with_comrak(markdown: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::html_to_markdown;
-    use crate::{ReadabilityOptions, extract};
+    use super::{html_to_markdown, markdown_to_html};
+    use crate::{MarkdownOptions, ReadabilityOptions, extract};
 
     #[test]
     fn converts_representative_article_html() {
@@ -229,6 +262,36 @@ mod tests {
         assert!(markdown.contains("| --- | --- |"));
         assert!(markdown.contains(r"| A | x\|y |"));
         assert!(markdown.contains("| B | [z](https://example.com) |"));
+    }
+
+    #[test]
+    fn renders_gfm_markdown_to_html_by_default() {
+        let html = markdown_to_html(
+            "| Done | Item |\n| --- | --- |\n| yes | ~~ship it~~ |\n\n- [x] publish\n",
+            &MarkdownOptions::default(),
+        );
+
+        assert!(html.contains("<table>"), "{html}");
+        assert!(html.contains("type=\"checkbox\""), "{html}");
+        assert!(html.contains("<del>ship it</del>"), "{html}");
+    }
+
+    #[test]
+    fn omits_raw_html_when_markdown_html_is_not_allowed() {
+        let html = markdown_to_html("<script>alert(1)</script>\n", &MarkdownOptions::default());
+
+        assert!(!html.contains("<script>"), "{html}");
+        assert!(html.contains("raw HTML omitted"), "{html}");
+    }
+
+    #[test]
+    fn allows_raw_html_when_configured() {
+        let html = markdown_to_html(
+            "<span data-x=\"1\">ok</span>\n",
+            &MarkdownOptions { allow_raw_html: true, ..MarkdownOptions::default() },
+        );
+
+        assert!(html.contains("<span data-x=\"1\">ok</span>"), "{html}");
     }
 
     #[test]
