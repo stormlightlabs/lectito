@@ -79,10 +79,10 @@ fn find_json_ld_article(value: &Value) -> Option<&Value> {
     match value {
         Value::Array(items) => items.iter().find_map(find_json_ld_article),
         Value::Object(map) => {
-            if let Some(graph) = map.get("@graph").and_then(Value::as_array) {
-                if let Some(article) = graph.iter().find_map(find_json_ld_article) {
-                    return Some(article);
-                }
+            if let Some(graph) = map.get("@graph").and_then(Value::as_array)
+                && let Some(article) = graph.iter().find_map(find_json_ld_article)
+            {
+                return Some(article);
             }
 
             if map.get("@type").is_some_and(json_ld_type_is_article) { Some(value) } else { None }

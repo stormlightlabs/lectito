@@ -80,10 +80,10 @@ pub(super) fn render_embed(node: &NodeRef) -> Option<String> {
         }
     } else {
         for attr in ["src", "data-src", "data", "href"] {
-            if let Some(url) = dom::attr(node, attr) {
-                if let Some(embed) = normalize_embed_url(&url) {
-                    embed_url = Some(embed)
-                }
+            if let Some(url) = dom::attr(node, attr)
+                && let Some(embed) = normalize_embed_url(&url)
+            {
+                embed_url = Some(embed)
             }
         }
     }
@@ -159,10 +159,10 @@ fn parse_srcset(srcset: &str) -> Vec<ImageCandidate> {
             current.clear();
         }
     }
-    if !current.trim().is_empty() {
-        if let Some(candidate) = srcset.get(start..) {
-            candidates.push(candidate.trim());
-        }
+    if !current.trim().is_empty()
+        && let Some(candidate) = srcset.get(start..)
+    {
+        candidates.push(candidate.trim());
     }
 
     candidates
@@ -243,31 +243,27 @@ fn normalize_embed_url(url: &str) -> Option<String> {
         }
     }
     if host.ends_with("youtube.com") || host.ends_with("youtube-nocookie.com") {
-        if parsed.path() == "/watch" {
-            if let Some(id) = parsed
+        if parsed.path() == "/watch"
+            && let Some(id) = parsed
                 .query_pairs()
                 .find(|(name, _)| name == "v")
                 .map(|(_, value)| value)
-            {
-                return Some(format!("https://www.youtube.com/watch?v={id}"));
-            }
+        {
+            return Some(format!("https://www.youtube.com/watch?v={id}"));
         }
         for prefix in ["/embed/", "/shorts/"] {
             if let Some(id) = parsed
                 .path()
                 .strip_prefix(prefix)
                 .and_then(|path| path.split('/').next())
+                && !id.is_empty()
             {
-                if !id.is_empty() {
-                    return Some(format!("https://www.youtube.com/watch?v={id}"));
-                }
+                return Some(format!("https://www.youtube.com/watch?v={id}"));
             }
         }
     }
-    if host.ends_with("twitter.com") || host.ends_with("x.com") {
-        if parsed.path().contains("/status/") {
-            return Some(url.to_string());
-        }
+    if (host.ends_with("twitter.com") || host.ends_with("x.com")) && parsed.path().contains("/status/") {
+        return Some(url.to_string());
     }
     None
 }

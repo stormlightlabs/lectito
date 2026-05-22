@@ -214,15 +214,15 @@ impl HackerNewsExtractor {
         }
 
         content.push_str("</ol>");
-        if let Some(more) = dom::select_nodes(document, ".morelink[href]").into_iter().next() {
-            if let Some(href) = dom::attr(&more, "href").and_then(|href| Self::absolute_or_original(url, &href)) {
-                let label = dom::inner_text(&more);
-                content.push_str(&format!(
-                    r#"<p><a href="{}">{}</a></p>"#,
-                    Self::escape_html(&href),
-                    Self::escape_html(label.trim())
-                ));
-            }
+        if let Some(more) = dom::select_nodes(document, ".morelink[href]").into_iter().next()
+            && let Some(href) = dom::attr(&more, "href").and_then(|href| Self::absolute_or_original(url, &href))
+        {
+            let label = dom::inner_text(&more);
+            content.push_str(&format!(
+                r#"<p><a href="{}">{}</a></p>"#,
+                Self::escape_html(&href),
+                Self::escape_html(label.trim())
+            ));
         }
         content.push_str("</article></div>");
 

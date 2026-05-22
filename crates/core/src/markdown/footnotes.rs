@@ -75,7 +75,7 @@ impl FootnoteContext {
 fn definition_nodes(root: &NodeRef) -> Vec<NodeRef> {
     dom::select_nodes(root, "[id]")
         .into_iter()
-        .filter(|node| is_definition_node(node))
+        .filter(is_definition_node)
         .collect()
 }
 

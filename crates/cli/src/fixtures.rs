@@ -1,19 +1,11 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::Context;
-use clap::Args;
 
 use lectito::is_probably_readable;
 use lectito::{Article, ReadabilityOptions, ReadableOptions, extract};
 
-#[derive(Debug, Args)]
-pub struct FixtureArgs {
-    path: PathBuf,
-    #[arg(long)]
-    url: Option<String>,
-    #[arg(long)]
-    diff_dir: Option<PathBuf>,
-}
+use crate::cli::FixtureArgs;
 
 #[derive(Debug)]
 struct ContentReport {
@@ -55,6 +47,7 @@ pub fn run(args: &FixtureArgs) -> anyhow::Result<()> {
     let fixture = load_fixture_arg(&args.path)?;
     let expected_readable = fixture
         .expected_metadata
+        // FIXME: "readable"
         .get("readerable")
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
@@ -151,9 +144,7 @@ fn metadata_mismatches(expected: &serde_json::Value, article: &Article) -> Vec<S
         .into_iter()
         .filter_map(|(field, actual)| {
             let expected = expected.get(field);
-            if expected.is_none() {
-                return None;
-            }
+            expected?;
             let expected = expected.and_then(serde_json::Value::as_str);
             let matches = match (expected, actual) {
                 (Some(expected), Some(actual)) if field == "excerpt" => {

@@ -164,10 +164,10 @@ pub(crate) fn extract_with_site_rule(
         return Ok(None);
     }
 
-    if let Some(profile_match) = matching_profile(url, options)? {
-        if let Some(extraction) = extract_with_profile(document, url, options, metadata, profile_match)? {
-            return Ok(Some(extraction));
-        }
+    if let Some(profile_match) = matching_profile(url, options)?
+        && let Some(extraction) = extract_with_profile(document, url, options, metadata, profile_match)?
+    {
+        return Ok(Some(extraction));
     }
 
     for extractor in site_extractors() {
@@ -577,10 +577,10 @@ fn node_selector(node: &NodeRef) -> String {
     if tag.is_empty() {
         return "<node>".to_string();
     }
-    if let Some(id) = dom::attr(node, "id") {
-        if !id.trim().is_empty() {
-            return format!("{tag}#{id}");
-        }
+    if let Some(id) = dom::attr(node, "id")
+        && !id.trim().is_empty()
+    {
+        return format!("{tag}#{id}");
     }
     if let Some(class) = dom::attr(node, "class") {
         let mut classes = class.split_whitespace().take(3).collect::<Vec<_>>();

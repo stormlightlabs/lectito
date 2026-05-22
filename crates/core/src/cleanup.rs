@@ -180,7 +180,7 @@ fn fix_lazy_images(root: &NodeRef) {
     for node in dom::select_nodes(root, "img, picture, figure") {
         let tag = dom::node_name(&node);
         let attrs_snapshot = dom::attrs(&node);
-        if attrs_snapshot.get("src").is_some()
+        if attrs_snapshot.contains_key("src")
             && !attrs_snapshot
                 .get("class")
                 .is_some_and(|class| class.to_lowercase().contains("lazy"))
@@ -201,10 +201,10 @@ fn fix_lazy_images(root: &NodeRef) {
                 None
             };
 
-            if let Some(copy_to) = copy_to {
-                if tag == "img" || tag == "picture" {
-                    dom::set_attr(&node, copy_to, &value);
-                }
+            if let Some(copy_to) = copy_to
+                && (tag == "img" || tag == "picture")
+            {
+                dom::set_attr(&node, copy_to, &value);
             }
         }
     }
@@ -654,18 +654,18 @@ fn fix_relative_urls(root: &NodeRef, base_url: Option<&Url>) {
     };
 
     for node in dom::select_nodes(root, "a[href], area[href]") {
-        if let Some(href) = dom::attr(&node, "href") {
-            if let Ok(url) = base_url.join(&href) {
-                dom::set_attr(&node, "href", url.as_str());
-            }
+        if let Some(href) = dom::attr(&node, "href")
+            && let Ok(url) = base_url.join(&href)
+        {
+            dom::set_attr(&node, "href", url.as_str());
         }
     }
 
     for node in dom::select_nodes(root, "img[src], video[src], audio[src], source[src], iframe[src]") {
-        if let Some(src) = dom::attr(&node, "src") {
-            if let Ok(url) = base_url.join(&src) {
-                dom::set_attr(&node, "src", url.as_str());
-            }
+        if let Some(src) = dom::attr(&node, "src")
+            && let Ok(url) = base_url.join(&src)
+        {
+            dom::set_attr(&node, "src", url.as_str());
         }
     }
 }

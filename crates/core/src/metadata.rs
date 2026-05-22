@@ -283,16 +283,17 @@ fn prefer_specific_headline(document: &Html, site_name: Option<&str>, title: &st
     }
 
     let headline = specific_heading(document);
-    if let (Some(site_name), Some(headline)) = (site_name, headline.as_deref()) {
-        if title.eq_ignore_ascii_case(site_name) && word_count(headline) >= 3 {
-            return Some(headline.to_string());
-        }
+    if let (Some(site_name), Some(headline)) = (site_name, headline.as_deref())
+        && title.eq_ignore_ascii_case(site_name)
+        && word_count(headline) >= 3
+    {
+        return Some(headline.to_string());
     }
 
-    if word_count(&title) <= 2 {
-        if let Some(headline) = headline.filter(|headline| word_count(headline) >= 3) {
-            return Some(headline);
-        }
+    if word_count(&title) <= 2
+        && let Some(headline) = headline.filter(|headline| word_count(headline) >= 3)
+    {
+        return Some(headline);
     }
 
     Some(title)

@@ -16,10 +16,10 @@ pub(crate) fn score_candidates(document: &NodeRef, flags: ExtractFlags) -> Vec<C
     let mut nodes = dom::select_nodes(document, &selector);
     let mut seen: HashSet<_> = nodes.iter().map(dom::node_id).collect();
     for br in dom::select_nodes(document, "div > br") {
-        if let Some(parent) = br.parent() {
-            if seen.insert(dom::node_id(&parent)) {
-                nodes.push(parent);
-            }
+        if let Some(parent) = br.parent()
+            && seen.insert(dom::node_id(&parent))
+        {
+            nodes.push(parent);
         }
     }
     let mut candidates = Vec::<Candidate>::new();
@@ -109,10 +109,8 @@ pub(crate) fn link_density(node: &NodeRef) -> f64 {
     let link_len: f64 = dom::select_nodes(node, "a")
         .into_iter()
         .map(|link| {
-            let coefficient = dom::attr(&link, "href")
-                .is_some_and(|href| href.starts_with('#'))
-                .then_some(0.3)
-                .unwrap_or(1.0);
+            let coefficient =
+                if dom::attr(&link, "href").is_some_and(|href| href.starts_with('#')) { 0.3 } else { 1.0 };
             dom::inner_text(&link).chars().count() as f64 * coefficient
         })
         .sum();

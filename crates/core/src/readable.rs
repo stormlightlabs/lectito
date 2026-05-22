@@ -26,10 +26,10 @@ pub fn is_probably_readable(html: &str, options: &ReadableOptions) -> Result<boo
     }
 
     for br in document.select(&br_selector) {
-        if let Some(parent) = br.parent().and_then(ElementRef::wrap) {
-            if seen.insert(parent.id()) {
-                nodes.push(parent);
-            }
+        if let Some(parent) = br.parent().and_then(ElementRef::wrap)
+            && seen.insert(parent.id())
+        {
+            nodes.push(parent);
         }
     }
 
@@ -87,6 +87,7 @@ mod tests {
 
     #[derive(Deserialize)]
     struct ExpectedMetadata {
+        // FIXME: "readable"
         readerable: bool,
     }
 

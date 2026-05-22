@@ -41,34 +41,34 @@ pub fn extract_with_diagnostics(
     let mut best_attempt: Option<ExtractAttempt> = None;
     let mut diagnostics = ExtractionDiagnostics::default();
 
-    if let Some(mut rule_extraction) = try_site_rule(html, options, base_url.as_ref(), &metadata)? {
-        if rule_extraction.attempt.text_len > 0 {
-            let attempt_metadata = rule_extraction.attempt.metadata.clone();
-            rule_extraction.attempt = json_schema::apply_schema_fallback(
-                html,
-                rule_extraction.attempt,
-                &attempt_metadata,
-                options,
-                rule_extraction.flags,
-                base_url.as_ref(),
-            )?;
-            rule_extraction.attempt.metadata = attempt_metadata;
-            rule_extraction.diagnostic.text_len = rule_extraction.attempt.text_len;
-            rule_extraction.diagnostic.accepted =
-                matches!(rule_extraction.diagnostic.source, SiteRuleSource::CodeExtractor)
-                    || rule_extraction.attempt.text_len >= options.char_threshold;
-            if rule_extraction.diagnostic.accepted {
-                diagnostics.site_rule = Some(rule_extraction.diagnostic);
-                diagnostics.outcome = ExtractionOutcome::Accepted;
-                return Ok(ExtractionReport { article: Some(rule_extraction.attempt.into_article()), diagnostics });
-            }
-            rule_extraction.diagnostic.fallback_reason = Some(format!(
-                "site rule text_len {} below char_threshold {}",
-                rule_extraction.attempt.text_len, options.char_threshold
-            ));
+    if let Some(mut rule_extraction) = try_site_rule(html, options, base_url.as_ref(), &metadata)?
+        && rule_extraction.attempt.text_len > 0
+    {
+        let attempt_metadata = rule_extraction.attempt.metadata.clone();
+        rule_extraction.attempt = json_schema::apply_schema_fallback(
+            html,
+            rule_extraction.attempt,
+            &attempt_metadata,
+            options,
+            rule_extraction.flags,
+            base_url.as_ref(),
+        )?;
+        rule_extraction.attempt.metadata = attempt_metadata;
+        rule_extraction.diagnostic.text_len = rule_extraction.attempt.text_len;
+        rule_extraction.diagnostic.accepted =
+            matches!(rule_extraction.diagnostic.source, SiteRuleSource::CodeExtractor)
+                || rule_extraction.attempt.text_len >= options.char_threshold;
+        if rule_extraction.diagnostic.accepted {
             diagnostics.site_rule = Some(rule_extraction.diagnostic);
-            best_attempt = Some(rule_extraction.attempt);
+            diagnostics.outcome = ExtractionOutcome::Accepted;
+            return Ok(ExtractionReport { article: Some(rule_extraction.attempt.into_article()), diagnostics });
         }
+        rule_extraction.diagnostic.fallback_reason = Some(format!(
+            "site rule text_len {} below char_threshold {}",
+            rule_extraction.attempt.text_len, options.char_threshold
+        ));
+        diagnostics.site_rule = Some(rule_extraction.diagnostic);
+        best_attempt = Some(rule_extraction.attempt);
     }
 
     let attempts = [
@@ -323,31 +323,31 @@ fn grab_article(
     doc: &NodeRef, opts: &ReadabilityOptions, flags: ExtractFlags, index: usize, recovery: RecoveryDiagnostic,
     base_url: Option<&Url>, metadata: &Metadata,
 ) -> Result<Option<(ExtractAttempt, GrabDiagnostics)>> {
-    if let Some(selector) = opts.content_selector.as_deref() {
-        if let Some(root) = dom::select_nodes(doc, selector).into_iter().next() {
-            let selector_diagnostic = ContentSelectorDiagnostic {
-                selector: selector.to_string(),
-                matched: true,
-                selected: Some(node_diagnostic(&root)),
-            };
-            let (attempt, cleanup) = serialize_roots(vec![root], opts, flags, base_url, metadata)?;
-            let attempt_diagnostic = AttemptDiagnostic {
-                index,
-                flags: flags.into(),
-                candidate_count: 0,
-                candidates: Vec::new(),
-                entry_points: Vec::new(),
-                selected_root: selector_diagnostic.selected.clone(),
-                cleanup: Some(cleanup),
-                recovery,
-                text_len: attempt.text_len,
-                accepted: attempt.text_len >= opts.char_threshold,
-            };
-            return Ok(Some((
-                attempt,
-                GrabDiagnostics { attempt: attempt_diagnostic, content_selector: Some(selector_diagnostic) },
-            )));
-        }
+    if let Some(selector) = opts.content_selector.as_deref()
+        && let Some(root) = dom::select_nodes(doc, selector).into_iter().next()
+    {
+        let selector_diagnostic = ContentSelectorDiagnostic {
+            selector: selector.to_string(),
+            matched: true,
+            selected: Some(node_diagnostic(&root)),
+        };
+        let (attempt, cleanup) = serialize_roots(vec![root], opts, flags, base_url, metadata)?;
+        let attempt_diagnostic = AttemptDiagnostic {
+            index,
+            flags: flags.into(),
+            candidate_count: 0,
+            candidates: Vec::new(),
+            entry_points: Vec::new(),
+            selected_root: selector_diagnostic.selected.clone(),
+            cleanup: Some(cleanup),
+            recovery,
+            text_len: attempt.text_len,
+            accepted: attempt.text_len >= opts.char_threshold,
+        };
+        return Ok(Some((
+            attempt,
+            GrabDiagnostics { attempt: attempt_diagnostic, content_selector: Some(selector_diagnostic) },
+        )));
     }
 
     let entry_points = entry_point_candidates(doc);
@@ -427,9 +427,7 @@ fn grab_article(
                 let density = scoring::link_density(&sibling);
                 let text = dom::inner_text(&sibling);
                 let len = text.chars().count();
-                if len > 80 && density < 0.25 {
-                    append = true;
-                } else if len < 80 && len > 0 && density == 0.0 && text.contains(". ") {
+                if (len > 80 && density < 0.25) || (len < 80 && len > 0 && density == 0.0 && text.contains(". ")) {
                     append = true;
                 }
             }
@@ -602,10 +600,10 @@ fn node_selector(node: &NodeRef) -> String {
     if tag.is_empty() {
         return "<node>".to_string();
     }
-    if let Some(id) = dom::attr(node, "id") {
-        if !id.trim().is_empty() {
-            return format!("{tag}#{id}");
-        }
+    if let Some(id) = dom::attr(node, "id")
+        && !id.trim().is_empty()
+    {
+        return format!("{tag}#{id}");
     }
     if let Some(class) = dom::attr(node, "class") {
         let mut classes = class.split_whitespace().take(3).collect::<Vec<_>>();

@@ -2,22 +2,9 @@ use lectito::markdown_with_toml_frontmatter;
 use lectito::{Article, ExtractionDiagnostics};
 
 use anyhow::Context;
-use clap::ValueEnum;
 use owo_colors::OwoColorize;
 
-#[derive(Clone, Copy, Debug, ValueEnum)]
-pub enum OutputFormat {
-    Json,
-    Html,
-    Markdown,
-    Text,
-}
-
-#[derive(Clone, Copy, Debug, ValueEnum)]
-pub enum DiagnosticFormat {
-    Json,
-    Pretty,
-}
+use crate::cli::{DiagnosticFormat, OutputFormat};
 
 pub fn diagnostics(diagnostics: &ExtractionDiagnostics, format: DiagnosticFormat) -> anyhow::Result<()> {
     match format {
