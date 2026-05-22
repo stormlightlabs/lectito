@@ -7,7 +7,7 @@ use serde_json::Value;
 use url::Url;
 
 use super::config::{ExtractFlags, ReadabilityOptions};
-use super::error::Error;
+use super::error::Result;
 use super::extract::{ExtractAttempt, element_count, prep_document, serialize_roots};
 use super::metadata::{Metadata, clean_metadata_value, decode_html_entities, normalize_byline};
 use super::{dom, patterns};
@@ -38,7 +38,7 @@ pub(crate) fn extract_json_ld(html: &str) -> Metadata {
 pub(crate) fn apply_schema_fallback(
     html: &str, attempt: ExtractAttempt, metadata: &Metadata, opts: &ReadabilityOptions, flags: ExtractFlags,
     base_url: Option<&Url>,
-) -> Result<ExtractAttempt, Error> {
+) -> Result<ExtractAttempt> {
     let Some(schema_text) = metadata.schema_text.as_deref() else {
         return Ok(attempt);
     };

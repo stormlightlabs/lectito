@@ -9,25 +9,24 @@ use super::config::{Article, ExtractFlags, ReadabilityOptions};
 use super::diagnostics::{
     AttemptDiagnostic, CandidateDiagnostic, CandidateSelection, CleanupDiagnostic, ContentSelectorDiagnostic,
     ExtractionDiagnostics, ExtractionOutcome, ExtractionReport, FlagDiagnostic, NodeDiagnostic, RecoveryDiagnostic,
+    SiteRuleSource,
 };
-use super::error::Error;
+use super::error::{Error, Result};
 use super::patterns::{MAYBE_CANDIDATE, UNLIKELY_CANDIDATES};
-use super::{cleanup, dom, json_schema, markdown, metadata, normalize, patterns, recovery, scoring, serialize};
+use super::{cleanup, dom, json_schema, markdown, metadata, normalize, patterns, recovery, rules, scoring, serialize};
 use super::{metadata::Metadata, scoring::Candidate};
 
-pub fn extract(html: &str, base_url: Option<&str>, options: &ReadabilityOptions) -> Result<Option<Article>, Error> {
+pub fn extract(html: &str, base_url: Option<&str>, options: &ReadabilityOptions) -> Result<Option<Article>> {
     Ok(extract_with_diagnostics(html, base_url, options)?.article)
 }
 
-pub fn clean_article_html(
-    html: &str, base_url: Option<&str>, options: &ReadabilityOptions,
-) -> Result<Option<String>, Error> {
+pub fn clean_article_html(html: &str, base_url: Option<&str>, options: &ReadabilityOptions) -> Result<Option<String>> {
     Ok(extract(html, base_url, options)?.map(|article| article.content))
 }
 
 pub fn extract_with_diagnostics(
     html: &str, base_url: Option<&str>, options: &ReadabilityOptions,
-) -> Result<ExtractionReport, Error> {
+) -> Result<ExtractionReport> {
     let (working_html, source_recovery) = recovery::recover_html_snapshot(html);
     let html = working_html.as_str();
     let base_url = base_url
@@ -41,6 +40,36 @@ pub fn extract_with_diagnostics(
     let metadata = metadata::extract_metadata(&document, html, options, base_url.as_ref());
     let mut best_attempt: Option<ExtractAttempt> = None;
     let mut diagnostics = ExtractionDiagnostics::default();
+
+    if let Some(mut rule_extraction) = try_site_rule(html, options, base_url.as_ref(), &metadata)? {
+        if rule_extraction.attempt.text_len > 0 {
+            let attempt_metadata = rule_extraction.attempt.metadata.clone();
+            rule_extraction.attempt = json_schema::apply_schema_fallback(
+                html,
+                rule_extraction.attempt,
+                &attempt_metadata,
+                options,
+                rule_extraction.flags,
+                base_url.as_ref(),
+            )?;
+            rule_extraction.attempt.metadata = attempt_metadata;
+            rule_extraction.diagnostic.text_len = rule_extraction.attempt.text_len;
+            rule_extraction.diagnostic.accepted =
+                matches!(rule_extraction.diagnostic.source, SiteRuleSource::CodeExtractor)
+                    || rule_extraction.attempt.text_len >= options.char_threshold;
+            if rule_extraction.diagnostic.accepted {
+                diagnostics.site_rule = Some(rule_extraction.diagnostic);
+                diagnostics.outcome = ExtractionOutcome::Accepted;
+                return Ok(ExtractionReport { article: Some(rule_extraction.attempt.into_article()), diagnostics });
+            }
+            rule_extraction.diagnostic.fallback_reason = Some(format!(
+                "site rule text_len {} below char_threshold {}",
+                rule_extraction.attempt.text_len, options.char_threshold
+            ));
+            diagnostics.site_rule = Some(rule_extraction.diagnostic);
+            best_attempt = Some(rule_extraction.attempt);
+        }
+    }
 
     let attempts = [
         ExtractFlags::all(),
@@ -121,8 +150,8 @@ pub fn extract_with_diagnostics(
 }
 
 pub(crate) struct ExtractAttempt {
-    metadata: Metadata,
-    content: String,
+    pub(crate) metadata: Metadata,
+    pub(crate) content: String,
     pub(crate) text_content: String,
     pub(crate) text_len: usize,
 }
@@ -191,6 +220,18 @@ pub(crate) fn prep_document(
         }
     }
     recovery
+}
+
+fn try_site_rule(
+    html: &str, options: &ReadabilityOptions, base_url: Option<&Url>, metadata: &Metadata,
+) -> Result<Option<rules::RuleExtraction>> {
+    let doc = kuchiki::parse_html().one(html);
+    prep_document(
+        &doc,
+        options,
+        ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: false },
+    );
+    rules::extract_with_site_rule(&doc, base_url, options, metadata)
 }
 
 fn normalize_markup(document: &NodeRef) {
@@ -281,7 +322,7 @@ fn unescape_basic_html(value: &str) -> String {
 fn grab_article(
     doc: &NodeRef, opts: &ReadabilityOptions, flags: ExtractFlags, index: usize, recovery: RecoveryDiagnostic,
     base_url: Option<&Url>, metadata: &Metadata,
-) -> Result<Option<(ExtractAttempt, GrabDiagnostics)>, Error> {
+) -> Result<Option<(ExtractAttempt, GrabDiagnostics)>> {
     if let Some(selector) = opts.content_selector.as_deref() {
         if let Some(root) = dom::select_nodes(doc, selector).into_iter().next() {
             let selector_diagnostic = ContentSelectorDiagnostic {
@@ -438,7 +479,7 @@ struct GrabDiagnostics {
 
 pub(crate) fn serialize_roots(
     roots: Vec<NodeRef>, opts: &ReadabilityOptions, flags: ExtractFlags, base_url: Option<&Url>, metadata: &Metadata,
-) -> Result<(ExtractAttempt, CleanupDiagnostic), Error> {
+) -> Result<(ExtractAttempt, CleanupDiagnostic)> {
     let text_len_before = serialize::text_content(&roots).encode_utf16().count();
     let element_count_before = roots.iter().map(element_count).sum();
     let root_selectors = roots.iter().map(node_selector).collect();
@@ -584,7 +625,7 @@ fn round_score(value: f64) -> f64 {
     (value * 1000.0).round() / 1000.0
 }
 
-fn enforce_element_limit(document: &Html, limit: Option<usize>) -> Result<(), Error> {
+fn enforce_element_limit(document: &Html, limit: Option<usize>) -> Result<()> {
     let Some(limit) = limit else {
         return Ok(());
     };
@@ -712,6 +753,113 @@ mod tests {
         assert!(selector.matched);
         assert_eq!(selector.selected.unwrap().selector, "section#forced");
         assert!(report.diagnostics.attempts[0].cleanup.is_some());
+    }
+
+    #[test]
+    fn custom_site_profile_can_select_content_root() {
+        let profile = r##"
+            name = "example profile"
+            hosts = ["example.com"]
+            content_roots = ["#profiled"]
+            remove = [".ad"]
+
+            [metadata]
+            title = ["h1"]
+            site_name = "Example"
+        "##;
+        let report = extract_with_diagnostics(
+            r#"
+            <html><body>
+                <main><p>Generic main content that should not be returned.</p></main>
+                <article id="profiled">
+                    <h1>Profiled Story</h1>
+                    <p>This profile-selected article body has enough punctuation, enough words, and enough detail to become the returned content.</p>
+                    <p class="ad">Sponsored interruption.</p>
+                </article>
+            </body></html>
+            "#,
+            Some("https://example.com/story"),
+            &ReadabilityOptions {
+                char_threshold: 0,
+                site_profiles: vec![profile.to_string()],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let article = report.article.unwrap();
+        assert_eq!(article.title.as_deref(), Some("Profiled Story"));
+        assert_eq!(article.site_name.as_deref(), Some("Example"));
+        assert!(article.text_content.contains("profile-selected article body"));
+        assert!(!article.text_content.contains("Generic main content"));
+        assert!(!article.text_content.contains("Sponsored interruption"));
+
+        let diagnostic = report.diagnostics.site_rule.unwrap();
+        assert_eq!(diagnostic.name, "example profile");
+        assert!(diagnostic.accepted);
+        assert_eq!(diagnostic.roots, vec!["article#profiled"]);
+    }
+
+    #[test]
+    fn weak_site_profile_output_falls_back_to_generic_extraction() {
+        let profile = r##"
+            name = "weak profile"
+            hosts = ["example.com"]
+            content_roots = ["#short"]
+        "##;
+        let report = extract_with_diagnostics(
+            r#"
+            <html><body>
+                <section id="short"><p>Too short.</p></section>
+                <article>
+                    <p>This generic article body is intentionally much longer than the profiled short node. It has enough punctuation, enough words, and enough detail to pass the configured threshold through normal readability scoring.</p>
+                    <p>The second paragraph adds more meaningful article text so fallback clearly selects the generic article instead of the weak site profile.</p>
+                </article>
+            </body></html>
+            "#,
+            Some("https://example.com/story"),
+            &ReadabilityOptions {
+                char_threshold: 160,
+                site_profiles: vec![profile.to_string()],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let article = report.article.unwrap();
+        assert!(article.text_content.contains("generic article body"));
+        assert!(!article.text_content.trim_start().starts_with("Too short."));
+
+        let diagnostic = report.diagnostics.site_rule.unwrap();
+        assert_eq!(diagnostic.name, "weak profile");
+        assert!(!diagnostic.accepted);
+        assert!(diagnostic.fallback_reason.unwrap().contains("below char_threshold"));
+    }
+
+    #[test]
+    fn code_extractor_output_accepts_short_specialized_pages() {
+        let report = extract_with_diagnostics(
+            r#"
+            <html><head><title>Short Link | Hacker News</title></head><body>
+                <table><tbody>
+                    <tr class="athing" id="1">
+                        <td><span class="titleline"><a href="https://example.com">Short Link</a></span></td>
+                    </tr>
+                    <tr><td class="subtext"><span class="score">1 point</span> by <a class="hnuser">alice</a> <span class="age" title="2026-05-22T00:00:00"><a href="item?id=1">1 hour ago</a></span></td></tr>
+                    <tr class="fatitem"><td></td></tr>
+                </tbody></table>
+            </body></html>
+            "#,
+            Some("https://news.ycombinator.com/item?id=1"),
+            &ReadabilityOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(report.diagnostics.outcome, ExtractionOutcome::Accepted);
+        let diagnostic = report.diagnostics.site_rule.unwrap();
+        assert_eq!(diagnostic.source, SiteRuleSource::CodeExtractor);
+        assert!(diagnostic.accepted);
+        assert!(report.article.unwrap().text_content.contains("Short Link"));
     }
 
     #[test]

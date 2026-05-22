@@ -35,6 +35,21 @@ pub fn diagnostics(diagnostics: &ExtractionDiagnostics, format: DiagnosticFormat
                     if selector.matched { "matched".green().to_string() } else { "not matched".yellow().to_string() };
                 eprintln!("{} {} ({status})", "content selector:".bold(), selector.selector);
             }
+            if let Some(site_rule) = &diagnostics.site_rule {
+                let status =
+                    if site_rule.accepted { "accepted".green().to_string() } else { "fallback".yellow().to_string() };
+                eprintln!(
+                    "{} {} {:?} text_len={} removals={} ({status})",
+                    "site rule:".bold(),
+                    site_rule.name,
+                    site_rule.source,
+                    site_rule.text_len,
+                    site_rule.removals
+                );
+                if let Some(reason) = &site_rule.fallback_reason {
+                    eprintln!("  {} {}", "reason:".bold(), reason);
+                }
+            }
             for attempt in &diagnostics.attempts {
                 let marker = if Some(attempt.index) == diagnostics.selected_attempt {
                     "*".green().to_string()

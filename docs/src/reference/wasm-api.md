@@ -56,6 +56,7 @@ export interface ReadabilityOptions {
   nbTopCandidates?: number;
   charThreshold?: number;
   contentSelector?: string | null;
+  siteProfiles?: string[];
   mobileViewportWidth?: number | null;
   classesToPreserve?: string[];
   keepClasses?: boolean;

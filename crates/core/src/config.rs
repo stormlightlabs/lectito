@@ -6,6 +6,8 @@ pub struct ReadabilityOptions {
     pub nb_top_candidates: usize,
     pub char_threshold: usize,
     pub content_selector: Option<String>,
+    #[serde(default)]
+    pub site_profiles: Vec<String>,
     pub mobile_viewport_width: Option<usize>,
     pub classes_to_preserve: Vec<String>,
     pub keep_classes: bool,
@@ -20,6 +22,7 @@ impl Default for ReadabilityOptions {
             nb_top_candidates: 5,
             char_threshold: 500,
             content_selector: None,
+            site_profiles: Vec::new(),
             mobile_viewport_width: Some(480),
             classes_to_preserve: Vec::new(),
             keep_classes: false,

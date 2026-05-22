@@ -12,6 +12,7 @@ pub struct ReadabilityOptions {
     pub nb_top_candidates: usize,
     pub char_threshold: usize,
     pub content_selector: Option<String>,
+    pub site_profiles: Vec<String>,
     pub mobile_viewport_width: Option<usize>,
     pub classes_to_preserve: Vec<String>,
     pub keep_classes: bool,
@@ -28,6 +29,7 @@ ReadabilityOptions {
     nb_top_candidates: 5,
     char_threshold: 500,
     content_selector: None,
+    site_profiles: Vec::new(),
     mobile_viewport_width: Some(480),
     classes_to_preserve: Vec::new(),
     keep_classes: false,
@@ -37,9 +39,11 @@ ReadabilityOptions {
 ```
 
 `content_selector` is the most direct override. Use it when the caller knows
-where the article lives in the document. `char_threshold` controls when an
-attempt is accepted. `nb_top_candidates` controls how many candidates remain in
-play during selection.
+where the article lives in the document. `site_profiles` accepts TOML profile
+strings that provide host-scoped content roots, removal selectors, metadata
+hints, cleanup settings, and fallback behavior. `char_threshold` controls when
+an attempt is accepted. `nb_top_candidates` controls how many candidates remain
+in play during selection.
 
 ## ReadableOptions
 

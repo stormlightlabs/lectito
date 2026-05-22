@@ -43,9 +43,13 @@ short, too broad, or has a known content container.
 lectito parse article.html --char-threshold 800
 lectito parse article.html --nb-top-candidates 8
 lectito parse article.html --content-selector article
+lectito parse article.html --url https://example.com/post --site-profile example.com.toml
 lectito parse article.html --max-elems-to-parse 10000
 lectito parse article.html --keep-classes --classes-to-preserve language-rust
 ```
+
+`--site-profile` can be repeated. Each file must be a TOML site profile. User
+profiles take precedence over bundled profiles for the same host.
 
 Diagnostics are written to stderr after the main output:
 

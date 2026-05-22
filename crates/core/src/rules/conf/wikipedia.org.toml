@@ -1,0 +1,55 @@
+name = "wikipedia"
+hosts = ["wikipedia.org"]
+subdomains = true
+content_roots = [
+  "//div[contains(@class, 'mw-parser-output')]",
+  "//div[@id='mw-content-text']",
+  "//div[@id='bodyContent']",
+]
+remove_id_or_class = [
+  "editsection",
+  "mw-editsection",
+  "jump-to-nav",
+  "navbox",
+  "catlinks",
+  "printfooter",
+  "infobox",
+  "metadata",
+  "ambox",
+  "ombox",
+  "tmbox",
+  "siteSub",
+  "contentSub",
+  "mw-indicators",
+  "hatnote",
+  "navigation-not-searchable",
+  "shortdescription",
+  "noprint",
+  "mw-empty-elt",
+]
+remove = [
+  "//*[@id='toc']",
+  "//div[@class='reflist']",
+  "//div[@class='navbox']",
+  "//div[@id='mw-content-text']//style",
+  "//span[@class='mw-editsection']",
+  "//span[@class='mw-editsection-bracket']",
+  "//a[@class='mw-editsection']",
+  "//div[contains(@class, 'infobox')]",
+  "//table[contains(@class, 'infobox')]",
+  "//table[contains(@class, 'navbox')]",
+]
+
+[metadata]
+title = ["//h1[@id='firstHeading']"]
+author = ["//div[@class='printfooter']//a[@rel='author']"]
+date = ["//span[@id='mw-indicator-mw-dateformat']"]
+site_name = "Wikipedia"
+title_suffixes = [" - Wikipedia", " – Wikipedia"]
+
+[cleanup]
+enabled = false
+prune = false
+
+[fallback]
+generic_on_empty = true

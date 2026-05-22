@@ -11,6 +11,7 @@ mod normalize;
 mod patterns;
 mod readable;
 mod recovery;
+mod rules;
 mod scoring;
 mod serialize;
 
@@ -19,7 +20,7 @@ pub use diagnostics::{
     AttemptDiagnostic, CandidateDiagnostic, CandidateSelection, CleanupDiagnostic, ContentSelectorDiagnostic,
     ExtractionDiagnostics, ExtractionOutcome, ExtractionReport, FlagDiagnostic, NodeDiagnostic, RecoveryDiagnostic,
 };
-pub use error::Error;
+pub use error::{Error, Result};
 pub use extract::{clean_article_html, extract, extract_with_diagnostics};
 pub use markdown::{html_to_markdown, markdown_to_html, markdown_with_toml_frontmatter};
 pub use readable::is_probably_readable;

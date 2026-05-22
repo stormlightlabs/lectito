@@ -3,6 +3,7 @@ use serde::Serialize;
 #[derive(Clone, Debug, Default, Serialize, PartialEq)]
 pub struct ExtractionDiagnostics {
     pub content_selector: Option<ContentSelectorDiagnostic>,
+    pub site_rule: Option<SiteRuleDiagnostic>,
     pub attempts: Vec<AttemptDiagnostic>,
     pub selected_attempt: Option<usize>,
     pub outcome: ExtractionOutcome,
@@ -28,6 +29,32 @@ pub struct ContentSelectorDiagnostic {
     pub selector: String,
     pub matched: bool,
     pub selected: Option<NodeDiagnostic>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct SiteRuleDiagnostic {
+    pub name: String,
+    pub source: SiteRuleSource,
+    pub matched_by: SiteRuleMatch,
+    pub roots: Vec<String>,
+    pub removals: usize,
+    pub text_len: usize,
+    pub accepted: bool,
+    pub fallback_reason: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum SiteRuleSource {
+    DeclarativeProfile,
+    CodeExtractor,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct SiteRuleMatch {
+    pub host: String,
+    pub path_prefix: Option<String>,
+    pub bundled: bool,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]

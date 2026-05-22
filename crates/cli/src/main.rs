@@ -1,4 +1,5 @@
 use anyhow::Context;
+use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
@@ -47,6 +48,8 @@ struct ParseArgs {
     nb_top_candidates: usize,
     #[arg(long)]
     content_selector: Option<String>,
+    #[arg(long = "site-profile", value_name = "PATH")]
+    site_profiles: Vec<PathBuf>,
     #[arg(long)]
     mobile_viewport_width: Option<usize>,
     #[arg(long, value_enum)]
@@ -86,6 +89,7 @@ fn main() -> anyhow::Result<()> {
                 nb_top_candidates: args.nb_top_candidates,
                 char_threshold: args.char_threshold,
                 content_selector: args.content_selector,
+                site_profiles: read_site_profiles(&args.site_profiles)?,
                 mobile_viewport_width: args.mobile_viewport_width.or(Some(480)),
                 classes_to_preserve: args.classes_to_preserve,
                 keep_classes: args.keep_classes,
@@ -114,6 +118,13 @@ fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn read_site_profiles(paths: &[PathBuf]) -> anyhow::Result<Vec<String>> {
+    paths
+        .iter()
+        .map(|path| fs::read_to_string(path).with_context(|| format!("failed to read site profile {}", path.display())))
+        .collect()
 }
 
 fn input_path<'a>(path: Option<&'a Path>, input: Option<&'a Path>) -> anyhow::Result<Option<&'a Path>> {

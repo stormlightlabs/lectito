@@ -10,13 +10,15 @@ of links to readable text.
 1. Parse the document.
 2. Recover useful content from common snapshots, including selected mobile and
    shadow-root cases.
-3. Remove scripts, styles, hidden nodes, and unlikely content.
-4. Score candidate content roots by text length, tag type, class/id hints, and
+3. Extract metadata.
+4. Try a matching site profile or code extractor when one applies.
+5. Remove scripts, styles, hidden nodes, and unlikely content.
+6. Score candidate content roots by text length, tag type, class/id hints, and
    link density.
-5. Select the best root and include useful siblings.
-6. Clean the selected content.
-7. Extract metadata.
-8. Return HTML, Markdown, text, and diagnostics.
+7. Select the best root and include useful siblings.
+8. Clean the selected content.
+9. Apply schema text fallback when structured data is clearly better.
+10. Return HTML, Markdown, text, and diagnostics.
 
 Extraction runs several attempts. Later attempts relax cleanup rules when the
 first pass produces too little text. The first attempt that reaches
@@ -36,6 +38,23 @@ let options = ReadabilityOptions {
     ..ReadabilityOptions::default()
 };
 ```
+
+Site profiles provide URL-scoped hints without disabling generic extraction:
+
+```rust
+let options = ReadabilityOptions {
+    site_profiles: vec![r#"
+        name = "example"
+        hosts = ["example.com"]
+        content_roots = ["article"]
+        remove = [".ad", "nav"]
+    "#.to_string()],
+    ..ReadabilityOptions::default()
+};
+```
+
+If a profile produces content below `char_threshold`, Lectito records the
+profile decision in diagnostics and continues with generic readability attempts.
 
 After the root is selected, cleanup removes empty nodes, normalizes links and
 media, preserves selected classes, and prepares the HTML for Markdown and text

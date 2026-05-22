@@ -106,6 +106,7 @@ struct ReadabilityOptionsDto {
     nb_top_candidates: Option<usize>,
     char_threshold: Option<usize>,
     content_selector: Option<Option<String>>,
+    site_profiles: Option<Vec<String>>,
     mobile_viewport_width: Option<Option<usize>>,
     classes_to_preserve: Option<Vec<String>>,
     keep_classes: Option<bool>,
@@ -127,6 +128,9 @@ impl ReadabilityOptionsDto {
         }
         if let Some(value) = self.content_selector {
             options.content_selector = value;
+        }
+        if let Some(value) = self.site_profiles {
+            options.site_profiles = value;
         }
         if let Some(value) = self.mobile_viewport_width {
             options.mobile_viewport_width = value;

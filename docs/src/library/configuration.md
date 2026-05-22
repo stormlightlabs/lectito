@@ -13,6 +13,7 @@ let options = ReadabilityOptions {
     char_threshold: 800,
     nb_top_candidates: 8,
     content_selector: Some("article".to_string()),
+    site_profiles: Vec::new(),
     ..ReadabilityOptions::default()
 };
 ```
@@ -25,6 +26,7 @@ Fields:
 | `nb_top_candidates`     |         `5` | Number of high-scoring candidates to consider.         |
 | `char_threshold`        |       `500` | Minimum extracted text length for an accepted attempt. |
 | `content_selector`      |      `None` | CSS selector to prefer as the content root.            |
+| `site_profiles`         |        `[]` | TOML site profiles for host-scoped extraction hints.   |
 | `mobile_viewport_width` | `Some(480)` | Width used by recovery rules for mobile snapshots.     |
 | `classes_to_preserve`   |        `[]` | Class names kept during cleanup.                       |
 | `keep_classes`          |     `false` | Keep all class attributes.                             |
@@ -33,6 +35,11 @@ Fields:
 
 Prefer `content_selector` when you already know the page shape. It is clearer
 than trying to tune scores around a stable document layout.
+
+Use `site_profiles` when you want the same kind of override to apply by URL
+host, or when you need removal selectors and metadata hints alongside content
+roots. Profiles are attempted before generic scoring, but weak profile output
+falls back to the generic extractor.
 
 Use `max_elems_to_parse` as a guardrail for untrusted input. It rejects very
 large documents before extraction work continues.

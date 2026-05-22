@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use scraper::{ElementRef, Html};
 
 use super::patterns::{self, MAYBE_CANDIDATE, UNLIKELY_CANDIDATES};
-use super::{config::ReadableOptions, error::Error};
+use super::{config::ReadableOptions, error::Result};
 
-pub fn is_probably_readable(html: &str, options: &ReadableOptions) -> Result<bool, Error> {
+pub fn is_probably_readable(html: &str, options: &ReadableOptions) -> Result<bool> {
     let document = Html::parse_document(html);
 
     let text_selector = patterns::selector("p, pre, article");

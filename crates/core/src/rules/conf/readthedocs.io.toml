@@ -1,0 +1,37 @@
+name = "readthedocs"
+hosts = ["readthedocs.io"]
+subdomains = true
+content_roots = ["//div[@role='main']"]
+remove_id_or_class = [
+  "rst-versions",
+  "rst-current-version",
+  "in-steps-container",
+  "wy-nav-side",
+  "wy-side-scroll",
+  "wy-nav-top",
+  "wy-nav-content-wrap",
+  "wy-nav-content",
+  "wy-nav-shift",
+  "rst-footer",
+  "rst-other-versions",
+  "in-content",
+]
+remove = [
+  "//div[@class='admonition']",
+  "//div[@class='sidebar']",
+  "//div[@class='toc']",
+  "//div[@class='footer']",
+  "//div[@class='navigation']",
+  "//nav[contains(@class, 'bd-sidenav')]",
+]
+
+[metadata]
+title = ["//h1"]
+author = ["//span[@class='author']"]
+date = ["//time[@class='article-date']"]
+
+[cleanup]
+prune = true
+
+[fallback]
+generic_on_empty = true

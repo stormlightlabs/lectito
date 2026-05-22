@@ -37,6 +37,11 @@ Each attempt records:
 - recovery counts
 - extracted text length
 
+When a site profile or code extractor matches, diagnostics include `site_rule`.
+That record reports the matched profile or extractor, whether it was bundled,
+which roots were selected, how many removals ran, whether the result met
+`char_threshold`, and any fallback reason.
+
 Start with `outcome`, `selected_root`, and `text_len`. If the selected root is
 wrong, inspect the candidate list. If the root is right but output is noisy,
 inspect cleanup counts and preserved classes.
