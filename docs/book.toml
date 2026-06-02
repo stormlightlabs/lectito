@@ -3,4 +3,11 @@ authors = ["Owais Jamil"]
 language = "en"
 multilingual = false
 src = "src"
-title = "Lectito"
+title = "Lectito.rs"
+
+[output.html]
+git-repository-url = "https://github.com/stormlightlabs/lectito"
+default-theme = "coal"
+preferred-dark-theme = "coal"
+additional-css = ["src/assets/css/site-fonts.css"]
+additional-js = ["src/assets/js/theme.js"]
