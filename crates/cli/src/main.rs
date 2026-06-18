@@ -30,6 +30,7 @@ fn main() -> anyhow::Result<()> {
                 keep_classes: args.keep,
                 disable_json_ld: args.disable_json_ld,
                 link_density_modifier: 0.0,
+                media_retention: args.media,
             };
             let report = extract_with_diagnostics(input.html(), input.base_url(), &options)?;
             echo::parsed(report.article.as_ref(), args.format, args.pretty, input.base_url())?;
@@ -40,7 +41,9 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::Readable(args) => {
             let input = fetch::InputDocument::read(args.path.as_deref(), args.stdin, args.url.as_deref())?;
+
             let options = ReadableOptions { min_content_length: args.min_len, min_score: args.min_score };
+
             let readable = is_probably_readable(input.html(), &options)?;
             echo::readable(readable, args.json, args.pretty)?;
         }

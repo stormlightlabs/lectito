@@ -45,8 +45,13 @@ lectito parse article.html --nb-top-candidates 8
 lectito parse article.html --content-selector article
 lectito parse article.html --url https://example.com/post --site-profile example.com.toml
 lectito parse article.html --max-elems-to-parse 10000
-lectito parse article.html --keep-classes --classes-to-preserve language-rust
+lectito parse article.html --media article
+lectito parse article.html --media none
+lectito parse article.html --keep-classes --preserve-class language-rust
 ```
+
+`--media` accepts `none`, `conservative`, `article`, or `all`. The default is
+`article`, which keeps figures/images that appear to be part of the article body.
 
 `--site-profile` can be repeated. Each file must be a TOML site profile. User
 profiles take precedence over bundled profiles for the same host.

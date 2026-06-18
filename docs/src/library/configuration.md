@@ -7,13 +7,14 @@ useful and avoid exposing internal scoring knobs unless they affect common
 integration cases.
 
 ```rust
-use lectito::ReadabilityOptions;
+use lectito::{MediaRetention, ReadabilityOptions};
 
 let options = ReadabilityOptions {
     char_threshold: 800,
     nb_top_candidates: 8,
     content_selector: Some("article".to_string()),
     site_profiles: Vec::new(),
+    media_retention: MediaRetention::Article,
     ..ReadabilityOptions::default()
 };
 ```
@@ -32,6 +33,7 @@ Fields:
 | `keep_classes`          |     `false` | Keep all class attributes.                             |
 | `disable_json_ld`       |     `false` | Skip JSON-LD metadata extraction.                      |
 | `link_density_modifier` |       `0.0` | Adjust link-density cleanup tolerance.                 |
+| `media_retention`       |   `Article` | Control figure/image/media retention.                  |
 
 Prefer `content_selector` when you already know the page shape. It is clearer
 than trying to tune scores around a stable document layout.
@@ -43,6 +45,10 @@ falls back to the generic extractor.
 
 Use `max_elems_to_parse` as a guardrail for untrusted input. It rejects very
 large documents before extraction work continues.
+
+Use `media_retention` when output fidelity matters. `Article` keeps body figures
+and images by default; `None` removes media; `Conservative` is text-first; `All`
+keeps media that remains in the selected article subtree.
 
 `ReadableOptions` controls `is_probably_readable`.
 

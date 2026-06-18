@@ -162,20 +162,30 @@ fn render_list(node: &NodeRef, ordered: bool, ctx: RenderContext) -> String {
         } else {
             "-".to_string()
         };
-        let text = normalize_markdown(&render_children(
-            &child,
-            RenderContext { list_depth: ctx.list_depth + 1, ..ctx },
-        ));
-        let mut lines = text.lines();
-        if let Some(first) = lines.next() {
-            output.push_str(&format!("{indent}{marker} {first}\n"));
-        }
-        for line in lines {
-            output.push_str(&format!("{indent}  {line}\n"));
+        let (label, nested) = render_list_item(&child, RenderContext { list_depth: ctx.list_depth + 1, ..ctx });
+        output.push_str(&format!("{indent}{marker} {label}\n"));
+        for line in nested.lines().filter(|line| !line.trim().is_empty()) {
+            output.push_str(line);
+            output.push('\n');
         }
     }
     output.push('\n');
     output
+}
+
+fn render_list_item(node: &NodeRef, ctx: RenderContext) -> (String, String) {
+    let mut label = String::new();
+    let mut nested = String::new();
+
+    for child in node.children() {
+        match dom::node_name(&child).as_str() {
+            "ul" => nested.push_str(&render_list(&child, false, ctx)),
+            "ol" => nested.push_str(&render_list(&child, true, ctx)),
+            _ => label.push_str(&render_node(&child, ctx)),
+        }
+    }
+
+    (patterns::normalize_spaces(normalize_markdown(&label).trim()), nested)
 }
 
 fn block(value: String) -> String {
@@ -212,7 +222,7 @@ pub(super) fn normalize_markdown(value: &str) -> String {
             }
         } else {
             blank_count = 0;
-            output.push_str(line.trim_start());
+            output.push_str(line);
             output.push('\n');
         }
     }
@@ -250,6 +260,16 @@ mod tests {
         assert!(markdown.contains("Hello **bold** [link](https://example.com)."));
         assert!(markdown.contains("- One"));
         assert!(markdown.contains("    let x = 1;"));
+    }
+
+    #[test]
+    fn preserves_nested_list_indentation() {
+        let markdown = html_to_markdown(
+            r#"<ul><li>Parent<ul><li>Child<ul><li>Grandchild</li></ul></li></ul></li><li>Sibling</li></ul>"#,
+        );
+
+        assert!(markdown.contains("- Parent\n  - Child\n    - Grandchild"), "{markdown}");
+        assert!(markdown.contains("- Sibling"), "{markdown}");
     }
 
     #[test]
@@ -447,7 +467,7 @@ mod tests {
         assert!(
             article
                 .markdown
-                .contains("![](https://www.youtube.com/watch?v=LtOGa5M8AuU)"),
+                .contains("[Video](https://www.youtube.com/watch?v=LtOGa5M8AuU)"),
             "{}",
             article.markdown
         );
@@ -517,11 +537,11 @@ mod tests {
         );
 
         assert!(
-            markdown.contains("![](https://www.youtube.com/watch?v=dQw4w9WgXcQ)"),
+            markdown.contains("[Video](https://www.youtube.com/watch?v=dQw4w9WgXcQ)"),
             "{markdown}"
         );
         assert!(
-            markdown.contains("![](https://twitter.com/example/status/12345)"),
+            markdown.contains("[Video](https://twitter.com/example/status/12345)"),
             "{markdown}"
         );
         assert!(!markdown.contains("> Tweet"), "{markdown}");

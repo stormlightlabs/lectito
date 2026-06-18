@@ -1,4 +1,54 @@
+use std::fmt;
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum MediaRetention {
+    /// Remove media from extracted content.
+    None,
+    /// Text-first reader mode; keep only media that survives generic cleanup.
+    Conservative,
+    /// Keep images and figures that appear to be part of the article body.
+    #[default]
+    Article,
+    /// Keep all media that remains inside the selected article subtree.
+    All,
+}
+
+impl MediaRetention {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Conservative => "conservative",
+            Self::Article => "article",
+            Self::All => "all",
+        }
+    }
+}
+
+impl fmt::Display for MediaRetention {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+impl FromStr for MediaRetention {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "none" => Ok(Self::None),
+            "conservative" => Ok(Self::Conservative),
+            "article" => Ok(Self::Article),
+            "all" => Ok(Self::All),
+            other => Err(format!(
+                "invalid media retention mode '{other}' (expected none, conservative, article, or all)"
+            )),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ReadabilityOptions {
@@ -13,6 +63,8 @@ pub struct ReadabilityOptions {
     pub keep_classes: bool,
     pub disable_json_ld: bool,
     pub link_density_modifier: f32,
+    #[serde(default)]
+    pub media_retention: MediaRetention,
 }
 
 impl Default for ReadabilityOptions {
@@ -28,6 +80,7 @@ impl Default for ReadabilityOptions {
             keep_classes: false,
             disable_json_ld: false,
             link_density_modifier: 0.0,
+            media_retention: MediaRetention::Article,
         }
     }
 }

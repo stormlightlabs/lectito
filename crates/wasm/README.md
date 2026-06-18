@@ -40,6 +40,8 @@ Key dependencies:
 ## Proposed JavaScript API
 
 ```ts
+export type MediaRetention = "none" | "conservative" | "article" | "all";
+
 export interface ReadabilityOptions {
   maxElemsToParse?: number;
   nbTopCandidates?: number;
@@ -51,6 +53,7 @@ export interface ReadabilityOptions {
   keepClasses?: boolean;
   disableJsonLd?: boolean;
   linkDensityModifier?: number;
+  mediaRetention?: MediaRetention;
 }
 
 export interface ReadableOptions {

@@ -2,7 +2,7 @@
 
 use std::sync::Once;
 
-use lectito::{MarkdownOptions, ReadabilityOptions, ReadableOptions};
+use lectito::{MarkdownOptions, MediaRetention, ReadabilityOptions, ReadableOptions};
 use serde::Deserialize;
 use wasm_bindgen::prelude::*;
 
@@ -112,6 +112,7 @@ struct ReadabilityOptionsDto {
     keep_classes: Option<bool>,
     disable_json_ld: Option<bool>,
     link_density_modifier: Option<f32>,
+    media_retention: Option<MediaRetention>,
 }
 
 impl ReadabilityOptionsDto {
@@ -146,6 +147,9 @@ impl ReadabilityOptionsDto {
         }
         if let Some(value) = self.link_density_modifier {
             options.link_density_modifier = value;
+        }
+        if let Some(value) = self.media_retention {
+            options.media_retention = value;
         }
         options
     }

@@ -51,6 +51,8 @@ The JavaScript API uses camelCase fields and maps them to the Rust options
 internally.
 
 ```ts
+export type MediaRetention = "none" | "conservative" | "article" | "all";
+
 export interface ReadabilityOptions {
   maxElemsToParse?: number | null;
   nbTopCandidates?: number;
@@ -62,6 +64,7 @@ export interface ReadabilityOptions {
   keepClasses?: boolean;
   disableJsonLd?: boolean;
   linkDensityModifier?: number;
+  mediaRetention?: MediaRetention;
 }
 
 export interface ReadableOptions {

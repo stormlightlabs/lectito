@@ -7,7 +7,7 @@ Markdown helpers. Internal parser, scoring, cleanup, and recovery modules remain
 private.
 
 ```rust
-pub use config::{Article, MarkdownOptions, ReadabilityOptions, ReadableOptions};
+pub use config::{Article, MarkdownOptions, MediaRetention, ReadabilityOptions, ReadableOptions};
 pub use diagnostics::{
     AttemptDiagnostic, CandidateDiagnostic, CandidateSelection,
     CleanupDiagnostic, ContentSelectorDiagnostic, ExtractionDiagnostics,

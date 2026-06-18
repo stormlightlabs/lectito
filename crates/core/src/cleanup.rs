@@ -3,7 +3,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use url::Url;
 
-use super::config::{ExtractFlags, ReadabilityOptions};
+use super::config::{ExtractFlags, MediaRetention, ReadabilityOptions};
 use super::metadata::Metadata;
 use super::patterns::{
     AD_OR_LOADING_WORDS, COMMA, DEFAULT_CLASSES_TO_PRESERVE, DEPRECATED_SIZE_ATTRIBUTE_ELEMS,
@@ -77,7 +77,8 @@ pub(crate) fn cleanup_article(
             node,
             "script, style, noscript, base, form, fieldset, footer, link, aside",
         );
-        clean_embeds(node);
+        apply_media_retention(node, options.media_retention);
+        clean_embeds(node, options.media_retention);
         remove_share_nodes(node);
         remove_trailing_page_chrome(node);
         clean_headers(node, metadata.title.as_deref(), flags);
@@ -134,7 +135,17 @@ fn unsafe_url_value(value: &str) -> bool {
     value.starts_with("javascript:") || value.starts_with("data:text/html")
 }
 
-fn clean_embeds(root: &NodeRef) {
+fn apply_media_retention(root: &NodeRef, retention: MediaRetention) {
+    if matches!(retention, MediaRetention::None) {
+        dom::remove_matching(root, "figure, picture, img, video, audio, object, embed, iframe");
+    }
+}
+
+fn clean_embeds(root: &NodeRef, retention: MediaRetention) {
+    if matches!(retention, MediaRetention::None) {
+        return;
+    }
+
     for node in dom::select_nodes(root, "object, embed, iframe") {
         let keep = dom::attrs(&node).values().any(|value| allowed_video(value));
         if !keep {
@@ -577,7 +588,14 @@ fn clean_conditionally(root: &NodeRef, options: &ReadabilityOptions, flags: Extr
         let text = dom::inner_text(&node);
         let content_length = text.chars().count();
         if content_length == 0 {
-            node.detach();
+            let keep_empty_media = match options.media_retention {
+                MediaRetention::All => has_media_descendant(&node),
+                MediaRetention::Article => is_article_media_container(&node),
+                MediaRetention::None | MediaRetention::Conservative => false,
+            };
+            if !keep_empty_media {
+                node.detach();
+            }
             continue;
         }
 
@@ -594,22 +612,78 @@ fn clean_conditionally(root: &NodeRef, options: &ReadabilityOptions, flags: Extr
         let input_count = dom::select_nodes(&node, "input").len();
         let embed_count = dom::select_nodes(&node, "object, embed, iframe").len();
         let comma_count = COMMA.find_iter(&text).count();
+        let is_list = is_list_like(&node);
+        let is_article_media = match options.media_retention {
+            MediaRetention::All => has_media_descendant(&node),
+            MediaRetention::Article => is_article_media_container(&node),
+            MediaRetention::None | MediaRetention::Conservative => false,
+        };
 
-        let should_remove = weight < 0
-            || (comma_count < 10
-                && ((img_count > 1 && p_count.saturating_mul(2) < img_count)
-                    || li_count > p_count
-                    || input_count > p_count / 3
-                    || (content_length < 25 && img_count == 0 && density > 0.0)
-                    || (weight < 25 && density > 0.2)
-                    || (weight >= 25 && density > 0.5)
-                    || (embed_count == 1 && content_length < 75)
-                    || embed_count > 1));
+        let should_remove = !is_article_media
+            && (weight < 0
+                || (comma_count < 10
+                    && ((img_count > 1 && p_count.saturating_mul(2) < img_count)
+                        || (!is_list && li_count > p_count)
+                        || input_count > p_count / 3
+                        || (!is_list && content_length < 25 && img_count == 0 && density > 0.0)
+                        || (!is_list && weight < 25 && density > 0.2)
+                        || (weight >= 25 && density > 0.5)
+                        || (embed_count == 1 && content_length < 75)
+                        || embed_count > 1)));
 
         if should_remove {
             node.detach();
         }
     }
+}
+
+fn has_media_descendant(node: &NodeRef) -> bool {
+    matches!(
+        dom::node_name(node).as_str(),
+        "figure" | "picture" | "img" | "video" | "audio" | "iframe"
+    ) || !dom::select_nodes(node, "img, picture, video, audio, iframe").is_empty()
+}
+
+fn is_article_media_container(node: &NodeRef) -> bool {
+    if matches!(
+        dom::node_name(node).as_str(),
+        "figure" | "picture" | "img" | "video" | "audio"
+    ) {
+        return true;
+    }
+
+    if dom::select_nodes(node, "img, picture, video, audio, iframe").is_empty() {
+        return false;
+    }
+
+    let attrs = format!(
+        "{} {}",
+        dom::class_id_string(node),
+        dom::attr(node, "role").unwrap_or_default()
+    )
+    .to_ascii_lowercase();
+    attrs.contains("figure")
+        || attrs.contains("photo")
+        || attrs.contains("image")
+        || attrs.contains("media")
+        || attrs.contains("caption")
+}
+
+fn is_list_like(node: &NodeRef) -> bool {
+    if matches!(dom::node_name(node).as_str(), "ul" | "ol") {
+        return true;
+    }
+
+    let text_len = dom::inner_text(node).chars().count();
+    if text_len == 0 {
+        return false;
+    }
+
+    let list_len: usize = dom::select_nodes(node, "ul, ol")
+        .into_iter()
+        .map(|list| dom::inner_text(&list).chars().count())
+        .sum();
+    (list_len as f64 / text_len as f64) > 0.9
 }
 
 fn is_data_table(node: &NodeRef) -> bool {

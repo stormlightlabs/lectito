@@ -156,8 +156,28 @@ pub(crate) struct ExtractAttempt {
     pub(crate) text_len: usize,
 }
 
+fn title_duplicates_site_name(metadata: &Metadata) -> bool {
+    let title = metadata.title.as_deref().unwrap_or_default().trim();
+    let site_name = metadata.site_name.as_deref().unwrap_or_default().trim();
+    !title.is_empty() && title.eq_ignore_ascii_case(site_name)
+}
+
+fn first_content_heading(content: &str) -> Option<String> {
+    let document = kuchiki::parse_html().one(format!("<html><body>{content}</body></html>"));
+    dom::select_nodes(&document, "h1, h2, h3")
+        .into_iter()
+        .map(|heading| patterns::normalize_spaces(dom::inner_text(&heading).trim()))
+        .find(|heading| !heading.is_empty())
+}
+
 impl ExtractAttempt {
     fn into_article(mut self) -> Article {
+        if title_duplicates_site_name(&self.metadata)
+            && let Some(heading) = first_content_heading(&self.content)
+        {
+            self.metadata.title = Some(heading);
+        }
+
         if self.metadata.excerpt.as_deref().unwrap_or_default().trim().is_empty() {
             self.metadata.excerpt = metadata::first_paragraph_excerpt(&self.content);
         }
@@ -640,6 +660,7 @@ fn enforce_element_limit(document: &Html, limit: Option<usize>) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::MediaRetention;
     use crate::patterns::normalize_spaces;
 
     #[test]
@@ -796,6 +817,100 @@ mod tests {
         assert_eq!(diagnostic.name, "example profile");
         assert!(diagnostic.accepted);
         assert_eq!(diagnostic.roots, vec!["article#profiled"]);
+    }
+
+    #[test]
+    fn preserves_link_heavy_article_lists() {
+        let links = (0..30)
+            .map(|index| format!(r#"<li><a href="https://example.com/api/{index}"><code>Api::{index}</code></a></li>"#))
+            .collect::<String>();
+        let html = format!(
+            r#"<html><body><article><h1>Release notes</h1>
+            <p>This release includes new capabilities and enough explanatory prose to be selected as an article candidate.</p>
+            <p>The following APIs are now stable and should remain in the extracted content.</p>
+            <h2>Stabilized APIs</h2><ul>{links}</ul>
+            <p>Other changes include compiler fixes, cargo improvements, and documentation updates for users.</p>
+            </article></body></html>"#
+        );
+
+        let article = extract(
+            &html,
+            Some("https://example.com/release"),
+            &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert!(article.content.contains("Stabilized APIs"), "{}", article.content);
+        assert!(article.content.contains("Api::0"), "{}", article.content);
+        assert!(article.content.contains("Api::29"), "{}", article.content);
+    }
+
+    #[test]
+    fn uses_content_heading_when_metadata_title_is_site_name() {
+        let article = extract(
+            r#"<html><head>
+                <meta property="og:site_name" content="Example Site">
+                <meta property="og:title" content="Example Site">
+            </head><body>
+                <h1>Example Site</h1>
+                <article><h2>Short Post</h2><p>This article body has enough prose and punctuation to be selected as readable content.</p></article>
+            </body></html>"#,
+            Some("https://example.com/post"),
+            &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert_eq!(article.title.as_deref(), Some("Short Post"));
+    }
+
+    #[test]
+    fn article_media_retention_preserves_body_figures() {
+        let html = r#"
+            <html><body><article>
+                <h1>Quality curves</h1>
+                <p>This article explains a diagram, with enough punctuation and prose to be extracted as readable content.</p>
+                <div class="figure" id="curve.png"><img src="curve.png"><p class="photoCaption"></p></div>
+                <p>The paragraph after the figure continues the argument and proves the figure sits inside the article body.</p>
+            </article></body></html>
+        "#;
+
+        let article = extract(
+            html,
+            Some("https://example.com/articles/story.html"),
+            &ReadabilityOptions { char_threshold: 0, media_retention: MediaRetention::Article, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert!(article.content.contains("<img"), "{}", article.content);
+        assert!(
+            article.content.contains("https://example.com/articles/curve.png"),
+            "{}",
+            article.content
+        );
+    }
+
+    #[test]
+    fn none_media_retention_removes_body_figures() {
+        let html = r#"
+            <html><body><article>
+                <p>This article explains a diagram, with enough punctuation and prose to be extracted as readable content.</p>
+                <div class="figure"><img src="curve.png"></div>
+                <p>The paragraph after the figure continues the argument and proves the figure sits inside the article body.</p>
+            </article></body></html>
+        "#;
+
+        let article = extract(
+            html,
+            Some("https://example.com/articles/story.html"),
+            &ReadabilityOptions { char_threshold: 0, media_retention: MediaRetention::None, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert!(!article.content.contains("<img"), "{}", article.content);
     }
 
     #[test]

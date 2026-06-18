@@ -1,2 +1,3 @@
 allowBuilds:
   dprint: true
+  wasm-pack: true

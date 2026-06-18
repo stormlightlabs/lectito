@@ -88,7 +88,7 @@ pub(super) fn render_embed(node: &NodeRef) -> Option<String> {
         }
     }
 
-    embed_url.map(|url| format!("![]({})", escape_commonmark_link_destination(&url)))
+    embed_url.map(|url| format!("[Video]({})", escape_commonmark_link_destination(&url)))
 }
 
 fn render_image_from_candidates(node: &NodeRef, candidates: Vec<ImageCandidate>) -> String {

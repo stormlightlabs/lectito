@@ -15,7 +15,7 @@ mod rules;
 mod scoring;
 mod serialize;
 
-pub use config::{Article, MarkdownOptions, ReadabilityOptions, ReadableOptions};
+pub use config::{Article, MarkdownOptions, MediaRetention, ReadabilityOptions, ReadableOptions};
 pub use diagnostics::{
     AttemptDiagnostic, CandidateDiagnostic, CandidateSelection, CleanupDiagnostic, ContentSelectorDiagnostic,
     ExtractionDiagnostics, ExtractionOutcome, ExtractionReport, FlagDiagnostic, NodeDiagnostic, RecoveryDiagnostic,

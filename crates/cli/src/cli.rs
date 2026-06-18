@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use lectito::MediaRetention;
 
 /// Extract, inspect, and debug readable article content from HTML.
 #[derive(Debug, Parser)]
@@ -102,6 +103,10 @@ pub struct ParseArgs {
     /// Disable JSON-LD metadata extraction.
     #[arg(long)]
     pub disable_json_ld: bool,
+
+    /// Media retention mode for extracted content.
+    #[arg(long = "media", default_value_t = MediaRetention::Article)]
+    pub media: MediaRetention,
 
     /// Preserve class attributes in extracted HTML.
     #[arg(long = "keep-classes")]

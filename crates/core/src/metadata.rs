@@ -285,7 +285,6 @@ fn prefer_specific_headline(document: &Html, site_name: Option<&str>, title: &st
     let headline = specific_heading(document);
     if let (Some(site_name), Some(headline)) = (site_name, headline.as_deref())
         && title.eq_ignore_ascii_case(site_name)
-        && word_count(headline) >= 3
     {
         return Some(headline.to_string());
     }
@@ -602,4 +601,25 @@ fn decode_numeric_entity(value: &str, radix: u32) -> Option<String> {
 
 fn is_url(value: &str) -> bool {
     Url::parse(value).is_ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prefers_h1_when_meta_title_is_site_name_even_for_short_headlines() {
+        let html = r#"
+            <html><head>
+                <meta property="og:site_name" content="Simon Willison’s Weblog">
+                <meta property="og:title" content="Simon Willison’s Weblog">
+                <title>Datasette Agent</title>
+            </head><body><article><h1>Datasette Agent</h1></article></body></html>
+        "#;
+        let document = Html::parse_document(html);
+        let metadata = extract_metadata(&document, html, &ReadabilityOptions::default(), None);
+
+        assert_eq!(metadata.title.as_deref(), Some("Datasette Agent"));
+        assert_eq!(metadata.site_name.as_deref(), Some("Simon Willison’s Weblog"));
+    }
 }

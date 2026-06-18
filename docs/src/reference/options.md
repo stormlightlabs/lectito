@@ -18,6 +18,14 @@ pub struct ReadabilityOptions {
     pub keep_classes: bool,
     pub disable_json_ld: bool,
     pub link_density_modifier: f32,
+    pub media_retention: MediaRetention,
+}
+
+pub enum MediaRetention {
+    None,
+    Conservative,
+    Article,
+    All,
 }
 ```
 
@@ -35,6 +43,7 @@ ReadabilityOptions {
     keep_classes: false,
     disable_json_ld: false,
     link_density_modifier: 0.0,
+    media_retention: MediaRetention::Article,
 }
 ```
 
@@ -44,6 +53,13 @@ strings that provide host-scoped content roots, removal selectors, metadata
 hints, cleanup settings, and fallback behavior. `char_threshold` controls when
 an attempt is accepted. `nb_top_candidates` controls how many candidates remain
 in play during selection.
+
+`media_retention` controls image and media preservation in the extracted article:
+
+- `None`: remove figures, images, and embedded media from content.
+- `Conservative`: text-first cleanup; media survives only if the generic extractor keeps it.
+- `Article`: keep figures/images that look like article body content. This is the default.
+- `All`: keep media that remains in the selected article subtree, subject to unsafe/embed cleanup.
 
 ## ReadableOptions
 
