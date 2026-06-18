@@ -43,7 +43,8 @@
     --space-6: 1.5rem;
     --space-8: 2rem;
     --space-10: 2.5rem;
-    --radius-1: 2px;
-    --radius-2: 4px;
-    --radius-3: 6px;
+
+    --radius-1: 1px;
+    --radius-2: 2px;
+    --radius-3: 3px;
 }

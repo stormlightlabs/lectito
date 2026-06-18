@@ -6,6 +6,12 @@
     "module": "esnext",
     "types": ["node"],
     "skipLibCheck": true,
+    "paths": {
+      "$components/*": ["./src/components/*"],
+      "$lib/*": ["./src/lib/*"],
+      "$pages/*": ["./src/pages/*"],
+      "$styles/*": ["./src/styles/*"]
+    },
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

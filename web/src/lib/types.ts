@@ -40,6 +40,10 @@ export type PipelineFailure = { sanitizedHtml: string; message: string; source: 
 
 export type UrlExtractionRequest = { url: string; options: PipelineOptions };
 
+export type ExtractUrlResponse = { article?: Article | null; diagnostics?: unknown; elapsedMs: number };
+
+export type ApiErrorResponse = { error?: { code?: string; message?: string }; message?: string };
+
 export type LectitoModule = {
   default: () => Promise<void>;
   extractWithDiagnostics: (
@@ -71,6 +75,12 @@ export type Article = {
   favicon?: string | null;
 };
 
-export type OutputTab = "markdown" | "cleaned" | "preview" | "metadata" | "diagnostics" | "sanitized";
+export type OutputTab = "markdown" | "preview" | "cleaned";
+
+export type InspectTab = "metadata" | "diagnostics" | "sanitized";
 
 export type Lang = "html" | "markdown" | "plain";
+
+export type SampleUrl = { label: string; url: string };
+
+export type SampleHtml = { label: string; html: string };

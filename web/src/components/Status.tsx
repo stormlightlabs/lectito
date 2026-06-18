@@ -35,14 +35,18 @@ type StatusStripProps = { mode: AppMode; running: boolean; result?: PipelineResu
 
 export function StatusStrip(props: StatusStripProps) {
   const result = () => props.result;
+  const status = () => statusText(props.running, result());
+  const details = () =>
+    [
+      props.mode === "html" ? "HTML / WASM" : "URL / API",
+      result() ? resultKind(result()) : "",
+      textLength(result()) === "-" ? "" : `${textLength(result())} chars`,
+      elapsedText(result()) === "-" ? "" : elapsedText(result()),
+    ].filter(Boolean).join(" · ");
 
   return (
     <section class="status-strip" aria-label="Current conversion status">
-      <StatusItem label="Mode" value={props.mode === "html" ? "HTML / WASM" : "URL / API"} />
-      <StatusItem label="Status" value={statusText(props.running, result())} />
-      <StatusItem label="Elapsed" value={elapsedText(result())} />
-      <StatusItem label="Text" value={textLength(result())} />
-      <StatusItem label="Result" value={resultKind(result())} />
+      <StatusItem label={status()} value={details()} />
     </section>
   );
 }

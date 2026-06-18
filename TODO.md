@@ -14,136 +14,83 @@
 
 ## API (`crates/api`)
 
-Build a small HTTP API around the core `lectito` crate. Keep it as an adapter:
-request validation, extraction, response formatting, and operational limits.
-
-### First Pass
-
-- Add a new `lectito-api` workspace crate under `crates/api`.
-- Use `axum` with `tokio`, `tower-http`, `serde`, and `tracing`.
-- Add these routes:
-  - `GET /healthz`
-  - `POST /v1/extract-url`
-  - `POST /v1/readable`
-  - `POST /v1/markdown`
-- Fetch URLs server-side for the web app's URL conversion flow.
-- Keep raw HTML extraction as an internal/API test path only if it stays useful.
-- For URL extraction, use the final fetched URL as the extraction base URL so
-  relative links and site profiles work.
-- Map API options directly to `ReadabilityOptions`, `ReadableOptions`, and
-  `MarkdownOptions`.
-- Return camelCase JSON so the API shape matches the WASM JavaScript API.
-- Return structured errors:
-  - `invalid_request`
-  - `document_too_large`
-  - `fetch_failed`
-  - `unsupported_content_type`
-  - `extract_failed`
-  - `markdown_failed`
-  - `internal_error`
-
-### API Routing
-
-- `POST /v1/extract-url` should accept:
-  - `url`
-  - `options`
-  - `diagnostics`
-- `POST /v1/extract-url` should fetch the URL, pass the final response URL as
-  the extraction base URL, and return:
-  - `article`
-  - `diagnostics` when requested
-  - `elapsedMs`
-- `POST /v1/readable` should accept a URL and return only
-  `{ "readable": true | false }`.
-- `POST /v1/markdown` should convert a provided HTML fragment to Markdown.
-- Keep response article fields aligned with the Rust `Article` struct and the
-  WASM `Article` type.
-- Reject non-HTTP(S) URLs, private-network targets, oversized responses, and
-  unsupported content types before extraction.
-- Follow redirects only within the configured redirect limit.
-
-### Render Deployment
-
-- Add a `Dockerfile` for Render.
-  - Bind to the `PORT` environment variable.
-- Add a request body limit before handlers run.
-- Add a fetched response size limit before reading the full response body.
-- Add request timeout handling.
-- Add CORS with configured allowed origins.
-- Add JSON logs with method, path, status, elapsed time, and error code.
-- Add smoke tests for `/healthz`, `/v1/extract-url`, and `/v1/readable`.
-
----
-
 - Add raw HTML extraction endpoints later only if external API users need them.
 - Add rate limiting.
-- Add a small benchmark command & fixture set for API latency checks.
+- Add a small benchmark command and fixture set for API latency checks.
 
-## Web App (`web/`)
+## Web
 
 The web app has two primary flows:
 
 - Convert a URL through the Render API.
 - Convert pasted HTML markup in the browser through WASM.
 
-### First Pass
+### Pages
 
-- Rename the app package from `lectito-examplei` to a real `lectito-web`.
-- Split the current pipeline into:
-  - `src/lib/clients/api.ts`
-  - `src/lib/clients/wasm.ts`
-  - `src/lib/types.ts`
+- `/workbench`: the main extraction workspace.
+- `/history`: saved local runs, with source, status, elapsed time, length,
+  title, timestamp, and options.
+- `/runs/:id`: one saved extraction result, with output, metadata, diagnostics,
+  and options.
+- `/samples`: a browsable gallery of curated fixtures and known edge cases.
+- `/api`: API playground and reference examples.
+- `/settings`: API base URL, default mode, output preferences, and history
+  settings.
 
-- Add a mode control (tabbed UI)
-  - URL
-  - HTML
-- In URL mode, send the URL to the API and render the returned article.
-- In HTML mode, run extraction locally through WASM.
-- Keep DOMPurify in the browser before rendering previews.
-- Keep the generated WASM package under `public/lectito-wasm` until the package
-  story is settled.
+### Controls
 
-### Main Screen
+- Expand the collapsible sidebar with saved runs and sample shortcuts.
+- Add a command bar with convert, cancel, reset, copy, download, save run,
+  share view link, and open result actions.
+- Add output actions for copying Markdown, copying HTML, copying metadata JSON,
+  downloading files, opening preview in a new tab, toggling line wrap, and
+  fullscreen output.
+- Improve input controls with URL validation, optional paste-from-clipboard,
+  HTML file import, clear input, recent URLs, searchable samples, document size,
+  and large-input warnings.
+- Group advanced options by extraction, media, metadata, styling, site rules,
+  and debug settings.
+- Add presets for default, strict article, keep media, debug, and preserve
+  styling.
+- Make diagnostics readable with a summary, fallback reason, warnings, timing,
+  candidate details, and sanitized-vs-cleaned comparison.
+- Add a compact metadata summary above the output tabs.
+- Add a compare view for source HTML, sanitized HTML, cleaned article HTML, and
+  Markdown.
+- Add a resizable layout with collapsible input, fullscreen preview/output, and
+  persistent layout preference.
+- Finish accessible tab behavior with `role="tab"`, `aria-selected`,
+  `aria-controls`, tab panels, and keyboard navigation.
+- Keep failed input intact and show field-level recovery messages.
 
-- Left side:
-  - URL input for API mode
-  - HTML input editor for WASM mode
-  - optional `baseUrl` field for HTML mode
-  - extraction options
-- Right side:
-  - Markdown output
-  - cleaned HTML output
-  - rendered preview
-  - metadata
-  - diagnostics
-- Status strip:
-  - current mode
-  - elapsed time
-  - article or fallback result
-  - text length
-  - error state
+### Router
 
-### Shared Behavior
-
-- URL mode and HTML mode should use the same option names where the underlying
-  extractor supports them.
-- URL mode and HTML mode should produce the same output tabs.
-- Empty or failed extraction should show a clear fallback state.
-- Preview rendering must sanitize returned HTML before inserting it into the DOM.
-- Diagnostics should stay available, but not dominate the default UI.
+- Keep the route definition in `web/src/App.tsx`.
+- Put route wrappers and pages in `web/src/pages/*.tsx`.
+- Use URL search params for lightweight workbench state such as mode, output
+  tab, inspect tab, selected sample, and option preset.
+- Do not put pasted HTML in the URL.
 
 ### Developer Tools
 
-- Add sample URLs and sample HTML fixtures for quick manual checks.
 - Add a small smoke test that loads the app and runs one WASM extraction.
 - Add a smoke test for URL mode against a mocked API response.
 
 ### Build And Deploy
 
 - Keep `pnpm build`, `pnpm lint`, and `pnpm build:wasm` green.
-- Add an environment variable for the API base URL.
 - Make production builds work without a local API.
-- Keep the WASM chunk lazy-loaded so the initial app shell stays small.
+
+### Implementation Order
+
+- [ ] URL-back lightweight workbench state with `useSearchParams`.
+- [ ] Add output copy, download, and fullscreen actions.
+- [ ] Add run history and `/runs/:id`.
+  - [ ] Back with Dexie.js
+- [ ] Add grouped presets and better advanced options.
+- [ ] Add the sample gallery.
+- [ ] Improve tab and command accessibility.
+- [ ] Add `/api` behavior and `/settings` persistence.
 
 ## WASM And Browser Safety
 
@@ -180,6 +127,8 @@ metadata/header cleanup.
 - Prefer a larger focused subtree when the current result is only notes,
   metadata, or a single step.
 
+## Markdown Conversion
+
 ### Clean Reference Site Chrome
 
 - Remove skip links, "from Wikipedia" boilerplate, edit links,
@@ -187,8 +136,6 @@ metadata/header cleanup.
 - Preserve equations, tables, footnotes, and citation references while removing
   navigation chrome.
 - Remove heading permalink/edit anchors but keep the heading text.
-
-## Markdown Conversion
 
 ### Markdown Cleanup Edge Cases
 

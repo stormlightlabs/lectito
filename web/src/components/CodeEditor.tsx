@@ -1,19 +1,35 @@
-import { catppuccinLatte } from "@catppuccin/codemirror";
-import { indentWithTab } from "@codemirror/commands";
-import { html } from "@codemirror/lang-html";
-import { markdown } from "@codemirror/lang-markdown";
-import { Compartment, EditorState } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { createEffect, createSignal, onCleanup } from "solid-js";
 import type { Lang } from "../lib/types";
 
-function languageExtension(language: Lang) {
+type CodeMirrorModules = Awaited<ReturnType<typeof loadCodeMirror>>;
+
+async function loadCodeMirror() {
+  const [
+    { catppuccinLatte },
+    { indentWithTab },
+    { html },
+    { markdown },
+    { Compartment, EditorState },
+    { EditorView, keymap, lineNumbers },
+  ] = await Promise.all([
+    import("@catppuccin/codemirror"),
+    import("@codemirror/commands"),
+    import("@codemirror/lang-html"),
+    import("@codemirror/lang-markdown"),
+    import("@codemirror/state"),
+    import("@codemirror/view"),
+  ]);
+
+  return { catppuccinLatte, indentWithTab, html, markdown, Compartment, EditorState, EditorView, keymap, lineNumbers };
+}
+
+function languageExtension(language: Lang, modules: CodeMirrorModules) {
   switch (language) {
     case "html": {
-      return html();
+      return modules.html();
     }
     case "markdown": {
-      return markdown();
+      return modules.markdown();
     }
     case "plain": {
       return [];
@@ -21,17 +37,19 @@ function languageExtension(language: Lang) {
   }
 }
 
-type Props = { value: string; language: Lang; readonly?: boolean; onInput?: (value: string) => void };
+export type CodeEditorProps = { value: string; language: Lang; readonly?: boolean; onInput?: (value: string) => void };
 
-export function CodeEditor(props: Props) {
+export function CodeEditor(props: CodeEditorProps) {
   const [host, setHost] = createSignal<HTMLDivElement>();
   const [wordWrap, setWordWrap] = createSignal(true);
   const [copyStatus, setCopyStatus] = createSignal<"idle" | "copied" | "failed">("idle");
-  const wordWrapCompartment = new Compartment();
-  let view: EditorView | undefined;
+  let editorViewModule: CodeMirrorModules["EditorView"] | undefined;
+  let wordWrapCompartment: InstanceType<CodeMirrorModules["Compartment"]> | undefined;
+  let view: InstanceType<CodeMirrorModules["EditorView"]> | undefined;
   let copyStatusTimer: number | undefined;
+  let disposed = false;
 
-  const wordWrapExtension = () => wordWrap() ? EditorView.lineWrapping : [];
+  const wordWrapExtension = () => wordWrap() && editorViewModule ? editorViewModule.lineWrapping : [];
 
   const resetCopyStatus = () => {
     if (copyStatusTimer) globalThis.clearTimeout(copyStatusTimer);
@@ -53,30 +71,37 @@ export function CodeEditor(props: Props) {
     const parent = host();
     if (view || !parent) return;
 
-    view = new EditorView({
-      parent,
-      state: EditorState.create({
-        doc: props.value,
-        extensions: [
-          lineNumbers(),
-          keymap.of([indentWithTab]),
-          languageExtension(props.language),
-          catppuccinLatte,
-          wordWrapCompartment.of(wordWrapExtension()),
-          EditorView.editable.of(!props.readonly),
-          EditorState.readOnly.of(Boolean(props.readonly)),
-          EditorView.updateListener.of((update) => {
-            if (update.docChanged && props.onInput) {
-              props.onInput(update.state.doc.toString());
-            }
-          }),
-        ],
-      }),
+    void loadCodeMirror().then((modules) => {
+      if (disposed || view) return;
+
+      editorViewModule = modules.EditorView;
+      wordWrapCompartment = new modules.Compartment();
+
+      view = new modules.EditorView({
+        parent,
+        state: modules.EditorState.create({
+          doc: props.value,
+          extensions: [
+            modules.lineNumbers(),
+            modules.keymap.of([modules.indentWithTab]),
+            languageExtension(props.language, modules),
+            modules.catppuccinLatte,
+            wordWrapCompartment.of(wordWrapExtension()),
+            modules.EditorView.editable.of(!props.readonly),
+            modules.EditorState.readOnly.of(Boolean(props.readonly)),
+            modules.EditorView.updateListener.of((update) => {
+              if (update.docChanged && props.onInput) {
+                props.onInput(update.state.doc.toString());
+              }
+            }),
+          ],
+        }),
+      });
     });
   });
 
   createEffect(() => {
-    if (!view) return;
+    if (!view || !wordWrapCompartment) return;
     view.dispatch({ effects: wordWrapCompartment.reconfigure(wordWrapExtension()) });
   });
 
@@ -90,6 +115,7 @@ export function CodeEditor(props: Props) {
   });
 
   onCleanup(() => {
+    disposed = true;
     if (copyStatusTimer) globalThis.clearTimeout(copyStatusTimer);
     view?.destroy();
   });
