@@ -1,52 +1,31 @@
 use std::collections::HashMap;
 
-use once_cell::sync::Lazy;
-use regex::Regex;
 use scraper::Html;
 use url::Url;
 
 use super::config::ReadabilityOptions;
+use super::regexes::RegexPattern;
 use super::{json_schema, patterns};
 
+// TODO: move to patterns
 const TITLE_SEPARATORS: &[&str] = &[" | ", " - ", " – ", " — ", " \\ ", " / ", " > ", " » "];
 
-static BYLINE_PREFIX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)^\s*(by|author|authors|written by)\s+").expect("valid byline prefix regex"));
-
-static BYLINE_TRAILING_DATE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r"(?ix)
-        \s+
-        (
-            (published|updated|last\s+updated|posted|on)\b.*$
-            |
-            (jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4}.*$
-            |
-            \d{4}[-/]\d{1,2}[-/]\d{1,2}.*$
-        )
-        ",
-    )
-    .expect("valid byline trailing date regex")
-});
-
 #[derive(Clone, Debug, Default)]
-pub(crate) struct Metadata {
-    pub(crate) title: Option<String>,
-    pub(crate) byline: Option<String>,
-    pub(crate) excerpt: Option<String>,
-    pub(crate) site_name: Option<String>,
-    pub(crate) published_time: Option<String>,
-    pub(crate) image: Option<String>,
-    pub(crate) domain: Option<String>,
-    pub(crate) favicon: Option<String>,
-    pub(crate) schema_text: Option<String>,
-    pub(crate) lang: Option<String>,
-    pub(crate) dir: Option<String>,
+pub struct Metadata {
+    pub title: Option<String>,
+    pub byline: Option<String>,
+    pub excerpt: Option<String>,
+    pub site_name: Option<String>,
+    pub published_time: Option<String>,
+    pub image: Option<String>,
+    pub domain: Option<String>,
+    pub favicon: Option<String>,
+    pub schema_text: Option<String>,
+    pub lang: Option<String>,
+    pub dir: Option<String>,
 }
 
-pub(crate) fn extract_metadata(
-    document: &Html, html: &str, options: &ReadabilityOptions, base_url: Option<&Url>,
-) -> Metadata {
+pub fn extract_metadata(document: &Html, html: &str, options: &ReadabilityOptions, base_url: Option<&Url>) -> Metadata {
     let mut metadata = if options.disable_json_ld { Metadata::default() } else { json_schema::extract_json_ld(html) };
     let mut values = HashMap::<String, String>::new();
     let meta_selector = patterns::selector("meta");
@@ -177,6 +156,65 @@ pub(crate) fn extract_metadata(
     }
 
     metadata
+}
+
+pub fn normalize_byline(value: &str) -> Option<String> {
+    if is_url(value) {
+        return None;
+    }
+
+    let mut seen = Vec::<String>::new();
+    for part in value.split([',', ';']) {
+        let Some(author) = clean_metadata_value(part) else {
+            continue;
+        };
+        if !plausible_byline(&author) {
+            continue;
+        }
+        if !seen.iter().any(|existing| existing.eq_ignore_ascii_case(&author)) {
+            seen.push(author);
+        }
+    }
+
+    (!seen.is_empty()).then(|| seen.join(", "))
+}
+
+pub fn clean_metadata_value(value: &str) -> Option<String> {
+    let value = decode_html_entities(&patterns::normalize_spaces(value.trim()));
+    if value.is_empty() || is_placeholder_value(&value) { None } else { Some(value) }
+}
+
+pub fn first_paragraph_excerpt(content: &str) -> Option<String> {
+    let document = Html::parse_fragment(content);
+    first_excerpt_for_selector(&document, "p").or_else(|| first_excerpt_for_selector(&document, "div"))
+}
+
+pub fn decode_html_entities(value: &str) -> String {
+    let mut decoded = String::with_capacity(value.len());
+    let mut rest = value;
+
+    while let Some(start) = rest.find('&') {
+        decoded.push_str(&rest[..start]);
+        let after_amp = &rest[start + 1..];
+        let Some(end) = after_amp.find(';') else {
+            decoded.push_str(&rest[start..]);
+            return decoded;
+        };
+
+        let entity = &after_amp[..end];
+        let replacement = decode_entity(entity);
+        if let Some(replacement) = replacement {
+            decoded.push_str(&replacement);
+        } else {
+            decoded.push('&');
+            decoded.push_str(entity);
+            decoded.push(';');
+        }
+        rest = &after_amp[end + 1..];
+    }
+
+    decoded.push_str(rest);
+    decoded
 }
 
 fn meta_property_key(name: &str) -> bool {
@@ -429,8 +467,8 @@ fn byline_element_is_chrome(element: &scraper::ElementRef<'_>) -> bool {
 
 fn clean_byline(value: &str) -> String {
     let value = patterns::normalize_spaces(value.trim());
-    let value = BYLINE_PREFIX.replace(&value, "");
-    let value = BYLINE_TRAILING_DATE.replace(&value, "");
+    let value = RegexPattern::BylinePrefix.to_regex().replace(&value, "");
+    let value = RegexPattern::BylineTrailingDate.to_regex().replace(&value, "");
     patterns::normalize_spaces(value.trim().trim_matches(['-', '|', '•']).trim())
 }
 
@@ -444,32 +482,6 @@ fn plausible_byline(value: &str) -> bool {
         )
         && !lower.contains("work done exclusively")
         && !lower.contains("authors ordered")
-}
-
-pub(crate) fn normalize_byline(value: &str) -> Option<String> {
-    if is_url(value) {
-        return None;
-    }
-
-    let mut seen = Vec::<String>::new();
-    for part in value.split([',', ';']) {
-        let Some(author) = clean_metadata_value(part) else {
-            continue;
-        };
-        if !plausible_byline(&author) {
-            continue;
-        }
-        if !seen.iter().any(|existing| existing.eq_ignore_ascii_case(&author)) {
-            seen.push(author);
-        }
-    }
-
-    (!seen.is_empty()).then(|| seen.join(", "))
-}
-
-pub(crate) fn clean_metadata_value(value: &str) -> Option<String> {
-    let value = decode_html_entities(&patterns::normalize_spaces(value.trim()));
-    if value.is_empty() || is_placeholder_value(&value) { None } else { Some(value) }
 }
 
 fn is_placeholder_value(value: &str) -> bool {
@@ -525,11 +537,6 @@ fn strip_www(value: &str) -> String {
     value.strip_prefix("www.").unwrap_or(value).to_string()
 }
 
-pub(crate) fn first_paragraph_excerpt(content: &str) -> Option<String> {
-    let document = Html::parse_fragment(content);
-    first_excerpt_for_selector(&document, "p").or_else(|| first_excerpt_for_selector(&document, "div"))
-}
-
 fn first_excerpt_for_selector(document: &Html, selector_pattern: &str) -> Option<String> {
     let selector = patterns::selector(selector_pattern);
     document
@@ -547,34 +554,6 @@ fn first_value(values: &HashMap<String, String>, keys: &[&str]) -> Option<String
     keys.iter()
         .find_map(|key| values.get(*key).cloned())
         .filter(|value| !value.trim().is_empty())
-}
-
-pub(crate) fn decode_html_entities(value: &str) -> String {
-    let mut decoded = String::with_capacity(value.len());
-    let mut rest = value;
-
-    while let Some(start) = rest.find('&') {
-        decoded.push_str(&rest[..start]);
-        let after_amp = &rest[start + 1..];
-        let Some(end) = after_amp.find(';') else {
-            decoded.push_str(&rest[start..]);
-            return decoded;
-        };
-
-        let entity = &after_amp[..end];
-        let replacement = decode_entity(entity);
-        if let Some(replacement) = replacement {
-            decoded.push_str(&replacement);
-        } else {
-            decoded.push('&');
-            decoded.push_str(entity);
-            decoded.push(';');
-        }
-        rest = &after_amp[end + 1..];
-    }
-
-    decoded.push_str(rest);
-    decoded
 }
 
 fn decode_entity(entity: &str) -> Option<String> {

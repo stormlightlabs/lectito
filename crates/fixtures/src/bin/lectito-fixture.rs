@@ -106,9 +106,7 @@ fn run(args: &Args) -> anyhow::Result<()> {
         println!("content tags: mismatch");
     }
 
-    if let (Some(diff_dir), Some(article), Some(report)) =
-        (&args.diff_dir, &article, &content_report)
-    {
+    if let (Some(diff_dir), Some(article), Some(report)) = (&args.diff_dir, &article, &content_report) {
         write_fixture_diff(diff_dir, &fixture.name, &fixture.expected_content, article, report)?;
         println!("diff: {}", diff_dir.display());
     }
@@ -125,16 +123,11 @@ fn load_fixture_arg(path: &Path) -> anyhow::Result<lectito_fixtures::Fixture> {
     let name = path
         .to_str()
         .context("fixture name must be valid UTF-8 when it is not a path")?;
-    lectito_fixtures::load_fixture(name)
-        .with_context(|| format!("failed to load sample fixture {name}"))
+    lectito_fixtures::load_fixture(name).with_context(|| format!("failed to load sample fixture {name}"))
 }
 
 fn write_fixture_diff(
-    diff_dir: &Path,
-    fixture_name: &str,
-    expected_content: &str,
-    article: &Article,
-    report: &ContentReport,
+    diff_dir: &Path, fixture_name: &str, expected_content: &str, article: &Article, report: &ContentReport,
 ) -> anyhow::Result<()> {
     let dir = diff_dir.join(
         fixture_name
@@ -173,8 +166,7 @@ fn metadata_mismatches(expected: &serde_json::Value, article: &Article) -> Vec<S
             let expected = expected.and_then(serde_json::Value::as_str);
             let matches = match (expected, actual) {
                 (Some(expected), Some(actual)) if field == "excerpt" => {
-                    lectito_fixtures::normalize_space(expected)
-                        == lectito_fixtures::normalize_space(actual)
+                    lectito_fixtures::normalize_space(expected) == lectito_fixtures::normalize_space(actual)
                 }
                 (Some(expected), Some(actual)) => expected == actual,
                 (None, None) => true,

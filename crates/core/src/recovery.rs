@@ -1,29 +1,13 @@
-use once_cell::sync::Lazy;
-use regex::Regex;
-
 use kuchiki::NodeRef;
 
 use super::diagnostics::RecoveryDiagnostic;
+use super::regexes::RegexPattern;
 use super::{dom, patterns};
 
-static MOBILE_MEDIA_BLOCK: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?is)@media[^{]*max-width\s*:\s*(\d+)px[^{]*\{").expect("valid media regex"));
-
-static CSS_RULE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?is)(?P<selectors>[^{}]+)\{(?P<body>[^{}]*display\s*:\s*[^;}]+[^{}]*)\}")
-        .expect("valid css rule regex")
-});
-
-static DISPLAY_DECL: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?is)display\s*:\s*(?P<display>[a-z-]+)").expect("valid display regex"));
-static SHADOW_TEMPLATE_HTML: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"(?is)<template\s+[^>]*(?:shadowrootmode|shadowroot)\s*=\s*["']?[^"'\s>]+["']?[^>]*>(?P<body>.*?)</template>"#)
-        .expect("valid shadow template regex")
-});
-
-pub(crate) fn recover_html_snapshot(html: &str) -> (String, RecoveryDiagnostic) {
+pub fn recover_html_snapshot(html: &str) -> (String, RecoveryDiagnostic) {
     let mut flattened = 0;
-    let html = SHADOW_TEMPLATE_HTML
+    let html = RegexPattern::ShadowTemplateHtml
+        .to_regex()
         .replace_all(html, |captures: &regex::Captures<'_>| {
             flattened += 1;
             captures
@@ -39,7 +23,7 @@ pub(crate) fn recover_html_snapshot(html: &str) -> (String, RecoveryDiagnostic) 
     )
 }
 
-pub(crate) fn recover(document: &NodeRef, mobile_viewport_width: Option<usize>) -> RecoveryDiagnostic {
+pub fn recover(document: &NodeRef, mobile_viewport_width: Option<usize>) -> RecoveryDiagnostic {
     let mut diagnostic = RecoveryDiagnostic {
         shadow_roots_flattened: flatten_declarative_shadow_dom(document),
         mobile_rules_applied: 0,
@@ -70,7 +54,7 @@ fn apply_mobile_display_rules(document: &NodeRef, viewport_width: usize) -> usiz
     let mut applied = 0;
     for style in dom::select_nodes(document, "style") {
         let css = style.text_contents();
-        for media in MOBILE_MEDIA_BLOCK.captures_iter(&css) {
+        for media in RegexPattern::MobileMediaBlock.to_regex().captures_iter(&css) {
             let max_width = media
                 .get(1)
                 .and_then(|width| width.as_str().parse::<usize>().ok())
@@ -82,10 +66,10 @@ fn apply_mobile_display_rules(document: &NodeRef, viewport_width: usize) -> usiz
                 continue;
             };
             let body = &css[body_start..];
-            for rule in CSS_RULE.captures_iter(body) {
+            for rule in RegexPattern::CssRule.to_regex().captures_iter(body) {
                 let display = rule
                     .name("body")
-                    .and_then(|body| DISPLAY_DECL.captures(body.as_str()))
+                    .and_then(|body| RegexPattern::DisplayDecl.to_regex().captures(body.as_str()))
                     .and_then(|captures| {
                         captures
                             .name("display")

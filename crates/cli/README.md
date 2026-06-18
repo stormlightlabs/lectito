@@ -22,3 +22,8 @@ lectito article.html --timeout 10
 
 The CLI can read from files, stdin, and URLs. URL fetching is a CLI
 convenience; the `lectito` library accepts HTML supplied by the caller.
+
+Markdown with TOML frontmatter is the default output.
+
+Use `--html`, `--text`, or `--json` when another format fits better.
+Use `--inspect` or `--diagnostic-format pretty` when tuning extraction for a page.

@@ -2,8 +2,6 @@ use std::collections::HashMap;
 
 use kuchiki::NodeRef;
 use kuchiki::traits::TendrilSink;
-use once_cell::sync::Lazy;
-use regex::Regex;
 use scraper::Html;
 use url::Url;
 
@@ -14,15 +12,23 @@ use super::diagnostics::{
     SiteRuleSource,
 };
 use super::error::{Error, Result};
-use super::patterns::{MAYBE_CANDIDATE, UNLIKELY_CANDIDATES};
-use super::{cleanup, dom, json_schema, markdown, metadata, normalize, patterns, recovery, rules, scoring, serialize};
+use super::regexes::RegexPattern;
+use super::{
+    cleanup, dom, html, json_schema, markdown, metadata, normalize, patterns, recovery, rules, scoring, serialize,
+};
 use super::{metadata::Metadata, scoring::Candidate};
 
-static RAW_SCRIPT_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?is)<script\b[^>]*>.*?</script\s*>").expect("valid script regex"));
-
-static RAW_STYLE_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?is)<style\b[^>]*>.*?</style\s*>").expect("valid style regex"));
+const KNOWN_CONTENT_SELECTORS: &[&str] = &[
+    "#article-body",
+    "[itemprop='articleBody']",
+    ".article-body",
+    ".article__body",
+    ".article-content",
+    ".article__content",
+    ".entry-content",
+    ".post-content",
+    ".content-wrapper",
+];
 
 pub struct ExtractAttempt {
     pub metadata: Metadata,
@@ -83,14 +89,26 @@ struct EntryPointCandidate {
     diagnostic: CandidateDiagnostic,
 }
 
+/// Extract a readable article from an HTML document.
+///
+/// `base_url` is optional. Pass it when the document contains relative links,
+/// images, or metadata URLs. The function returns `Ok(None)` when the document
+/// parses but no useful article content is found.
 pub fn extract(html: &str, base_url: Option<&str>, options: &ReadabilityOptions) -> Result<Option<Article>> {
     Ok(extract_with_diagnostics(html, base_url, options)?.article)
 }
 
+/// Extract and return only the cleaned article HTML.
+///
+/// This is a convenience wrapper around [`extract`].
 pub fn clean_article_html(html: &str, base_url: Option<&str>, options: &ReadabilityOptions) -> Result<Option<String>> {
     Ok(extract(html, base_url, options)?.map(|article| article.content))
 }
 
+/// Extract an article and include diagnostics for root selection and cleanup.
+///
+/// Diagnostics are intended for fixture work, site-profile tuning, and bug
+/// reports. Most application code should call [`extract`].
 pub fn extract_with_diagnostics(
     html: &str, base_url: Option<&str>, options: &ReadabilityOptions,
 ) -> Result<ExtractionReport> {
@@ -105,9 +123,28 @@ pub fn extract_with_diagnostics(
     let base_url = effective_base_url(&document, base_url.as_ref());
 
     let metadata = metadata::extract_metadata(&document, html, options, base_url.as_ref());
-    let extraction_html = strip_raw_script_style_blocks(html);
+    let extraction_html = strip_raw_script_blocks(html);
     let mut best_attempt: Option<ExtractAttempt> = None;
     let mut diagnostics = ExtractionDiagnostics::default();
+
+    if let Some((mut attempt, attempt_diagnostic)) = schema_text_attempt(&metadata, options, base_url.as_ref())? {
+        attempt.metadata = metadata;
+        diagnostics.selected_attempt = Some(0);
+        diagnostics.outcome = ExtractionOutcome::Accepted;
+        diagnostics.attempts.push(attempt_diagnostic);
+        return Ok(ExtractionReport { article: Some(attempt.into_article()), diagnostics });
+    }
+
+    if options.content_selector.is_none()
+        && let Some((mut attempt, attempt_diagnostic)) =
+            known_content_attempt(&extraction_html, options, base_url.as_ref(), &metadata)?
+    {
+        attempt.metadata = metadata;
+        diagnostics.selected_attempt = Some(0);
+        diagnostics.outcome = ExtractionOutcome::Accepted;
+        diagnostics.attempts.push(attempt_diagnostic);
+        return Ok(ExtractionReport { article: Some(attempt.into_article()), diagnostics });
+    }
 
     if let Some(mut rule_extraction) = try_site_rule(html, options, base_url.as_ref(), &metadata)?
         && rule_extraction.attempt.text_len > 0
@@ -237,8 +274,8 @@ pub fn prep_document(document: &NodeRef, options: &ReadabilityOptions, flags: Ex
             }
 
             let match_string = dom::class_id_string(&node);
-            if UNLIKELY_CANDIDATES.is_match(&match_string)
-                && !MAYBE_CANDIDATE.is_match(&match_string)
+            if RegexPattern::UnlikelyCandidates.to_regex().is_match(&match_string)
+                && !RegexPattern::MaybeCandidate.to_regex().is_match(&match_string)
                 && !dom::has_ancestor_tag(&node, "table", 3)
                 && !dom::has_ancestor_tag(&node, "code", 3)
             {
@@ -297,9 +334,87 @@ pub fn element_count(node: &NodeRef) -> usize {
     node.descendants().filter(|node| node.as_element().is_some()).count()
 }
 
-fn strip_raw_script_style_blocks(html: &str) -> String {
-    let without_scripts = RAW_SCRIPT_RE.replace_all(html, "");
-    RAW_STYLE_RE.replace_all(without_scripts.as_ref(), "").into_owned()
+fn strip_raw_script_blocks(html: &str) -> String {
+    RegexPattern::RawScript.to_regex().replace_all(html, "").into_owned()
+}
+
+fn known_content_attempt(
+    html: &str, opts: &ReadabilityOptions, base_url: Option<&Url>, metadata: &Metadata,
+) -> Result<Option<(ExtractAttempt, AttemptDiagnostic)>> {
+    let document = kuchiki::parse_html().one(html);
+    let flags = ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: false };
+
+    for selector in KNOWN_CONTENT_SELECTORS {
+        let roots = dom::select_nodes(&document, selector);
+        for root in roots {
+            let recovery = recovery::recover(&root, opts.mobile_viewport_width);
+            unwrap_noscript_images(&root);
+            dom::remove_matching(&root, "script, style");
+            normalize_markup(&root);
+            let selected_root = node_diagnostic(&root);
+            let (attempt, cleanup) = serialize_roots(vec![root], opts, flags, base_url, metadata)?;
+            if attempt.text_len < opts.char_threshold {
+                continue;
+            }
+
+            let diagnostic = AttemptDiagnostic {
+                index: 0,
+                flags: flags.into(),
+                candidate_count: 0,
+                candidates: Vec::new(),
+                entry_points: Vec::new(),
+                selected_root: Some(selected_root),
+                cleanup: Some(cleanup),
+                recovery,
+                text_len: attempt.text_len,
+                accepted: true,
+            };
+            return Ok(Some((attempt, diagnostic)));
+        }
+    }
+
+    Ok(None)
+}
+
+fn schema_text_attempt(
+    metadata: &Metadata, opts: &ReadabilityOptions, base_url: Option<&Url>,
+) -> Result<Option<(ExtractAttempt, AttemptDiagnostic)>> {
+    let Some(schema_text) = metadata.schema_text.as_deref() else {
+        return Ok(None);
+    };
+
+    let normalized = patterns::normalize_spaces(schema_text.trim());
+    if normalized.encode_utf16().count() < opts.char_threshold {
+        return Ok(None);
+    }
+
+    let escaped = html::escape_html(&normalized);
+    let document = kuchiki::parse_html().one(format!("<html><body><article><p>{escaped}</p></article></body></html>"));
+    let Some(root) = dom::select_nodes(&document, "article").into_iter().next() else {
+        return Ok(None);
+    };
+
+    let selected_root = node_diagnostic(&root);
+    let flags = ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: false };
+    let (attempt, cleanup) = serialize_roots(vec![root], opts, flags, base_url, metadata)?;
+    if attempt.text_len < opts.char_threshold {
+        return Ok(None);
+    }
+
+    let diagnostic = AttemptDiagnostic {
+        index: 0,
+        flags: flags.into(),
+        candidate_count: 0,
+        candidates: Vec::new(),
+        entry_points: Vec::new(),
+        selected_root: Some(selected_root),
+        cleanup: Some(cleanup),
+        recovery: RecoveryDiagnostic::default(),
+        text_len: attempt.text_len,
+        accepted: true,
+    };
+
+    Ok(Some((attempt, diagnostic)))
 }
 
 fn title_duplicates_site_name(metadata: &Metadata) -> bool {
@@ -689,6 +804,71 @@ mod tests {
         assert!(article.content.contains("readability-page-1"));
         assert!(article.text_content.contains("long enough paragraph"));
         assert!(article.length > 25);
+    }
+
+    #[test]
+    fn accepts_long_json_ld_article_body_before_candidate_scoring() {
+        let schema_text = "This article body comes from JSON-LD before the generic scoring path runs. ".repeat(20);
+        let html = format!(
+            r#"
+            <html><head>
+                <title>Schema Article</title>
+                <script type="application/ld+json">
+                    {{"@type":"NewsArticle","headline":"Schema Article","articleBody":"{schema_text}"}}
+                </script>
+            </head><body>
+                <main>
+                    <div class="feed">
+                        <p>Navigation, recommendations, and page chrome should not win extraction.</p>
+                    </div>
+                </main>
+            </body></html>
+            "#
+        );
+
+        let report = extract_with_diagnostics(&html, None, &ReadabilityOptions::default()).unwrap();
+        let article = report.article.unwrap();
+
+        assert_eq!(report.diagnostics.outcome, ExtractionOutcome::Accepted);
+        assert_eq!(report.diagnostics.selected_attempt, Some(0));
+        assert_eq!(report.diagnostics.attempts.len(), 1);
+        assert_eq!(report.diagnostics.attempts[0].candidate_count, 0);
+        assert!(article.text_content.contains("JSON-LD before the generic scoring path"));
+        assert!(!article.text_content.contains("Navigation, recommendations"));
+    }
+
+    #[test]
+    fn accepts_known_article_body_container_before_candidate_scoring() {
+        let body = (0..12)
+            .map(|index| {
+                format!(
+                    "<p>This focused article-body container paragraph {index} has useful prose, \
+                    concrete detail, and enough punctuation to be accepted before scoring.</p>"
+                )
+            })
+            .collect::<String>();
+        let html = format!(
+            r#"
+            <html><head><title>Known Container</title></head><body>
+                <div class="navigation">
+                    <p>Navigation, recommendations, and other page chrome.</p>
+                </div>
+                <div id="article-body" class="text-copy">
+                    {body}
+                </div>
+            </body></html>
+            "#
+        );
+
+        let report = extract_with_diagnostics(&html, None, &ReadabilityOptions::default()).unwrap();
+        let article = report.article.unwrap();
+
+        assert_eq!(report.diagnostics.outcome, ExtractionOutcome::Accepted);
+        assert_eq!(report.diagnostics.selected_attempt, Some(0));
+        assert_eq!(report.diagnostics.attempts.len(), 1);
+        assert_eq!(report.diagnostics.attempts[0].candidate_count, 0);
+        assert!(article.text_content.contains("focused article-body container"));
+        assert!(!article.text_content.contains("Navigation, recommendations"));
     }
 
     #[test]

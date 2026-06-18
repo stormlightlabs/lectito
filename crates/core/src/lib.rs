@@ -1,9 +1,33 @@
+//! Extract readable article content from HTML.
+//!
+//! The crate does not fetch pages. Pass HTML from a crawler, browser, cache, or
+//! fixture, plus an optional base URL for resolving relative links.
+//!
+//! Use [`extract`] for normal application code. Use
+//! [`extract_with_diagnostics`] when debugging root selection, cleanup, or site
+//! profiles.
+//!
+//! ```no_run
+//! use lectito::{extract, ReadabilityOptions};
+//!
+//! # fn main() -> Result<(), lectito::Error> {
+//! # let html = "<article><p>Article text.</p></article>";
+//! let options = ReadabilityOptions::default();
+//! let article = extract(html, Some("https://example.com/post"), &options)?;
+//! if let Some(article) = article {
+//!     println!("{}", article.text_content);
+//! }
+//! # Ok::<(), lectito::Error>(())
+//! # }
+//! ```
+
 mod cleanup;
 mod config;
 mod diagnostics;
 mod dom;
 mod error;
 mod extract;
+mod html;
 mod json_schema;
 mod markdown;
 mod metadata;
@@ -11,6 +35,7 @@ mod normalize;
 mod patterns;
 mod readable;
 mod recovery;
+mod regexes;
 mod rules;
 mod scoring;
 mod serialize;

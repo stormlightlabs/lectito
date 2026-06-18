@@ -2,9 +2,14 @@ use std::collections::HashSet;
 
 use scraper::{ElementRef, Html};
 
-use super::patterns::{self, MAYBE_CANDIDATE, UNLIKELY_CANDIDATES};
+use super::patterns;
+use super::regexes::RegexPattern;
 use super::{config::ReadableOptions, error::Result};
 
+/// Return a quick estimate of whether an HTML document contains article text.
+///
+/// This check does not run full extraction and does not return article content.
+/// Use it to filter batches of pages before calling [`crate::extract`].
 pub fn is_probably_readable(html: &str, options: &ReadableOptions) -> Result<bool> {
     let document = Html::parse_document(html);
 
@@ -45,7 +50,9 @@ pub fn is_probably_readable(html: &str, options: &ReadableOptions) -> Result<boo
             node.value().attr("class").unwrap_or_default(),
             node.value().attr("id").unwrap_or_default()
         );
-        if UNLIKELY_CANDIDATES.is_match(&match_string) && !MAYBE_CANDIDATE.is_match(&match_string) {
+        if RegexPattern::UnlikelyCandidates.to_regex().is_match(&match_string)
+            && !RegexPattern::MaybeCandidate.to_regex().is_match(&match_string)
+        {
             continue;
         }
 

@@ -26,7 +26,7 @@ Fields:
 | `max_elems_to_parse`    |      `None` | Reject documents above this element count.             |
 | `nb_top_candidates`     |         `5` | Number of high-scoring candidates to consider.         |
 | `char_threshold`        |       `500` | Minimum extracted text length for an accepted attempt. |
-| `content_selector`      |      `None` | CSS selector to prefer as the content root.            |
+| `content_selector`      |      `None` | CSS selector to force as the content root.             |
 | `site_profiles`         |        `[]` | TOML site profiles for host-scoped extraction hints.   |
 | `mobile_viewport_width` | `Some(480)` | Width used by recovery rules for mobile snapshots.     |
 | `classes_to_preserve`   |        `[]` | Class names kept during cleanup.                       |
@@ -35,13 +35,17 @@ Fields:
 | `link_density_modifier` |       `0.0` | Adjust link-density cleanup tolerance.                 |
 | `media_retention`       |   `Article` | Control figure/image/media retention.                  |
 
-Prefer `content_selector` when you already know the page shape. It is clearer
-than trying to tune scores around a stable document layout.
+Prefer `content_selector` when you already know the page shape. It bypasses
+root scoring for that document, then runs the normal cleanup pipeline.
 
-Use `site_profiles` when you want the same kind of override to apply by URL
-host, or when you need removal selectors and metadata hints alongside content
-roots. Profiles are attempted before generic scoring, but weak profile output
-falls back to the generic extractor.
+When `content_selector` is not set, Lectito still tries a small list of common
+article-body containers such as `#article-body` and `.entry-content` before
+generic scoring. That catches many large publisher pages without site-specific
+profiles.
+
+Use `site_profiles` when you want URL-scoped extraction hints, removal
+selectors, and metadata hints. Profiles are attempted before generic scoring,
+but weak profile output falls back to the generic extractor.
 
 Use `max_elems_to_parse` as a guardrail for untrusted input. It rejects very
 large documents before extraction work continues.

@@ -1,72 +1,14 @@
 use kuchiki::NodeRef;
-use once_cell::sync::Lazy;
-use regex::Regex;
 use url::Url;
 
 use super::config::{ExtractFlags, MediaRetention, ReadabilityOptions};
 use super::metadata::Metadata;
-use super::patterns::{
-    AD_OR_LOADING_WORDS, COMMA, DEFAULT_CLASSES_TO_PRESERVE, DEPRECATED_SIZE_ATTRIBUTE_ELEMS,
-    PRESENTATIONAL_ATTRIBUTES, SHARE_ELEMENTS,
-};
+use super::patterns::{DEFAULT_CLASSES_TO_PRESERVE, DEPRECATED_SIZE_ATTRIBUTE_ELEMS, PRESENTATIONAL_ATTRIBUTES};
+use super::regexes::RegexPattern;
 use super::scoring::{class_weight, link_density};
 use super::{dom, markdown};
 
-static LAZY_IMAGE_URL: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)^\s*\S+\.(jpg|jpeg|png|webp)(\?\S*)?\s*$").expect("valid image url regex"));
-
-static LAZY_IMAGE_SRCSET: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)\.(jpg|jpeg|png|webp)\S*\s+\d").expect("valid image srcset regex"));
-
-static TRAILING_CHROME_ATTRS: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r"(?ix)
-        \b(
-            after[-_]?post|bottom[-_]?of[-_]?article|comment(s|ary)?|comment[-_]?thread|court[-_]?case|
-            discussion|disqus|finance|follow[-_]?up|job(s)?|keep[-_]?reading|
-            mortgage|most[-_]?popular|most[-_]?read|most[-_]?viewed|newsletter|next[-_]?article|next[-_]?up|
-            onward[-_]?journey|outbrain|partner[-_]?offer|popular|promo|
-            read[-_]?also|read[-_]?more|read[-_]?next|recommend(ed|ation|ations)?|
-            recirc|related|signup|sign[-_]?up|sponsor(ed)?|subscribe|
-            subscription|taboola|widget|yarpp
-        )\b",
-    )
-    .expect("valid trailing chrome attribute regex")
-});
-
-static TRAILING_CHROME_TEXT: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r"(?i)^\s*(comments?|join the (conversation|discussion)|related( articles| posts| stories)?|also in\b|court case:|affiliate:|explore press release|more (from|in|on)|recommended|most (popular|read|viewed)|next article|read (also|more|next)|sponsored|partner offers?|(the )?\w*\s*newsletter|sign up|subscribe|jobs?|mortgage|finance)",
-    )
-    .expect("valid trailing chrome text regex")
-});
-
-static FOOTNOTE_REFERENCE_ATTRS: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)\b(footnotes?|endnotes?|references?|bibliography|citations?)\b")
-        .expect("valid footnote reference attribute regex")
-});
-
-static FOOTNOTE_REFERENCE_TEXT: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)^\s*(footnotes?|notes|references|bibliography|citations?)\s*$")
-        .expect("valid footnote reference text regex")
-});
-
-static LEADING_DATE_TEXT: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r"(?ix)^\s*
-        (
-            (jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4}
-            |
-            \d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}
-            |
-            \d{4}[-/]\d{1,2}[-/]\d{1,2}
-        )
-        \s*$",
-    )
-    .expect("valid leading date text regex")
-});
-
-pub(crate) fn cleanup_article(
+pub fn cleanup_article(
     nodes: &[NodeRef], options: &ReadabilityOptions, flags: ExtractFlags, base_url: Option<&Url>, metadata: &Metadata,
 ) {
     for node in nodes {
@@ -95,7 +37,7 @@ pub(crate) fn cleanup_article(
     }
 }
 
-pub(crate) fn remove_trailing_chrome_roots(roots: Vec<NodeRef>) -> Vec<NodeRef> {
+pub fn remove_trailing_chrome_roots(roots: Vec<NodeRef>) -> Vec<NodeRef> {
     let mut retained = Vec::with_capacity(roots.len());
     let mut trimming = true;
 
@@ -204,9 +146,9 @@ fn fix_lazy_images(root: &NodeRef) {
                 continue;
             }
 
-            let copy_to = if LAZY_IMAGE_SRCSET.is_match(&value) {
+            let copy_to = if RegexPattern::LazyImageSrcset.to_regex().is_match(&value) {
                 Some("srcset")
-            } else if LAZY_IMAGE_URL.is_match(&value) {
+            } else if RegexPattern::LazyImageUrl.to_regex().is_match(&value) {
                 Some("src")
             } else {
                 None
@@ -223,7 +165,11 @@ fn fix_lazy_images(root: &NodeRef) {
 
 fn remove_share_nodes(root: &NodeRef) {
     for node in dom::select_nodes(root, "*") {
-        if SHARE_ELEMENTS.is_match(&dom::class_id_string(&node)) && dom::inner_text(&node).chars().count() < 500 {
+        if RegexPattern::ShareElements
+            .to_regex()
+            .is_match(&dom::class_id_string(&node))
+            && dom::inner_text(&node).chars().count() < 500
+        {
             node.detach();
         }
     }
@@ -266,7 +212,7 @@ fn is_trailing_page_chrome(node: &NodeRef) -> bool {
     }
 
     let attrs = trailing_signal_attrs(node);
-    if TRAILING_CHROME_ATTRS.is_match(&attrs) {
+    if RegexPattern::TrailingChromeAttrs.to_regex().is_match(&attrs) {
         return true;
     }
 
@@ -278,7 +224,7 @@ fn is_trailing_page_chrome(node: &NodeRef) -> bool {
     if text_len < 500 && text.to_ascii_lowercase().contains("explore press release") {
         return true;
     }
-    if text_len < 800 && TRAILING_CHROME_TEXT.is_match(&text) {
+    if text_len < 800 && RegexPattern::TrailingChromeText.to_regex().is_match(&text) {
         return true;
     }
 
@@ -293,7 +239,7 @@ fn is_trailing_page_chrome(node: &NodeRef) -> bool {
 
 fn is_footnote_or_reference_block(node: &NodeRef) -> bool {
     let attrs = trailing_signal_attrs(node);
-    if FOOTNOTE_REFERENCE_ATTRS.is_match(&attrs) {
+    if RegexPattern::FootnoteReferenceAttrs.to_regex().is_match(&attrs) {
         return true;
     }
 
@@ -305,7 +251,11 @@ fn is_footnote_or_reference_block(node: &NodeRef) -> bool {
 
     dom::select_nodes(node, "h1, h2, h3, h4, h5, h6")
         .first()
-        .is_some_and(|heading| FOOTNOTE_REFERENCE_TEXT.is_match(&dom::inner_text(heading)))
+        .is_some_and(|heading| {
+            RegexPattern::FootnoteReferenceText
+                .to_regex()
+                .is_match(&dom::inner_text(heading))
+        })
 }
 
 fn has_meaningful_article_content(node: &NodeRef) -> bool {
@@ -525,7 +475,7 @@ fn contains_published_time(node: &NodeRef, metadata: &Metadata) -> bool {
 
 fn is_leading_date_node(node: &NodeRef) -> bool {
     let text = dom::inner_text(node);
-    text.chars().count() < 80 && LEADING_DATE_TEXT.is_match(&text)
+    text.chars().count() < 80 && RegexPattern::LeadingDateText.to_regex().is_match(&text)
 }
 
 fn matches_metadata_value(text: &str, metadata_value: Option<&str>) -> bool {
@@ -599,7 +549,7 @@ fn clean_conditionally(root: &NodeRef, options: &ReadabilityOptions, flags: Extr
             continue;
         }
 
-        if AD_OR_LOADING_WORDS.is_match(text.trim()) {
+        if RegexPattern::AdOrLoadingWords.to_regex().is_match(text.trim()) {
             node.detach();
             continue;
         }
@@ -611,7 +561,7 @@ fn clean_conditionally(root: &NodeRef, options: &ReadabilityOptions, flags: Extr
         let li_count = dom::select_nodes(&node, "li").len().saturating_sub(100);
         let input_count = dom::select_nodes(&node, "input").len();
         let embed_count = dom::select_nodes(&node, "object, embed, iframe").len();
-        let comma_count = COMMA.find_iter(&text).count();
+        let comma_count = RegexPattern::Comma.to_regex().find_iter(&text).count();
         let is_list = is_list_like(&node);
         let is_article_media = match options.media_retention {
             MediaRetention::All => has_media_descendant(&node),

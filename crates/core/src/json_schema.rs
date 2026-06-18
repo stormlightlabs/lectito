@@ -1,7 +1,5 @@
 use kuchiki::NodeRef;
 use kuchiki::traits::TendrilSink;
-use once_cell::sync::Lazy;
-use regex::Regex;
 use scraper::Html;
 use serde_json::Value;
 use url::Url;
@@ -10,14 +8,10 @@ use super::config::{ExtractFlags, ReadabilityOptions};
 use super::error::Result;
 use super::extract::{ExtractAttempt, element_count, prep_document, serialize_roots};
 use super::metadata::{Metadata, clean_metadata_value, decode_html_entities, normalize_byline};
-use super::{dom, patterns};
+use super::regexes::RegexPattern;
+use super::{dom, html, patterns};
 
-static JSON_LD_ARTICLE_TYPES: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^Article|AdvertiserContentArticle|NewsArticle|AnalysisNewsArticle|AskPublicNewsArticle|BackgroundNewsArticle|OpinionNewsArticle|ReportageNewsArticle|ReviewNewsArticle|Report|SatiricalArticle|ScholarlyArticle|MedicalScholarlyArticle|SocialMediaPosting|BlogPosting|LiveBlogPosting|DiscussionForumPosting|TechArticle|APIReference$")
-        .expect("valid json-ld article type regex")
-});
-
-pub(crate) fn extract_json_ld(html: &str) -> Metadata {
+pub fn extract_json_ld(html: &str) -> Metadata {
     let document = Html::parse_document(html);
     let script_selector = patterns::selector(r#"script[type="application/ld+json"]"#);
 
@@ -35,7 +29,7 @@ pub(crate) fn extract_json_ld(html: &str) -> Metadata {
     Metadata::default()
 }
 
-pub(crate) fn apply_schema_fallback(
+pub fn apply_schema_fallback(
     html: &str, attempt: ExtractAttempt, metadata: &Metadata, opts: &ReadabilityOptions, flags: ExtractFlags,
     base_url: Option<&Url>,
 ) -> Result<ExtractAttempt> {
@@ -66,7 +60,7 @@ pub(crate) fn apply_schema_fallback(
         return Ok(attempt);
     }
 
-    let escaped = escape_html(schema_text);
+    let escaped = html::escape_html(schema_text);
     let document = kuchiki::parse_html().one(format!("<html><body><article><p>{escaped}</p></article></body></html>"));
     let Some(root) = dom::select_nodes(&document, "article").into_iter().next() else {
         return Ok(attempt);
@@ -93,7 +87,9 @@ fn find_json_ld_article(value: &Value) -> Option<&Value> {
 
 fn json_ld_type_is_article(value: &Value) -> bool {
     match value {
-        Value::String(kind) => JSON_LD_ARTICLE_TYPES.is_match(kind.trim_start_matches("https://schema.org/")),
+        Value::String(kind) => RegexPattern::JsonLdArticleType
+            .to_regex()
+            .is_match(kind.trim_start_matches("https://schema.org/")),
         Value::Array(kinds) => kinds.iter().any(json_ld_type_is_article),
         _ => false,
     }
@@ -174,14 +170,6 @@ fn smallest_schema_match(document: &NodeRef, normalized_schema: &str) -> Option<
 
 fn normalized_match_text(value: &str) -> String {
     patterns::normalize_spaces(value.trim()).to_lowercase()
-}
-
-fn escape_html(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
 }
 
 #[cfg(test)]

@@ -7,6 +7,7 @@ use super::{dom, serialize};
 use crate::config::ReadabilityOptions;
 use crate::error::Result;
 use crate::extract::ExtractAttempt;
+use crate::html::escape_html;
 use crate::metadata::{Metadata, decode_html_entities};
 
 struct HnComment {
@@ -21,16 +22,13 @@ impl HnComment {
     fn to_html(&self) -> String {
         let mut html = String::from("<blockquote>");
         html.push_str("<p><small>");
-        html.push_str(&HackerNewsExtractor::escape_html(&self.author));
+        html.push_str(&escape_html(&self.author));
         if let Some(date) = &self.date {
             html.push_str(" · ");
-            html.push_str(&HackerNewsExtractor::escape_html(date));
+            html.push_str(&escape_html(date));
         }
         html.push_str(" · ");
-        html.push_str(&format!(
-            r#"<a href="{}">link</a>"#,
-            HackerNewsExtractor::escape_html(&self.url)
-        ));
+        html.push_str(&format!(r#"<a href="{}">link</a>"#, escape_html(&self.url)));
         html.push_str("</small></p>");
         html.push_str(&self.content_html);
         for reply in &self.replies {
@@ -84,20 +82,20 @@ impl HackerNewsExtractor {
 
         let mut content = String::from(r#"<div id="readability-page-1" class="page">"#);
         content.push_str(r#"<article data-source="hackernews">"#);
-        content.push_str(&format!("<h1>{}</h1>", Self::escape_html(&title)));
+        content.push_str(&format!("<h1>{}</h1>", escape_html(&title)));
 
         let story_url = Self::hn_story_url(&main_post);
         if let Some(story_url) = &story_url {
             content.push_str(&format!(
                 r#"<p><a href="{}">{}</a></p>"#,
-                Self::escape_html(story_url),
-                Self::escape_html(story_url)
+                escape_html(story_url),
+                escape_html(story_url)
             ));
         }
 
         let meta = Self::hn_meta_line(&main_post, author.as_deref(), published.as_deref());
         if !meta.is_empty() {
-            content.push_str(&format!("<p><small>{}</small></p>", Self::escape_html(&meta)));
+            content.push_str(&format!("<p><small>{}</small></p>", escape_html(&meta)));
         }
 
         if let Some(toptext) = dom::select_nodes(&main_post, ".toptext").into_iter().next() {
@@ -144,7 +142,7 @@ impl HackerNewsExtractor {
 
         let mut content = String::from(r#"<div id="readability-page-1" class="page">"#);
         content.push_str(r#"<article data-source="hackernews-listing">"#);
-        content.push_str(&format!("<h1>{}</h1><ol>", Self::escape_html(&title)));
+        content.push_str(&format!("<h1>{}</h1><ol>", escape_html(&title)));
 
         for row in stories {
             let Some(title_link) = dom::select_nodes(&row, ".titleline a[href]").into_iter().next() else {
@@ -184,25 +182,25 @@ impl HackerNewsExtractor {
             content.push_str("<li>");
             content.push_str(&format!(
                 r#"<a href="{}">{}</a>"#,
-                Self::escape_html(&story_url),
-                Self::escape_html(&story_title)
+                escape_html(&story_url),
+                escape_html(&story_title)
             ));
             if let Some(site) = site {
-                content.push_str(&format!(" <small>({})</small>", Self::escape_html(&site)));
+                content.push_str(&format!(" <small>({})</small>", escape_html(&site)));
             }
 
             let mut meta = Vec::new();
             if let Some(score) = score {
-                meta.push(Self::escape_html(&score));
+                meta.push(escape_html(&score));
             }
             if let Some(author) = author {
-                meta.push(format!("by {}", Self::escape_html(&author)));
+                meta.push(format!("by {}", escape_html(&author)));
             }
             if let Some(comments) = comments {
                 meta.push(format!(
                     r#"<a href="{}">{}</a>"#,
-                    Self::escape_html(&comment_url),
-                    Self::escape_html(&comments)
+                    escape_html(&comment_url),
+                    escape_html(&comments)
                 ));
             }
             if !meta.is_empty() {
@@ -220,8 +218,8 @@ impl HackerNewsExtractor {
             let label = dom::inner_text(&more);
             content.push_str(&format!(
                 r#"<p><a href="{}">{}</a></p>"#,
-                Self::escape_html(&href),
-                Self::escape_html(label.trim())
+                escape_html(&href),
+                escape_html(label.trim())
             ));
         }
         content.push_str("</article></div>");
@@ -385,13 +383,5 @@ impl HackerNewsExtractor {
             current = &mut current.replies[index];
         }
         current
-    }
-
-    fn escape_html(value: &str) -> String {
-        value
-            .replace('&', "&amp;")
-            .replace('<', "&lt;")
-            .replace('>', "&gt;")
-            .replace('"', "&quot;")
     }
 }

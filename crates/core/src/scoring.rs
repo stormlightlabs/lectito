@@ -4,14 +4,15 @@ use kuchiki::NodeRef;
 
 use super::config::ExtractFlags;
 use super::dom;
-use super::patterns::{COMMA, NEGATIVE, POSITIVE, TAGS_TO_SCORE};
+use super::patterns::TAGS_TO_SCORE;
+use super::regexes::RegexPattern;
 
-pub(crate) struct Candidate {
-    pub(crate) node: NodeRef,
-    pub(crate) score: f64,
+pub struct Candidate {
+    pub node: NodeRef,
+    pub score: f64,
 }
 
-pub(crate) fn score_candidates(document: &NodeRef, flags: ExtractFlags) -> Vec<Candidate> {
+pub fn score_candidates(document: &NodeRef, flags: ExtractFlags) -> Vec<Candidate> {
     let selector = TAGS_TO_SCORE.join(",");
     let mut nodes = dom::select_nodes(document, &selector);
     let mut seen: HashSet<_> = nodes.iter().map(dom::node_id).collect();
@@ -30,7 +31,9 @@ pub(crate) fn score_candidates(document: &NodeRef, flags: ExtractFlags) -> Vec<C
             continue;
         }
 
-        let content_score = 1.0 + COMMA.find_iter(&text).count() as f64 + ((text.chars().count() / 100).min(3) as f64);
+        let content_score = 1.0
+            + RegexPattern::Comma.to_regex().find_iter(&text).count() as f64
+            + ((text.chars().count() / 100).min(3) as f64);
 
         for (level, ancestor) in node
             .ancestors()
@@ -63,44 +66,32 @@ pub(crate) fn score_candidates(document: &NodeRef, flags: ExtractFlags) -> Vec<C
     candidates
 }
 
-fn initialize_node_score(node: &NodeRef, flags: ExtractFlags) -> f64 {
-    let mut score = class_weight(node, flags) as f64;
-    score += match dom::node_name(node).as_str() {
-        "div" | "article" => 5.0,
-        "pre" | "td" | "blockquote" => 3.0,
-        "address" | "ol" | "ul" | "dl" | "dd" | "dt" | "li" | "form" => -3.0,
-        "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "th" => -5.0,
-        _ => 0.0,
-    };
-    score
-}
-
-pub(crate) fn class_weight(node: &NodeRef, flags: ExtractFlags) -> i32 {
+pub fn class_weight(node: &NodeRef, flags: ExtractFlags) -> i32 {
     if !flags.weight_classes {
         return 0;
     }
 
     let mut weight = 0;
     if let Some(class) = dom::attr(node, "class") {
-        if NEGATIVE.is_match(&class) {
+        if RegexPattern::Negative.to_regex().is_match(&class) {
             weight -= 25;
         }
-        if POSITIVE.is_match(&class) {
+        if RegexPattern::Positive.to_regex().is_match(&class) {
             weight += 25;
         }
     }
     if let Some(id) = dom::attr(node, "id") {
-        if NEGATIVE.is_match(&id) {
+        if RegexPattern::Negative.to_regex().is_match(&id) {
             weight -= 25;
         }
-        if POSITIVE.is_match(&id) {
+        if RegexPattern::Positive.to_regex().is_match(&id) {
             weight += 25;
         }
     }
     weight
 }
 
-pub(crate) fn link_density(node: &NodeRef) -> f64 {
+pub fn link_density(node: &NodeRef) -> f64 {
     let text_len = dom::inner_text(node).chars().count();
     if text_len == 0 {
         return 0.0;
@@ -116,4 +107,16 @@ pub(crate) fn link_density(node: &NodeRef) -> f64 {
         .sum();
 
     link_len / text_len as f64
+}
+
+fn initialize_node_score(node: &NodeRef, flags: ExtractFlags) -> f64 {
+    let mut score = class_weight(node, flags) as f64;
+    score += match dom::node_name(node).as_str() {
+        "div" | "article" => 5.0,
+        "pre" | "td" | "blockquote" => 3.0,
+        "address" | "ol" | "ul" | "dl" | "dd" | "dt" | "li" | "form" => -3.0,
+        "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "th" => -5.0,
+        _ => 0.0,
+    };
+    score
 }

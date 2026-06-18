@@ -1,27 +1,18 @@
 use std::collections::{BTreeSet, HashMap};
 
 use kuchiki::NodeRef;
-use once_cell::sync::Lazy;
-use regex::Regex;
 
 use super::{RenderContext, normalize_markdown, render_children};
+use crate::regexes::RegexPattern;
 use crate::{dom, patterns};
 
-static TRAILING_NUMBER: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)(?:^|[-_:])(?:fn|ftnt|note|ref)?(\d+)$|(\d+)$").expect("valid footnote label regex"));
-
 #[derive(Default)]
-pub(super) struct FootnoteContext {
+pub struct FootnoteContext {
     definitions: Vec<FootnoteDefinition>,
 }
 
-struct FootnoteDefinition {
-    label: String,
-    body: String,
-}
-
 impl FootnoteContext {
-    pub(super) fn extract(root: &NodeRef) -> Self {
+    pub fn extract(root: &NodeRef) -> Self {
         let definition_nodes = definition_nodes(root);
         if definition_nodes.is_empty() {
             return Self::default();
@@ -58,7 +49,7 @@ impl FootnoteContext {
         Self { definitions }
     }
 
-    pub(super) fn render_definitions(&self) -> String {
+    pub fn render_definitions(&self) -> String {
         if self.definitions.is_empty() {
             return String::new();
         }
@@ -70,6 +61,11 @@ impl FootnoteContext {
         }
         output
     }
+}
+
+struct FootnoteDefinition {
+    label: String,
+    body: String,
 }
 
 fn definition_nodes(root: &NodeRef) -> Vec<NodeRef> {
@@ -216,7 +212,7 @@ fn label_from_id(id: &str) -> Option<String> {
         return Some(normalized.to_string());
     }
 
-    let captures = TRAILING_NUMBER.captures(id)?;
+    let captures = RegexPattern::FootnoteTrailingNumber.to_regex().captures(id)?;
     captures
         .get(1)
         .or_else(|| captures.get(2))

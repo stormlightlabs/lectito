@@ -48,11 +48,19 @@ ReadabilityOptions {
 ```
 
 `content_selector` is the most direct override. Use it when the caller knows
-where the article lives in the document. `site_profiles` accepts TOML profile
-strings that provide host-scoped content roots, removal selectors, metadata
-hints, cleanup settings, and fallback behavior. `char_threshold` controls when
-an attempt is accepted. `nb_top_candidates` controls how many candidates remain
-in play during selection.
+where the article lives in the document. When it is unset, Lectito still tries a
+small built-in list of common article-body containers before generic scoring.
+
+`site_profiles` accepts TOML profile strings that provide host-scoped content
+roots, removal selectors, metadata hints, cleanup settings, and fallback
+behavior. Profiles run before generic scoring, after the JSON-LD and known
+container fast paths.
+
+`char_threshold` controls when an attempt is accepted. `nb_top_candidates`
+controls how many candidates remain in play during generic scoring.
+
+`disable_json_ld` skips JSON-LD metadata extraction and the JSON-LD article-body
+fast path. It does not disable Open Graph, Twitter card, or DOM metadata.
 
 `media_retention` controls image and media preservation in the extracted article:
 

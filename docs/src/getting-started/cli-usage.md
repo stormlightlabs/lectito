@@ -48,16 +48,21 @@ lectito article.html --media none
 lectito article.html --keep-classes --preserve-class language-rust
 ```
 
+`--content-selector` is the strongest extraction hint. Use it when you know the
+article root for a page or fixture. Without that flag, the CLI still tries
+common article-body containers before falling back to generic scoring.
+
 `--media` accepts `none`, `conservative`, `article`, or `all`. The default is
 `article`, which keeps figures/images that appear to be part of the article body.
 
 `--site-profile` can be repeated. Each file must be a TOML site profile. User
 profiles take precedence over bundled profiles for the same host.
 
-Diagnostics are written to stderr after the main output:
+`--disable-json-ld` turns off JSON-LD metadata extraction and the JSON-LD
+article-body fast path. Use it when structured data is stale or misleading.
 
-This keeps stdout usable for the extracted article while still showing debug
-information in the terminal.
+Diagnostics are written to stderr after the main output to keep keep stdout usable
+for the extracted article while still showing debug information in the terminal.
 
 ```sh
 lectito article.html --diagnostic-format pretty

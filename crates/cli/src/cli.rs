@@ -3,10 +3,13 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use lectito::MediaRetention;
 
-/// Extract, inspect, and debug readable article content from HTML.
+/// Extract readable article content from URLs, files, or stdin.
 #[derive(Debug, Parser)]
 #[command(name = "lectito")]
-#[command(about = "Extract and inspect readable article content")]
+#[command(about = "Extract readable article content")]
+#[command(long_about = "\
+Extract readable article content from a URL, HTML file, or stdin. Markdown \
+with TOML frontmatter is the default output.")]
 pub struct Cli {
     #[command(flatten)]
     pub extract: ExtractArgs,
@@ -17,9 +20,9 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    /// Check whether a document appears to contain readable article content.
+    /// Check whether a document looks readable without extracting it.
     Readable(ReadableArgs),
-    /// Print extraction metadata and scoring details.
+    /// Print metadata, selected root, cleanup counts, and scoring details.
     Inspect(InspectArgs),
 }
 
@@ -27,29 +30,29 @@ pub enum Commands {
 pub enum OutputFormat {
     /// Print the full article structure as JSON.
     Json,
-    /// Print the extracted article HTML.
+    /// Print cleaned article HTML.
     Html,
-    /// Print Markdown with TOML frontmatter.
+    /// Print Markdown. This is the default format.
     Markdown,
-    /// Print only the extracted text content.
+    /// Print extracted plain text.
     Text,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum DiagnosticFormat {
-    /// Print diagnostics as JSON to stderr.
+    /// Print diagnostics as JSON on stderr.
     Json,
-    /// Print human-readable diagnostics to stderr.
+    /// Print readable diagnostics on stderr.
     Pretty,
 }
 
-/// Extract article content.
+/// Extract article content. This is the default command.
 #[derive(Debug, Args)]
 pub struct ExtractArgs {
     /// URL, HTML file path, or '-' for stdin.
     pub input: Option<String>,
 
-    /// Read HTML from stdin.
+    /// Read HTML from stdin instead of an input argument.
     #[arg(long)]
     pub stdin: bool,
 
@@ -57,15 +60,15 @@ pub struct ExtractArgs {
     #[arg(long)]
     pub base_url: Option<String>,
 
-    /// Print Markdown output.
+    /// Print Markdown output. This is the default.
     #[arg(long)]
     pub markdown: bool,
 
-    /// Print extracted article HTML.
+    /// Print cleaned article HTML.
     #[arg(long)]
     pub html: bool,
 
-    /// Print only extracted text.
+    /// Print extracted plain text.
     #[arg(long)]
     pub text: bool,
 
@@ -81,7 +84,7 @@ pub struct ExtractArgs {
     #[arg(short, long, value_name = "PATH")]
     pub output: Option<PathBuf>,
 
-    /// Include TOML frontmatter in Markdown output.
+    /// Include TOML frontmatter in Markdown output. Enabled by default.
     #[arg(long)]
     pub frontmatter: bool,
 
@@ -93,11 +96,11 @@ pub struct ExtractArgs {
     #[arg(long)]
     pub readable: bool,
 
-    /// Print extraction summary to stderr.
+    /// Print extraction summary to stderr after article output.
     #[arg(long)]
     pub inspect: bool,
 
-    /// Maximum seconds to spend on full extraction.
+    /// Maximum seconds to spend on full extraction before exit code 3.
     #[arg(long, default_value_t = 30)]
     pub timeout: u64,
 
@@ -113,7 +116,7 @@ pub struct ExtractArgs {
     #[arg(long, default_value_t = 5)]
     pub nb_top_candidates: usize,
 
-    /// CSS selector for a known article container.
+    /// CSS selector for a known article root.
     #[arg(long)]
     pub content_selector: Option<String>,
 
@@ -125,15 +128,15 @@ pub struct ExtractArgs {
     #[arg(long)]
     pub mobile_viewport_width: Option<usize>,
 
-    /// Include extraction diagnostics on stderr.
+    /// Include full extraction diagnostics on stderr.
     #[arg(long, value_enum)]
     pub diagnostic_format: Option<DiagnosticFormat>,
 
-    /// Disable JSON-LD metadata extraction.
+    /// Disable JSON-LD metadata and article-body extraction.
     #[arg(long)]
     pub disable_json_ld: bool,
 
-    /// Media retention mode for extracted content.
+    /// Media retention mode: none, conservative, article, or all.
     #[arg(long = "media", default_value_t = MediaRetention::Article)]
     pub media: MediaRetention,
 
@@ -155,7 +158,7 @@ pub struct ReadableArgs {
     /// URL, HTML file path, or '-' for stdin.
     pub input: Option<String>,
 
-    /// Read HTML from stdin.
+    /// Read HTML from stdin instead of an input argument.
     #[arg(long)]
     pub stdin: bool,
 
@@ -163,7 +166,7 @@ pub struct ReadableArgs {
     #[arg(long)]
     pub base_url: Option<String>,
 
-    /// Print the result as JSON.
+    /// Print the readability result as JSON.
     #[arg(long)]
     pub json: bool,
 
@@ -171,11 +174,11 @@ pub struct ReadableArgs {
     #[arg(long)]
     pub pretty: bool,
 
-    /// Minimum text length required for readability.
+    /// Minimum text length for a block to count toward readability.
     #[arg(long = "min-content-length", default_value_t = 140)]
     pub min_len: usize,
 
-    /// Minimum readability score required.
+    /// Minimum accumulated score required for a readable result.
     #[arg(long, default_value_t = 20.0)]
     pub min_score: f32,
 }
@@ -186,7 +189,7 @@ pub struct InspectArgs {
     /// URL, HTML file path, or '-' for stdin.
     pub input: Option<String>,
 
-    /// Read HTML from stdin.
+    /// Read HTML from stdin instead of an input argument.
     #[arg(long)]
     pub stdin: bool,
 
@@ -194,7 +197,7 @@ pub struct InspectArgs {
     #[arg(long)]
     pub base_url: Option<String>,
 
-    /// Print the full article structure as JSON.
+    /// Print the article and diagnostics as JSON.
     #[arg(long)]
     pub json: bool,
 
@@ -202,7 +205,7 @@ pub struct InspectArgs {
     #[arg(long)]
     pub pretty: bool,
 
-    /// Maximum seconds to spend on full extraction.
+    /// Maximum seconds to spend on full extraction before exit code 3.
     #[arg(long, default_value_t = 30)]
     pub timeout: u64,
 
@@ -218,7 +221,7 @@ pub struct InspectArgs {
     #[arg(long, default_value_t = 5)]
     pub nb_top_candidates: usize,
 
-    /// CSS selector for a known article container.
+    /// CSS selector for a known article root.
     #[arg(long)]
     pub content_selector: Option<String>,
 
@@ -230,11 +233,11 @@ pub struct InspectArgs {
     #[arg(long)]
     pub mobile_viewport_width: Option<usize>,
 
-    /// Disable JSON-LD metadata extraction.
+    /// Disable JSON-LD metadata and article-body extraction.
     #[arg(long)]
     pub disable_json_ld: bool,
 
-    /// Media retention mode for extracted content.
+    /// Media retention mode: none, conservative, article, or all.
     #[arg(long = "media", default_value_t = MediaRetention::Article)]
     pub media: MediaRetention,
 
@@ -253,8 +256,8 @@ mod tests {
 
     #[test]
     fn root_accepts_input_path() {
-        let cli = Cli::try_parse_from(["lectito", "article.html", "--html"])
-            .expect("root args should accept an input path");
+        let cli =
+            Cli::try_parse_from(["lectito", "article.html", "--html"]).expect("root args should accept an input path");
 
         assert_eq!(cli.extract.input.as_deref(), Some("article.html"));
         assert!(cli.extract.html);

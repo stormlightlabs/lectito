@@ -2,9 +2,7 @@
 
 Public exports from `lectito`:
 
-The crate exposes the extraction API, output structs, diagnostics, errors, and
-Markdown helpers. Internal parser, scoring, cleanup, and recovery modules remain
-private.
+The crate exposes the extraction API, output structs, diagnostics, errors, and Markdown helpers.
 
 ```rust
 pub use config::{Article, MarkdownOptions, MediaRetention, ReadabilityOptions, ReadableOptions};
@@ -35,6 +33,13 @@ pub fn extract(
 Returns `Ok(Some(article))` when content is found, `Ok(None)` when the document
 has no useful article content, and `Err` for invalid input or processing
 failures.
+
+Extraction tries JSON-LD article text and common article-body containers before
+generic readability scoring.
+
+Set `content_selector` when you already know the article root.
+
+Set `disable_json_ld` when structured data is wrong for the page.
 
 Use `extract_with_diagnostics` when you need extraction details in addition to
 the article.

@@ -20,11 +20,11 @@ println!("{:?}", report.diagnostics.outcome);
 
 Outcomes:
 
-| Outcome | Meaning |
-| --- | --- |
-| `Accepted` | An attempt met `char_threshold`. |
+| Outcome       | Meaning                                                        |
+| ------------- | -------------------------------------------------------------- |
+| `Accepted`    | An attempt met `char_threshold`.                               |
 | `BestAttempt` | No attempt met the threshold, but non-empty content was found. |
-| `NoContent` | No useful content was found. |
+| `NoContent`   | No useful content was found.                                   |
 
 Each attempt records:
 
@@ -36,6 +36,10 @@ Each attempt records:
 - cleanup counts
 - recovery counts
 - extracted text length
+
+Fast paths such as JSON-LD article text or a known content container may record
+an accepted attempt with `candidate_count = 0`. That means Lectito accepted a
+specific root before generic candidate scoring ran.
 
 When a site profile or code extractor matches, diagnostics include `site_rule`.
 That record reports the matched profile or extractor, whether it was bundled,

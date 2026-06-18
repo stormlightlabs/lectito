@@ -2,6 +2,10 @@ use serde::Serialize;
 
 use crate::Article;
 
+/// Format an article as Markdown with TOML frontmatter.
+///
+/// The frontmatter includes available metadata from [`Article`] plus the
+/// optional source URL.
 pub fn markdown_with_toml_frontmatter(article: &Article, source: Option<&str>) -> Result<String, toml::ser::Error> {
     let frontmatter = Frontmatter {
         title: non_empty(article.title.as_deref()),

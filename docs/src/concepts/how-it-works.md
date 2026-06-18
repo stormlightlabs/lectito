@@ -1,24 +1,29 @@
 # How It Works
 
-Lectito follows the same broad approach as Mozilla Readability.
+Lectito follows the same broad approach as Mozilla Readability, with a few
+fast paths for common article snapshots.
 
 The extractor starts with a full HTML document and tries to find the subtree
 that behaves like an article. It uses signals that tend to survive across sites:
 text length, paragraph density, semantic tags, class and id names, and the ratio
 of links to readable text.
 
-1. Parse the document.
-2. Recover useful content from common snapshots, including selected mobile and
+1. Recover useful content from raw HTML snapshots, including declarative shadow
+   DOM.
+2. Parse the document.
+3. Recover useful content from parsed snapshots, including selected mobile and
    shadow-root cases.
-3. Extract metadata.
-4. Try a matching site profile or code extractor when one applies.
-5. Remove scripts, styles, hidden nodes, and unlikely content.
-6. Score candidate content roots by text length, tag type, class/id hints, and
+4. Extract metadata, including JSON-LD before scripts are stripped.
+5. Accept long JSON-LD article text when structured data contains the body.
+6. Try known article containers such as `#article-body` before broad scoring.
+7. Try a matching site profile or code extractor when one applies.
+8. Remove scripts, styles, hidden nodes, and unlikely content.
+9. Score candidate content roots by text length, tag type, class/id hints, and
    link density.
-7. Select the best root and include useful siblings.
-8. Clean the selected content.
-9. Apply schema text fallback when structured data is clearly better.
-10. Return HTML, Markdown, text, and diagnostics.
+10. Select the best root and include useful siblings.
+11. Clean the selected content.
+12. Apply schema text fallback when structured data is clearly better.
+13. Return HTML, Markdown, text, and diagnostics.
 
 Extraction runs several attempts. Later attempts relax cleanup rules when the
 first pass produces too little text. The first attempt that reaches
@@ -38,6 +43,11 @@ let options = ReadabilityOptions {
     ..ReadabilityOptions::default()
 };
 ```
+
+Lectito also has a small built-in list of known content containers, including
+`#article-body`, `[itemprop='articleBody']`, `.article-body`, and
+`.entry-content`. These are attempted before generic scoring. They still go
+through cleanup, media handling, URL rewriting, and diagnostics.
 
 Site profiles provide URL-scoped hints without disabling generic extraction:
 

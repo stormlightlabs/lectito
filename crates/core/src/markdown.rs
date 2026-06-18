@@ -13,10 +13,19 @@ use comrak::{escape_commonmark_link_destination, format_commonmark, parse_docume
 use kuchiki::NodeRef;
 use kuchiki::traits::TendrilSink;
 
+use super::{dom, patterns, serialize};
 use crate::MarkdownOptions;
 
-use super::{dom, patterns, serialize};
+#[derive(Clone, Copy)]
+pub struct RenderContext {
+    in_pre: bool,
+    list_depth: usize,
+}
 
+/// Convert a cleaned HTML fragment to Markdown.
+///
+/// This helper accepts fragments, not full documents. Full extraction already
+/// populates [`crate::Article::markdown`].
 pub fn html_to_markdown(html: &str) -> String {
     let document = kuchiki::parse_html().one(format!("<html><body>{html}</body></html>"));
     let body = dom::select_nodes(&document, "body")
@@ -30,43 +39,45 @@ pub fn html_to_markdown(html: &str) -> String {
     format_with_comrak(&output)
 }
 
+/// Render Markdown to HTML with the provided options.
 pub fn markdown_to_html(markdown: &str, options: &MarkdownOptions) -> String {
     comrak_markdown_to_html(markdown, &comrak_options(options))
 }
 
-fn comrak_options(options: &MarkdownOptions) -> Options<'static> {
-    let mut comrak = Options::default();
-
-    if options.gfm {
-        comrak.extension.autolink = true;
-        comrak.extension.strikethrough = true;
-        comrak.extension.table = true;
-        comrak.extension.tagfilter = true;
-        comrak.extension.tasklist = true;
-        comrak.parse.tasklist_in_table = true;
+pub fn normalize_markdown(value: &str) -> String {
+    let mut output = String::new();
+    let mut blank_count = 0;
+    let mut in_fenced_code = false;
+    for line in value.lines() {
+        let line = line.trim_end();
+        if line.trim_start().starts_with("```") || line.trim_start().starts_with("~~~") {
+            blank_count = 0;
+            in_fenced_code = !in_fenced_code;
+            output.push_str(line.trim_start());
+            output.push('\n');
+            continue;
+        }
+        if in_fenced_code {
+            output.push_str(line);
+            output.push('\n');
+            continue;
+        }
+        if line.trim().is_empty() {
+            blank_count += 1;
+            if blank_count <= 1 {
+                output.push('\n');
+            }
+        } else {
+            blank_count = 0;
+            output.push_str(line);
+            output.push('\n');
+        }
     }
-
-    if options.footnotes {
-        comrak.extension.footnotes = true;
-        comrak.extension.inline_footnotes = true;
-    }
-
-    if options.math {
-        comrak.extension.math_code = true;
-        comrak.extension.math_dollars = true;
-    }
-
-    comrak.render.r#unsafe = options.allow_raw_html;
-    comrak
+    output.trim().to_string()
 }
 
-#[derive(Clone, Copy)]
-pub(super) struct RenderContext {
-    in_pre: bool,
-    list_depth: usize,
-}
-
-pub(super) fn render_children(node: &NodeRef, ctx: RenderContext) -> String {
+// TODO: instance method on RenderContext
+pub fn render_children(node: &NodeRef, ctx: RenderContext) -> String {
     let mut output = String::new();
     for child in node.children() {
         output.push_str(&render_node(&child, ctx));
@@ -74,6 +85,7 @@ pub(super) fn render_children(node: &NodeRef, ctx: RenderContext) -> String {
     output
 }
 
+// TODO: instance method on RenderContext
 fn render_node(node: &NodeRef, ctx: RenderContext) -> String {
     if let Some(text) = node.as_text() {
         let text = text.borrow();
@@ -146,10 +158,12 @@ fn render_node(node: &NodeRef, ctx: RenderContext) -> String {
     }
 }
 
+// TODO: instance method on RenderContext
 fn inline_children(node: &NodeRef, ctx: RenderContext) -> String {
     patterns::normalize_spaces(render_children(node, ctx).trim())
 }
 
+// TODO: instance method on RenderContext
 fn render_list(node: &NodeRef, ordered: bool, ctx: RenderContext) -> String {
     let mut output = String::new();
     let indent = "  ".repeat(ctx.list_depth);
@@ -173,6 +187,7 @@ fn render_list(node: &NodeRef, ordered: bool, ctx: RenderContext) -> String {
     output
 }
 
+// TODO: instance method on RenderContext
 fn render_list_item(node: &NodeRef, ctx: RenderContext) -> (String, String) {
     let mut label = String::new();
     let mut nested = String::new();
@@ -197,38 +212,6 @@ fn wrap_inline(marker: &str, value: String) -> String {
     if value.is_empty() { String::new() } else { format!("{marker}{value}{marker}") }
 }
 
-pub(super) fn normalize_markdown(value: &str) -> String {
-    let mut output = String::new();
-    let mut blank_count = 0;
-    let mut in_fenced_code = false;
-    for line in value.lines() {
-        let line = line.trim_end();
-        if line.trim_start().starts_with("```") || line.trim_start().starts_with("~~~") {
-            blank_count = 0;
-            in_fenced_code = !in_fenced_code;
-            output.push_str(line.trim_start());
-            output.push('\n');
-            continue;
-        }
-        if in_fenced_code {
-            output.push_str(line);
-            output.push('\n');
-            continue;
-        }
-        if line.trim().is_empty() {
-            blank_count += 1;
-            if blank_count <= 1 {
-                output.push('\n');
-            }
-        } else {
-            blank_count = 0;
-            output.push_str(line);
-            output.push('\n');
-        }
-    }
-    output.trim().to_string()
-}
-
 fn format_with_comrak(markdown: &str) -> String {
     let arena = Arena::new();
     let mut options = Options::default();
@@ -243,6 +226,32 @@ fn format_with_comrak(markdown: &str) -> String {
         return markdown.to_string();
     }
     output.trim().to_string()
+}
+
+fn comrak_options(options: &MarkdownOptions) -> Options<'static> {
+    let mut comrak = Options::default();
+
+    if options.gfm {
+        comrak.extension.autolink = true;
+        comrak.extension.strikethrough = true;
+        comrak.extension.table = true;
+        comrak.extension.tagfilter = true;
+        comrak.extension.tasklist = true;
+        comrak.parse.tasklist_in_table = true;
+    }
+
+    if options.footnotes {
+        comrak.extension.footnotes = true;
+        comrak.extension.inline_footnotes = true;
+    }
+
+    if options.math {
+        comrak.extension.math_code = true;
+        comrak.extension.math_dollars = true;
+    }
+
+    comrak.render.r#unsafe = options.allow_raw_html;
+    comrak
 }
 
 #[cfg(test)]
