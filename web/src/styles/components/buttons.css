@@ -1,0 +1,20 @@
+.button,
+.tabs button {
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-2);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 640;
+  line-height: var(--line-sm);
+}
+
+.button {
+  min-height: 2.125rem;
+  padding: 0 var(--space-3);
+}
+
+.button--secondary:hover,
+.tabs button:hover {
+  background: var(--paper-muted);
+}

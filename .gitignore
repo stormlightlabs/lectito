@@ -24,6 +24,7 @@ rustc-ice-*.txt
 #.idea/
 .sandbox/
 .vscode/
+.zed/
 
 # clap mangen generated
 doc/cli.txt

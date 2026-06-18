@@ -92,8 +92,8 @@ The web app has two primary flows:
 - Split the current pipeline into:
   - `src/lib/clients/api.ts`
   - `src/lib/clients/wasm.ts`
-  - `src/lib/pipeline.ts`
   - `src/lib/types.ts`
+
 - Add a mode control (tabbed UI)
   - URL
   - HTML

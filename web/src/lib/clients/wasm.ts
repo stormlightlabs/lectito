@@ -1,95 +1,53 @@
 import DOMPurify from "dompurify";
-import type { Article, LectitoModule, PipelineFailure, PipelineMetadata, PipelineOptions, PipelineResult } from "./types";
+import type {
+  Article,
+  LectitoModule,
+  PipelineFailure,
+  PipelineMetadata,
+  PipelineOptions,
+  PipelineResult,
+} from "../types";
 
-let lectitoModule: Promise<LectitoModule> | undefined;
+let LECTITO_MOD: Promise<LectitoModule> | undefined;
 
-const wasmModuleUrl = "/lectito-wasm/lectito_wasm.js";
-
-export async function runPipeline(html: string, options: PipelineOptions): Promise<PipelineResult | PipelineFailure> {
-  const sourceMetadata = metadataFromHtml(html);
-  const sanitizedHtml = DOMPurify.sanitize(html, { ADD_ATTR: ["target"] });
-
-  try {
-    const lectito = await loadLectito();
-    const report = lectito.extractWithDiagnostics(sanitizedHtml, emptyToNull(options.baseUrl), {
-      charThreshold: options.charThreshold,
-      contentSelector: emptyToNull(options.contentSelector),
-      keepClasses: options.keepClasses,
-    });
-    const article = report?.article;
-
-    if (!article || article.length === 0 || article.content.trim().length === 0) {
-      return fragmentResult(
-        lectito,
-        sanitizedHtml,
-        sourceMetadata,
-        "No readable article was found; converted the sanitized HTML fragment.",
-      );
-    }
-
-    const bodyMarkdown = article.markdown || lectito.htmlToMarkdown(article.content);
-    const metadata = metadataFromArticle(article, sourceMetadata);
-
-    return {
-      sanitizedHtml,
-      cleanedHtml: article.content,
-      markdown: markdownWithFrontmatter(bodyMarkdown, metadata),
-      previewHtml: DOMPurify.sanitize(lectito.markdownToHtml(bodyMarkdown)),
-      mode: "article",
-      metadata,
-      diagnostics: JSON.stringify(report.diagnostics ?? {}, null, 2),
-    };
-  } catch (error) {
-    if (lectitoModule) {
-      const lectito = await lectitoModule;
-      return fragmentResult(
-        lectito,
-        sanitizedHtml,
-        sourceMetadata,
-        error instanceof Error ? error.message : "Extraction failed; converted the sanitized HTML fragment.",
-      );
-    }
-
-    return {
-      sanitizedHtml,
-      message: error instanceof Error ? error.message : "Lectito failed before producing output.",
-    };
-  }
-}
+const WAS_MOD_URL = "/lectito-wasm/lectito_wasm.js";
 
 function fragmentResult(
-  lectito: LectitoModule,
-  sanitizedHtml: string,
-  sourceMetadata: Partial<PipelineMetadata>,
+  mod: LectitoModule,
+  markup: string,
+  srcMetadata: Partial<PipelineMetadata>,
   note: string,
+  start: number,
 ): PipelineResult {
-  const text = textContent(sanitizedHtml);
-  const bodyMarkdown = lectito.htmlToMarkdown(sanitizedHtml);
+  const text = textContent(markup);
+  const bodyMarkdown = mod.htmlToMarkdown(markup);
   const metadata: PipelineMetadata = {
-    ...sourceMetadata,
-    title: sourceMetadata.title || firstHeading(sanitizedHtml) || "HTML fragment",
+    ...srcMetadata,
+    title: srcMetadata.title || firstHeading(markup) || "HTML fragment",
     length: text.length,
-    excerpt: sourceMetadata.excerpt || sourceMetadata.description || firstLine(text),
+    excerpt: srcMetadata.excerpt || srcMetadata.description || firstLine(text),
   };
 
   return {
-    sanitizedHtml,
-    cleanedHtml: sanitizedHtml,
+    sanitizedHtml: markup,
+    cleanedHtml: markup,
     markdown: markdownWithFrontmatter(bodyMarkdown, metadata),
-    previewHtml: DOMPurify.sanitize(lectito.markdownToHtml(bodyMarkdown)),
+    previewHtml: DOMPurify.sanitize(mod.markdownToHtml(bodyMarkdown)),
     mode: "fragment",
+    source: "html",
+    elapsedMs: elapsedSince(start),
     metadata,
     diagnostics: JSON.stringify({ fallback: "fragment", note }, null, 2),
   };
 }
 
 async function loadLectito(): Promise<LectitoModule> {
-  lectitoModule ??= browserImport(wasmModuleUrl).then(async (module: LectitoModule) => {
+  LECTITO_MOD ??= browserImport(WAS_MOD_URL).then(async (module: LectitoModule) => {
     await module.default();
     return module;
   });
 
-  return lectitoModule;
+  return LECTITO_MOD;
 }
 
 function browserImport(url: string): Promise<LectitoModule> {
@@ -100,6 +58,10 @@ function browserImport(url: string): Promise<LectitoModule> {
 function emptyToNull(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function elapsedSince(start: number): number {
+  return Math.max(0, Math.round(performance.now() - start));
 }
 
 function firstLine(value: string): string {
@@ -170,7 +132,7 @@ function markdownWithFrontmatter(markdown: string, metadata: PipelineMetadata): 
   return `+++\n${frontmatter}\n+++\n\n${markdown}`;
 }
 
-function tomlField(name: string, value?: string): string {
+function tomlField(name: string, value?: string | null): string {
   const trimmed = value?.trim();
   if (!trimmed) return "";
   return `${name} = ${JSON.stringify(trimmed)}`;
@@ -193,5 +155,67 @@ function safeUrl(value: string): URL | undefined {
     return new URL(value);
   } catch {
     return undefined;
+  }
+}
+
+export async function extractHtmlWithWasm(
+  html: string,
+  opts: PipelineOptions,
+): Promise<PipelineResult | PipelineFailure> {
+  const start = performance.now();
+  const sourceMetadata = metadataFromHtml(html);
+  const sanitizedHtml = DOMPurify.sanitize(html, { ADD_ATTR: ["target"] });
+
+  try {
+    const lectito = await loadLectito();
+    const report = lectito.extractWithDiagnostics(sanitizedHtml, emptyToNull(opts.baseUrl), {
+      charThreshold: opts.charThreshold,
+      contentSelector: emptyToNull(opts.contentSelector),
+      keepClasses: opts.keepClasses,
+    });
+    const article = report?.article;
+
+    if (!article || article.length === 0 || article.content.trim().length === 0) {
+      return fragmentResult(
+        lectito,
+        sanitizedHtml,
+        sourceMetadata,
+        "No readable article was found; converted the sanitized HTML fragment.",
+        start,
+      );
+    }
+
+    const bodyMarkdown = article.markdown || lectito.htmlToMarkdown(article.content);
+    const metadata = metadataFromArticle(article, sourceMetadata);
+
+    return {
+      sanitizedHtml,
+      cleanedHtml: article.content,
+      markdown: markdownWithFrontmatter(bodyMarkdown, metadata),
+      previewHtml: DOMPurify.sanitize(lectito.markdownToHtml(bodyMarkdown)),
+      mode: "article",
+      source: "html",
+      elapsedMs: elapsedSince(start),
+      metadata,
+      diagnostics: opts.diagnostics ? JSON.stringify(report.diagnostics ?? {}, null, 2) : "Diagnostics disabled.",
+    };
+  } catch (error) {
+    if (LECTITO_MOD) {
+      const lectito = await LECTITO_MOD;
+      return fragmentResult(
+        lectito,
+        sanitizedHtml,
+        sourceMetadata,
+        error instanceof Error ? error.message : "Extraction failed; converted the sanitized HTML fragment.",
+        start,
+      );
+    }
+
+    return {
+      sanitizedHtml,
+      message: error instanceof Error ? error.message : "Lectito failed before producing output.",
+      source: "html",
+      elapsedMs: elapsedSince(start),
+    };
   }
 }

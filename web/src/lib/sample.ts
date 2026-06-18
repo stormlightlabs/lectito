@@ -1,3 +1,8 @@
+export const sampleUrls = [
+  "https://www.nytimes.com/interactive/2024/01/01/example.html",
+  "https://www.instapaper.com/read/example",
+];
+
 // TODO: replace '/images/parser.png' with placehold.co image
 export const sampleHtml = `<!doctype html>
 <html>

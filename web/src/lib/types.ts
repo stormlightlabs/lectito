@@ -1,4 +1,12 @@
-export type PipelineOptions = { baseUrl: string; contentSelector: string; charThreshold: number; keepClasses: boolean };
+export type AppMode = "url" | "html";
+
+export type PipelineOptions = {
+  baseUrl: string;
+  contentSelector: string;
+  charThreshold: number;
+  keepClasses: boolean;
+  diagnostics: boolean;
+};
 
 export type PipelineMetadata = {
   title: string;
@@ -22,11 +30,15 @@ export type PipelineResult = {
   markdown: string;
   previewHtml: string;
   mode: "article" | "fragment";
+  source: AppMode;
+  elapsedMs: number;
   metadata: PipelineMetadata;
   diagnostics: string;
 };
 
-export type PipelineFailure = { sanitizedHtml: string; message: string };
+export type PipelineFailure = { sanitizedHtml: string; message: string; source: AppMode; elapsedMs: number };
+
+export type UrlExtractionRequest = { url: string; options: PipelineOptions };
 
 export type LectitoModule = {
   default: () => Promise<void>;
@@ -58,3 +70,7 @@ export type Article = {
   domain?: string | null;
   favicon?: string | null;
 };
+
+export type OutputTab = "markdown" | "cleaned" | "preview" | "metadata" | "diagnostics" | "sanitized";
+
+export type Lang = "html" | "markdown" | "plain";
