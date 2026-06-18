@@ -3,7 +3,11 @@ resolver = "2"
 members = ["crates/api", "crates/cli", "crates/core", "crates/fixtures", "crates/wasm"]
 
 [workspace.package]
+version = "0.1.0"
+edition = "2024"
 license = "MPL-2.0"
+repository = "https://github.com/stormlightlabs/lectito"
+homepage = "https://github.com/stormlightlabs/lectito"
 
 [workspace.dependencies]
 thiserror = "2.0.18"

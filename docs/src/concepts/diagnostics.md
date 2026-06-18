@@ -49,6 +49,7 @@ inspect cleanup counts and preserved classes.
 CLI diagnostics:
 
 ```sh
-lectito parse article.html --diagnostic-format pretty
-lectito parse article.html --diagnostic-format json
+lectito article.html --diagnostic-format pretty
+lectito article.html --diagnostic-format json
+lectito inspect article.html
 ```

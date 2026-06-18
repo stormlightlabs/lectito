@@ -1,8 +1,17 @@
 [package]
 name = "lectito-cli"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 license.workspace = true
+description = "Command-line article extraction and readability tools."
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["readability", "article", "html", "markdown", "cli"]
+categories = ["command-line-utilities", "text-processing"]
+
+[features]
+default = []
 
 [[bin]]
 name = "lectito"
@@ -11,8 +20,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
-lectito-fixtures = { path = "../fixtures" }
-lectito = { path = "../core" }
+lectito = { path = "../core", version = "0.1.0" }
 owo-colors = "4.2"
 reqwest = { version = "0.13.3", features = ["blocking"] }
 scraper.workspace = true
@@ -20,6 +28,6 @@ serde_json = "1.0"
 
 [build-dependencies]
 clap = { version = "4.5", features = ["derive"] }
-lectito = { path = "../core" }
+lectito = { path = "../core", version = "0.1.0" }
 clap_mangen = "0.3"
 shell-escape = "0.1"

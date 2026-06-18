@@ -1121,7 +1121,6 @@ dependencies = [
  "clap",
  "clap_mangen",
  "lectito",
- "lectito-fixtures",
  "owo-colors",
  "reqwest",
  "scraper",
@@ -1133,6 +1132,9 @@ dependencies = [
 name = "lectito-fixtures"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "clap",
+ "lectito",
  "regex",
  "scraper",
  "serde_json",

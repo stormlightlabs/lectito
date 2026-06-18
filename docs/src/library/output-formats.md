@@ -42,7 +42,7 @@ reader content:
 The CLI Markdown output includes TOML frontmatter:
 
 ```sh
-lectito parse article.html --format markdown
+lectito article.html
 ```
 
 Markdown is useful when the next step is a reader view, note-taking system,
@@ -61,7 +61,7 @@ images, and most document structure.
 The CLI can serialize the article:
 
 ```sh
-lectito parse article.html --format json --pretty
+lectito article.html --json --pretty
 ```
 
 JSON is the best CLI format when another program needs metadata and content

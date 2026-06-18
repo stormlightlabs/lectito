@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use kuchiki::NodeRef;
 use kuchiki::traits::TendrilSink;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use scraper::Html;
 use url::Url;
 
@@ -15,6 +17,71 @@ use super::error::{Error, Result};
 use super::patterns::{MAYBE_CANDIDATE, UNLIKELY_CANDIDATES};
 use super::{cleanup, dom, json_schema, markdown, metadata, normalize, patterns, recovery, rules, scoring, serialize};
 use super::{metadata::Metadata, scoring::Candidate};
+
+static RAW_SCRIPT_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?is)<script\b[^>]*>.*?</script\s*>").expect("valid script regex"));
+
+static RAW_STYLE_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?is)<style\b[^>]*>.*?</style\s*>").expect("valid style regex"));
+
+pub struct ExtractAttempt {
+    pub metadata: Metadata,
+    pub content: String,
+    pub text_content: String,
+    pub text_len: usize,
+}
+
+impl ExtractAttempt {
+    fn into_article(mut self) -> Article {
+        if title_duplicates_site_name(&self.metadata)
+            && let Some(heading) = first_content_heading(&self.content)
+        {
+            self.metadata.title = Some(heading);
+        }
+
+        if self.metadata.excerpt.as_deref().unwrap_or_default().trim().is_empty() {
+            self.metadata.excerpt = metadata::first_paragraph_excerpt(&self.content);
+        }
+
+        Article {
+            title: self.metadata.title,
+            byline: self.metadata.byline,
+            dir: self.metadata.dir,
+            lang: self.metadata.lang,
+            markdown: markdown::html_to_markdown(&self.content),
+            content: self.content,
+            text_content: self.text_content,
+            length: self.text_len,
+            excerpt: self.metadata.excerpt,
+            site_name: self.metadata.site_name,
+            published_time: self.metadata.published_time,
+            image: self.metadata.image,
+            domain: self.metadata.domain,
+            favicon: self.metadata.favicon,
+        }
+    }
+}
+
+struct GrabDiagnostics {
+    attempt: AttemptDiagnostic,
+    content_selector: Option<ContentSelectorDiagnostic>,
+}
+
+impl From<ExtractFlags> for FlagDiagnostic {
+    fn from(flags: ExtractFlags) -> Self {
+        Self {
+            strip_unlikely: flags.strip_unlikely,
+            weight_classes: flags.weight_classes,
+            clean_conditionally: flags.clean_conditionally,
+        }
+    }
+}
+
+struct EntryPointCandidate {
+    node: NodeRef,
+    score: f64,
+    diagnostic: CandidateDiagnostic,
+}
 
 pub fn extract(html: &str, base_url: Option<&str>, options: &ReadabilityOptions) -> Result<Option<Article>> {
     Ok(extract_with_diagnostics(html, base_url, options)?.article)
@@ -38,6 +105,7 @@ pub fn extract_with_diagnostics(
     let base_url = effective_base_url(&document, base_url.as_ref());
 
     let metadata = metadata::extract_metadata(&document, html, options, base_url.as_ref());
+    let extraction_html = strip_raw_script_style_blocks(html);
     let mut best_attempt: Option<ExtractAttempt> = None;
     let mut diagnostics = ExtractionDiagnostics::default();
 
@@ -79,7 +147,7 @@ pub fn extract_with_diagnostics(
     ];
 
     for (index, flags) in attempts.into_iter().enumerate() {
-        let dom = kuchiki::parse_html().one(html);
+        let dom = kuchiki::parse_html().one(extraction_html.as_ref());
         let mut recovery = prep_document(&dom, options, flags);
         recovery.shadow_roots_flattened += source_recovery.shadow_roots_flattened;
 
@@ -149,61 +217,7 @@ pub fn extract_with_diagnostics(
     Ok(ExtractionReport { article: Some(attempt.into_article()), diagnostics })
 }
 
-pub(crate) struct ExtractAttempt {
-    pub(crate) metadata: Metadata,
-    pub(crate) content: String,
-    pub(crate) text_content: String,
-    pub(crate) text_len: usize,
-}
-
-fn title_duplicates_site_name(metadata: &Metadata) -> bool {
-    let title = metadata.title.as_deref().unwrap_or_default().trim();
-    let site_name = metadata.site_name.as_deref().unwrap_or_default().trim();
-    !title.is_empty() && title.eq_ignore_ascii_case(site_name)
-}
-
-fn first_content_heading(content: &str) -> Option<String> {
-    let document = kuchiki::parse_html().one(format!("<html><body>{content}</body></html>"));
-    dom::select_nodes(&document, "h1, h2, h3")
-        .into_iter()
-        .map(|heading| patterns::normalize_spaces(dom::inner_text(&heading).trim()))
-        .find(|heading| !heading.is_empty())
-}
-
-impl ExtractAttempt {
-    fn into_article(mut self) -> Article {
-        if title_duplicates_site_name(&self.metadata)
-            && let Some(heading) = first_content_heading(&self.content)
-        {
-            self.metadata.title = Some(heading);
-        }
-
-        if self.metadata.excerpt.as_deref().unwrap_or_default().trim().is_empty() {
-            self.metadata.excerpt = metadata::first_paragraph_excerpt(&self.content);
-        }
-
-        Article {
-            title: self.metadata.title,
-            byline: self.metadata.byline,
-            dir: self.metadata.dir,
-            lang: self.metadata.lang,
-            markdown: markdown::html_to_markdown(&self.content),
-            content: self.content,
-            text_content: self.text_content,
-            length: self.text_len,
-            excerpt: self.metadata.excerpt,
-            site_name: self.metadata.site_name,
-            published_time: self.metadata.published_time,
-            image: self.metadata.image,
-            domain: self.metadata.domain,
-            favicon: self.metadata.favicon,
-        }
-    }
-}
-
-pub(crate) fn prep_document(
-    document: &NodeRef, options: &ReadabilityOptions, flags: ExtractFlags,
-) -> RecoveryDiagnostic {
+pub fn prep_document(document: &NodeRef, options: &ReadabilityOptions, flags: ExtractFlags) -> RecoveryDiagnostic {
     let recovery = recovery::recover(document, options.mobile_viewport_width);
     unwrap_noscript_images(document);
     dom::remove_matching(document, "script, style");
@@ -240,6 +254,66 @@ pub(crate) fn prep_document(
         }
     }
     recovery
+}
+
+pub fn serialize_roots(
+    roots: Vec<NodeRef>, opts: &ReadabilityOptions, flags: ExtractFlags, base_url: Option<&Url>, metadata: &Metadata,
+) -> Result<(ExtractAttempt, CleanupDiagnostic)> {
+    let text_len_before = serialize::text_content(&roots).encode_utf16().count();
+    let element_count_before = roots.iter().map(element_count).sum();
+    let root_selectors = roots.iter().map(node_selector).collect();
+
+    cleanup::cleanup_article(&roots, opts, flags, base_url, metadata);
+    normalize::normalize_article(&roots, metadata.title.as_deref());
+    let roots = cleanup::remove_trailing_chrome_roots(roots);
+
+    let mut content = String::from(r#"<div id="readability-page-1" class="page">"#);
+    for node in &roots {
+        if dom::node_name(node) == "body" {
+            content.push_str(&serialize::serialize_children(node)?);
+        } else {
+            content.push_str(&serialize::serialize_node(node)?);
+        }
+    }
+    content.push_str("</div>");
+    let text_content = serialize::text_content(&roots);
+    let text_len = text_content.encode_utf16().count();
+    let element_count_after = roots.iter().map(element_count).sum();
+
+    let attempt = ExtractAttempt { metadata: Metadata::default(), content, text_content, text_len };
+    let cleanup = CleanupDiagnostic {
+        roots: root_selectors,
+        text_len_before,
+        text_len_after: text_len,
+        element_count_before,
+        element_count_after,
+        removed_elements: element_count_before.saturating_sub(element_count_after),
+    };
+
+    Ok((attempt, cleanup))
+}
+
+pub fn element_count(node: &NodeRef) -> usize {
+    node.descendants().filter(|node| node.as_element().is_some()).count()
+}
+
+fn strip_raw_script_style_blocks(html: &str) -> String {
+    let without_scripts = RAW_SCRIPT_RE.replace_all(html, "");
+    RAW_STYLE_RE.replace_all(without_scripts.as_ref(), "").into_owned()
+}
+
+fn title_duplicates_site_name(metadata: &Metadata) -> bool {
+    let title = metadata.title.as_deref().unwrap_or_default().trim();
+    let site_name = metadata.site_name.as_deref().unwrap_or_default().trim();
+    !title.is_empty() && title.eq_ignore_ascii_case(site_name)
+}
+
+fn first_content_heading(content: &str) -> Option<String> {
+    let document = kuchiki::parse_html().one(format!("<html><body>{content}</body></html>"));
+    dom::select_nodes(&document, "h1, h2, h3")
+        .into_iter()
+        .map(|heading| patterns::normalize_spaces(dom::inner_text(&heading).trim()))
+        .find(|heading| !heading.is_empty())
 }
 
 fn try_site_rule(
@@ -490,64 +564,6 @@ fn grab_article(
     )))
 }
 
-struct GrabDiagnostics {
-    attempt: AttemptDiagnostic,
-    content_selector: Option<ContentSelectorDiagnostic>,
-}
-
-pub(crate) fn serialize_roots(
-    roots: Vec<NodeRef>, opts: &ReadabilityOptions, flags: ExtractFlags, base_url: Option<&Url>, metadata: &Metadata,
-) -> Result<(ExtractAttempt, CleanupDiagnostic)> {
-    let text_len_before = serialize::text_content(&roots).encode_utf16().count();
-    let element_count_before = roots.iter().map(element_count).sum();
-    let root_selectors = roots.iter().map(node_selector).collect();
-
-    cleanup::cleanup_article(&roots, opts, flags, base_url, metadata);
-    normalize::normalize_article(&roots, metadata.title.as_deref());
-    let roots = cleanup::remove_trailing_chrome_roots(roots);
-
-    let mut content = String::from(r#"<div id="readability-page-1" class="page">"#);
-    for node in &roots {
-        if dom::node_name(node) == "body" {
-            content.push_str(&serialize::serialize_children(node)?);
-        } else {
-            content.push_str(&serialize::serialize_node(node)?);
-        }
-    }
-    content.push_str("</div>");
-    let text_content = serialize::text_content(&roots);
-    let text_len = text_content.encode_utf16().count();
-    let element_count_after = roots.iter().map(element_count).sum();
-
-    let attempt = ExtractAttempt { metadata: Metadata::default(), content, text_content, text_len };
-    let cleanup = CleanupDiagnostic {
-        roots: root_selectors,
-        text_len_before,
-        text_len_after: text_len,
-        element_count_before,
-        element_count_after,
-        removed_elements: element_count_before.saturating_sub(element_count_after),
-    };
-
-    Ok((attempt, cleanup))
-}
-
-impl From<ExtractFlags> for FlagDiagnostic {
-    fn from(flags: ExtractFlags) -> Self {
-        Self {
-            strip_unlikely: flags.strip_unlikely,
-            weight_classes: flags.weight_classes,
-            clean_conditionally: flags.clean_conditionally,
-        }
-    }
-}
-
-struct EntryPointCandidate {
-    node: NodeRef,
-    score: f64,
-    diagnostic: CandidateDiagnostic,
-}
-
 fn entry_point_candidates(document: &NodeRef) -> Vec<EntryPointCandidate> {
     // TODO: could this be a constant?
     let selectors = [
@@ -633,10 +649,6 @@ fn node_selector(node: &NodeRef) -> String {
         }
     }
     tag
-}
-
-pub(crate) fn element_count(node: &NodeRef) -> usize {
-    node.descendants().filter(|node| node.as_element().is_some()).count()
 }
 
 fn round_score(value: f64) -> f64 {

@@ -86,7 +86,7 @@ let options = ReadabilityOptions {
 The CLI accepts repeatable profile paths:
 
 ```sh
-lectito parse article.html --url https://example.com/post --site-profile example.com.toml
+lectito article.html --base-url https://example.com/post --site-profile example.com.toml
 ```
 
 User profiles take precedence over bundled profiles. More specific host and path

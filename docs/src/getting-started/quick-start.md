@@ -51,11 +51,11 @@ let readable = is_probably_readable(html, &ReadableOptions::default())?;
 
 ## CLI
 
-The CLI mirrors the library. `parse` extracts content, and `readable` performs
-the quick readability check.
+The CLI mirrors the library. The root command extracts content, and `readable`
+performs the quick readability check.
 
 ```sh
-lectito parse article.html --format markdown
-lectito parse --url https://example.com/article --format json --pretty
+lectito article.html
+lectito https://example.com/article --json --pretty
 lectito readable article.html
 ```

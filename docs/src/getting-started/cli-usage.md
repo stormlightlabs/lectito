@@ -1,37 +1,35 @@
 # CLI Usage
 
 The CLI is designed for inspecting extraction behavior and converting documents
-from the terminal. It is also useful for building fixtures because the same
-binary can print article output and diagnostics.
+from the terminal.
 
-The CLI has three commands:
+The root command extracts article content. The CLI also has two subcommands:
 
-- `parse`: extract article content
 - `readable`: check whether a document looks readable
-- `fixture`: inspect bundled fixtures
+- `inspect`: print extraction metadata and scoring details
 
-## Parse
+## Extract
 
-`parse` accepts one input source. Use a positional file path, `--input`,
-`--stdin`, or `--url`.
+Pass a URL, a file path, or `-` for stdin. Markdown with TOML frontmatter is
+the default output.
 
 ```sh
-lectito parse article.html
-lectito parse --input article.html
-lectito parse --stdin < article.html
-lectito parse --url https://example.com/article
+lectito article.html
+lectito https://example.com/article
+lectito - < article.html
 ```
 
 Output formats:
 
-JSON is the default because it preserves the whole article structure. Use
-Markdown or text when piping into another tool.
+Use HTML, text, or JSON when Markdown is not the right output for the next
+tool.
 
 ```sh
-lectito parse article.html --format json --pretty
-lectito parse article.html --format html
-lectito parse article.html --format markdown
-lectito parse article.html --format text
+lectito article.html --html
+lectito article.html --text
+lectito article.html --json --pretty
+lectito article.html --no-frontmatter
+lectito article.html --output article.md
 ```
 
 Useful options:
@@ -40,14 +38,14 @@ The defaults work for most article pages. Tune these flags when a page is too
 short, too broad, or has a known content container.
 
 ```sh
-lectito parse article.html --char-threshold 800
-lectito parse article.html --nb-top-candidates 8
-lectito parse article.html --content-selector article
-lectito parse article.html --url https://example.com/post --site-profile example.com.toml
-lectito parse article.html --max-elems-to-parse 10000
-lectito parse article.html --media article
-lectito parse article.html --media none
-lectito parse article.html --keep-classes --preserve-class language-rust
+lectito article.html --char-threshold 800
+lectito article.html --nb-top-candidates 8
+lectito article.html --content-selector article
+lectito article.html --base-url https://example.com/post --site-profile example.com.toml
+lectito article.html --max-elems-to-parse 10000
+lectito article.html --media article
+lectito article.html --media none
+lectito article.html --keep-classes --preserve-class language-rust
 ```
 
 `--media` accepts `none`, `conservative`, `article`, or `all`. The default is
@@ -62,8 +60,22 @@ This keeps stdout usable for the extracted article while still showing debug
 information in the terminal.
 
 ```sh
-lectito parse article.html --format markdown --diagnostic-format pretty
-lectito parse article.html --diagnostic-format json
+lectito article.html --diagnostic-format pretty
+lectito article.html --diagnostic-format json
+```
+
+`--inspect` prints a compact extraction summary to stderr while keeping article
+output on stdout:
+
+```sh
+lectito article.html --inspect
+```
+
+Full extraction has a timeout so unusually large or hostile pages do not hang
+the command:
+
+```sh
+lectito article.html --timeout 10
 ```
 
 ## Readable
@@ -74,8 +86,9 @@ text. It does not return extracted content.
 ```sh
 lectito readable article.html
 lectito readable --stdin < article.html
-lectito readable --url https://example.com/article
+lectito readable https://example.com/article
 lectito readable article.html --json --pretty
+lectito article.html --readable
 ```
 
 Thresholds:
@@ -83,3 +96,21 @@ Thresholds:
 ```sh
 lectito readable article.html --min-content-length 140 --min-score 20
 ```
+
+## Inspect
+
+`inspect` prints extraction metadata and scoring details without printing the
+article body.
+
+```sh
+lectito inspect article.html
+lectito inspect https://example.com/article
+lectito inspect article.html --json --pretty
+```
+
+## Exit Codes
+
+- `0`: article extracted, or readability check returned true
+- `1`: no article was extracted, or readability check returned false
+- `2`: input, file, or network error
+- `3`: extraction, configuration, or extraction timeout error

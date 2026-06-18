@@ -1,7 +1,7 @@
 # lectito-wasm
 
-This crate will provide the JavaScript and WebAssembly packaging surface for
-Lectito. It is intentionally a stub while the core crate API is settled.
+This crate provides the JavaScript and WebAssembly packaging surface for
+Lectito.
 
 ## Goals
 

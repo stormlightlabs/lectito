@@ -6,10 +6,12 @@ use scraper::{Html, Selector};
 use std::io::{self, Read};
 use std::path::Path;
 use std::process;
+use std::time::Duration;
 
 pub const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36";
 pub const CURL_USER_AGENT: &str = "curl/8.7.1";
 pub const MAX_REDIRECTS: usize = 10;
+pub const FETCH_TIMEOUT: Duration = Duration::from_secs(20);
 
 #[derive(Clone, Copy)]
 enum FetchProfile {
@@ -61,6 +63,33 @@ impl InputDocument {
         self.base_url.as_deref()
     }
 
+    pub fn read_source(input: Option<&str>, read_stdin: bool, base_url: Option<&str>) -> anyhow::Result<InputDocument> {
+        if read_stdin && input.is_some_and(|value| value != "-") {
+            anyhow::bail!("cannot combine --stdin with an input path or URL");
+        }
+
+        if read_stdin || input == Some("-") {
+            let mut html = String::new();
+            io::stdin().read_to_string(&mut html).context("failed to read stdin")?;
+            return Ok(InputDocument { html, base_url: base_url.map(str::to_string) });
+        }
+
+        let Some(input) = input else {
+            anyhow::bail!("pass a URL, a file path, or '-' for stdin");
+        };
+
+        if input.starts_with("http://") || input.starts_with("https://") {
+            if base_url.is_some() {
+                anyhow::bail!("cannot combine --base-url with a URL input");
+            }
+            return Self::read(None, false, Some(input));
+        }
+
+        let path = Path::new(input);
+        let html = std::fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+        Ok(InputDocument { html, base_url: base_url.map(str::to_string) })
+    }
+
     pub fn read(path: Option<&Path>, read_stdin: bool, url: Option<&str>) -> anyhow::Result<InputDocument> {
         if read_stdin && path.is_some() {
             anyhow::bail!("cannot combine --stdin with a file path");
@@ -106,6 +135,7 @@ impl InputDocument {
             .user_agent(profile.user_agent())
             .default_headers(profile.headers())
             .redirect(Policy::none())
+            .timeout(FETCH_TIMEOUT)
             .build()
             .with_context(|| format!("failed to build HTTP client for {url}"))?;
 
@@ -172,6 +202,8 @@ impl InputDocument {
                 "-L",
                 "--fail",
                 "--compressed",
+                "--max-time",
+                "20",
                 "-A",
                 CURL_USER_AGENT,
                 "-w",

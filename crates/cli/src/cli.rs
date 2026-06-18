@@ -8,18 +8,19 @@ use lectito::MediaRetention;
 #[command(name = "lectito")]
 #[command(about = "Extract and inspect readable article content")]
 pub struct Cli {
+    #[command(flatten)]
+    pub extract: ExtractArgs,
+
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    /// Extract article content from a file, stdin, or URL.
-    Parse(ParseArgs),
     /// Check whether a document appears to contain readable article content.
     Readable(ReadableArgs),
-    /// Compare extraction behavior against a bundled or local fixture.
-    Fixture(FixtureArgs),
+    /// Print extraction metadata and scoring details.
+    Inspect(InspectArgs),
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -43,34 +44,62 @@ pub enum DiagnosticFormat {
 }
 
 /// Extract article content.
-///
-/// Provide exactly one input source: a positional path, `--input`, `--stdin`,
-/// or `--url`. Diagnostics, when requested, are written to stderr after the
-/// main output so stdout remains usable for piping.
 #[derive(Debug, Args)]
-pub struct ParseArgs {
-    /// HTML file to read.
-    pub path: Option<PathBuf>,
-
-    /// HTML file to read.
-    #[arg(short = 'i', long = "input", value_name = "PATH")]
-    pub input: Option<PathBuf>,
+pub struct ExtractArgs {
+    /// URL, HTML file path, or '-' for stdin.
+    pub input: Option<String>,
 
     /// Read HTML from stdin.
     #[arg(long)]
     pub stdin: bool,
 
-    /// Fetch HTML from a URL.
+    /// Base URL for files or stdin, used to resolve relative links.
     #[arg(long)]
-    pub url: Option<String>,
+    pub base_url: Option<String>,
 
-    /// Output format for the extracted article.
-    #[arg(long, value_enum, default_value_t = OutputFormat::Json)]
-    pub format: OutputFormat,
+    /// Print Markdown output.
+    #[arg(long)]
+    pub markdown: bool,
+
+    /// Print extracted article HTML.
+    #[arg(long)]
+    pub html: bool,
+
+    /// Print only extracted text.
+    #[arg(long)]
+    pub text: bool,
+
+    /// Print the article structure as JSON.
+    #[arg(long)]
+    pub json: bool,
 
     /// Pretty-print JSON output.
     #[arg(long)]
     pub pretty: bool,
+
+    /// Write article output to a file instead of stdout.
+    #[arg(short, long, value_name = "PATH")]
+    pub output: Option<PathBuf>,
+
+    /// Include TOML frontmatter in Markdown output.
+    #[arg(long)]
+    pub frontmatter: bool,
+
+    /// Omit TOML frontmatter from Markdown output.
+    #[arg(long)]
+    pub no_frontmatter: bool,
+
+    /// Check readability and exit without extracting.
+    #[arg(long)]
+    pub readable: bool,
+
+    /// Print extraction summary to stderr.
+    #[arg(long)]
+    pub inspect: bool,
+
+    /// Maximum seconds to spend on full extraction.
+    #[arg(long, default_value_t = 30)]
+    pub timeout: u64,
 
     /// Stop parsing after this many elements.
     #[arg(long)]
@@ -123,16 +152,16 @@ pub struct ParseArgs {
 /// article content.
 #[derive(Debug, Args)]
 pub struct ReadableArgs {
-    /// HTML file to read.
-    pub path: Option<PathBuf>,
+    /// URL, HTML file path, or '-' for stdin.
+    pub input: Option<String>,
 
     /// Read HTML from stdin.
     #[arg(long)]
     pub stdin: bool,
 
-    /// Fetch HTML from a URL.
+    /// Base URL for files or stdin, used to resolve relative links.
     #[arg(long)]
-    pub url: Option<String>,
+    pub base_url: Option<String>,
 
     /// Print the result as JSON.
     #[arg(long)]
@@ -151,19 +180,71 @@ pub struct ReadableArgs {
     pub min_score: f32,
 }
 
-/// Inspect fixture extraction behavior.
+/// Print extraction metadata and scoring details.
 #[derive(Debug, Args)]
-pub struct FixtureArgs {
-    /// Fixture name or path to a fixture directory.
-    pub path: PathBuf,
+pub struct InspectArgs {
+    /// URL, HTML file path, or '-' for stdin.
+    pub input: Option<String>,
 
-    /// Base URL to use while extracting the fixture.
+    /// Read HTML from stdin.
     #[arg(long)]
-    pub url: Option<String>,
+    pub stdin: bool,
 
-    /// Directory where expected and actual fixture output should be written.
+    /// Base URL for files or stdin, used to resolve relative links.
     #[arg(long)]
-    pub diff_dir: Option<PathBuf>,
+    pub base_url: Option<String>,
+
+    /// Print the full article structure as JSON.
+    #[arg(long)]
+    pub json: bool,
+
+    /// Pretty-print JSON output.
+    #[arg(long)]
+    pub pretty: bool,
+
+    /// Maximum seconds to spend on full extraction.
+    #[arg(long, default_value_t = 30)]
+    pub timeout: u64,
+
+    /// Stop parsing after this many elements.
+    #[arg(long)]
+    pub max_elems_to_parse: Option<usize>,
+
+    /// Minimum extracted text length required to accept an attempt.
+    #[arg(long, default_value_t = 500)]
+    pub char_threshold: usize,
+
+    /// Number of top readability candidates to keep during scoring.
+    #[arg(long, default_value_t = 5)]
+    pub nb_top_candidates: usize,
+
+    /// CSS selector for a known article container.
+    #[arg(long)]
+    pub content_selector: Option<String>,
+
+    /// TOML site profile path. May be repeated.
+    #[arg(long = "site-profile", value_name = "PATH")]
+    pub profiles: Vec<PathBuf>,
+
+    /// Viewport width used when applying mobile recovery rules.
+    #[arg(long)]
+    pub mobile_viewport_width: Option<usize>,
+
+    /// Disable JSON-LD metadata extraction.
+    #[arg(long)]
+    pub disable_json_ld: bool,
+
+    /// Media retention mode for extracted content.
+    #[arg(long = "media", default_value_t = MediaRetention::Article)]
+    pub media: MediaRetention,
+
+    /// Preserve class attributes in extracted HTML.
+    #[arg(long = "keep-classes")]
+    pub keep: bool,
+
+    /// Class name to preserve in extracted HTML. May be repeated.
+    #[arg(long = "preserve-class", value_name = "CLASS")]
+    pub preserve: Vec<String>,
 }
 
 #[cfg(test)]
@@ -171,15 +252,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_accepts_short_input_path() {
-        let cli = Cli::try_parse_from(["lectito", "parse", "-i", "article.html", "--format", "markdown"])
-            .expect("parse args should accept -i input");
+    fn root_accepts_input_path() {
+        let cli = Cli::try_parse_from(["lectito", "article.html", "--html"])
+            .expect("root args should accept an input path");
 
-        let Commands::Parse(args) = cli.command else {
-            panic!("expected parse command");
-        };
-
-        assert_eq!(args.input.as_deref(), Some(std::path::Path::new("article.html")));
-        assert!(matches!(args.format, OutputFormat::Markdown));
+        assert_eq!(cli.extract.input.as_deref(), Some("article.html"));
+        assert!(cli.extract.html);
+        assert!(cli.command.is_none());
     }
 }

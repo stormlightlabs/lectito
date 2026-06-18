@@ -2,15 +2,14 @@
 
 ## Release Preparation
 
-- Update package metadata for the public crates:
+- Keep package metadata current for the public crates:
   - `lectito`
   - `lectito-cli`
-  - generated WASM package metadata
+  - `lectito-wasm`
 - Add CI
 - Keep Markdown conversion behavior covered by golden tests for headings, links,
   images, tables, code, math, footnotes, and frontmatter.
-- Keep `lectito-fixtures` unpublished.
-- Fix path-only dependencies before publishing `lectito-cli` or `lectito-wasm`.
+- Keep `lectito-api` and `lectito-fixtures` unpublished.
 
 ## API (`crates/api`)
 

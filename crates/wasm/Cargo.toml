@@ -1,18 +1,21 @@
 [package]
 name = "lectito-wasm"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 license.workspace = true
 description = "JavaScript and WebAssembly bindings for Lectito."
 readme = "README.md"
+repository.workspace = true
+homepage.workspace = true
 keywords = ["readability", "markdown", "html", "wasm"]
-publish = false
+categories = ["wasm", "web-programming", "text-processing"]
 
 [lib]
+name = "lectito_wasm"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-lectito = { path = "../core" }
+lectito = { path = "../core", version = "0.1.0" }
 console_error_panic_hook = "0.1"
 js-sys = "0.3"
 serde = { version = "1.0", features = ["derive"] }
