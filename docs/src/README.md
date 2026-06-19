@@ -42,9 +42,5 @@ if let Some(article) = article {
 Use `extract_with_diagnostics` when tuning extraction or debugging a bad page.
 Use `is_probably_readable` before extraction when you only need a quick yes/no
 answer.
-
-## Project Scope
-
-The public API is intentionally small. Callers should depend on the article
 result, options, diagnostics, and Markdown helpers rather than internal scoring
 or cleanup modules.
