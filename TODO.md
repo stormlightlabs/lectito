@@ -11,6 +11,15 @@
   images, tables, code, math, footnotes, and frontmatter.
 - Keep `lectito-api` and `lectito-fixtures` unpublished.
 
+## Pre-release Prep
+
+- Add a Rust CI workflow for `cargo fmt --check`, `cargo check --workspace`,
+  `cargo test --workspace`, Clippy with denied warnings, Rustdoc warnings, and
+  publish dry-runs for public crates.
+  - Include `wasm-pack test --node` and `wasm-pack build` checks for the `bundler`, `web`, and `nodejs` WASM targets.
+- After `lectito` is published, rerun dry-runs for `lectito-cli` and
+  `lectito-wasm`; both depend on the published core crate version.
+
 ## API (`crates/api`)
 
 - Add raw HTML extraction endpoints later only if external API users need them.

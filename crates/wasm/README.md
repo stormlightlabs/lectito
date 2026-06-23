@@ -1,27 +1,14 @@
 # lectito-wasm
 
-This crate provides the JavaScript and WebAssembly packaging surface for
-Lectito.
+JavaScript and WebAssembly bindings for Lectito.
 
-## Goals
+`lectito-wasm` runs Lectito's article extraction, HTML cleanup, readability
+checks, HTML-to-Markdown conversion, and Markdown-to-HTML rendering in browsers,
+web workers, bundler-based apps, and Node.js.
 
-- Run Lectito in browsers, web workers, Node.js, and bundler-based web apps.
-- Expose article extraction, HTML cleanup, HTML-to-Markdown, and
-  Markdown-to-HTML through a small JavaScript API.
-- Keep the Rust core crate as the source of truth for parsing, cleanup,
-  metadata, diagnostics, and Markdown behavior.
-- Make browser demos possible without a backend service.
+## Build
 
-## Sanitization Guidance
-
-Lectito cleanup is optimized for readable article extraction. It should not be
-treated as a complete untrusted-HTML security policy. Browser integrations that
-accept arbitrary HTML should run a dedicated sanitizer such as DOMPurify before
-passing content into Lectito, or before rendering any HTML returned by Lectito.
-
-## Proposed Package Shape
-
-Build with `wasm-pack`:
+Build the package with `wasm-pack`:
 
 ```sh
 wasm-pack build crates/wasm --target bundler
@@ -29,24 +16,50 @@ wasm-pack build crates/wasm --target web
 wasm-pack build crates/wasm --target nodejs
 ```
 
-Key dependencies:
+The generated package includes `lectito_wasm.d.ts` with the public TypeScript
+API.
 
-- `wasm-bindgen` for JavaScript bindings.
-- `serde-wasm-bindgen` for structured option/result conversion.
-- `console_error_panic_hook` for useful browser panic diagnostics in debug
-  builds.
-- `lectito` as the core Rust library crate.
+## Usage
 
-## Proposed JavaScript API
+Bundlers can import the package directly:
+
+```ts
+import { extract } from "lectito-wasm";
+
+const article = extract(html, "https://example.com/post", {
+  charThreshold: 0,
+  mediaRetention: "article",
+});
+```
+
+The `web` target needs the async initializer before the first call:
+
+```ts
+import init, { extract } from "./lectito_wasm.js";
+
+await init();
+
+const article = extract(html, "https://example.com/post");
+```
+
+The `nodejs` target initializes itself when it is imported:
+
+```js
+const { extract } = require("./lectito_wasm.js");
+
+const article = extract(html, "https://example.com/post");
+```
+
+## API
 
 ```ts
 export type MediaRetention = "none" | "conservative" | "article" | "all";
 
 export interface ReadabilityOptions {
-  maxElemsToParse?: number;
+  maxElemsToParse?: number | null;
   nbTopCandidates?: number;
   charThreshold?: number;
-  contentSelector?: string;
+  contentSelector?: string | null;
   siteProfiles?: string[];
   mobileViewportWidth?: number | null;
   classesToPreserve?: string[];
@@ -71,92 +84,86 @@ export interface MarkdownOptions {
 export type CleanHtmlOptions = ReadabilityOptions;
 
 export interface Article {
-  title?: string;
-  byline?: string;
-  dir?: string;
-  lang?: string;
+  title?: string | null;
+  byline?: string | null;
+  dir?: string | null;
+  lang?: string | null;
   content: string;
   markdown: string;
-  textContent: string;
+  text_content: string;
   length: number;
-  excerpt?: string;
-  siteName?: string;
-  publishedTime?: string;
-  image?: string;
-  domain?: string;
-  favicon?: string;
+  excerpt?: string | null;
+  site_name?: string | null;
+  published_time?: string | null;
+  image?: string | null;
+  domain?: string | null;
+  favicon?: string | null;
+}
+
+export interface ExtractionReport {
+  article: Article | null;
+  diagnostics: unknown;
 }
 
 export function extract(
   html: string,
   baseUrl?: string | null,
-  options?: ReadabilityOptions,
+  options?: ReadabilityOptions | null,
 ): Article | null;
 
 export function extractWithDiagnostics(
   html: string,
   baseUrl?: string | null,
-  options?: ReadabilityOptions,
-): unknown;
+  options?: ReadabilityOptions | null,
+): ExtractionReport;
 
 export function isProbablyReadable(
   html: string,
-  options?: ReadableOptions,
+  options?: ReadableOptions | null,
 ): boolean;
 
 export function cleanHtml(
   html: string,
   baseUrl?: string | null,
-  options?: CleanHtmlOptions,
+  options?: CleanHtmlOptions | null,
 ): string | null;
 
 export function htmlToMarkdown(html: string): string;
 
 export function markdownToHtml(
   markdown: string,
-  options?: MarkdownOptions,
+  options?: MarkdownOptions | null,
 ): string;
 ```
 
-`cleanHtml` returns Lectito's cleaned article HTML, which is optimized for
-readable content extraction. It does not sanitize arbitrary HTML. Browser apps
-should run DOMPurify or a similar sanitizer before calling `cleanHtml`, and
-again before rendering any returned HTML if the original input is untrusted.
+The JavaScript API uses camelCase option fields. Returned article fields keep
+the core Rust snake_case names. `mediaRetention` accepts `"none"`,
+`"conservative"`, `"article"`, or `"all"`.
 
-Errors should throw JavaScript `Error` objects for invalid base URLs, oversized
-documents, serialization failures, and option conversion failures.
+## Errors
 
-## Example App Plan
+Functions throw JavaScript `Error` objects for invalid base URLs, oversized
+documents, option conversion failures, and serialization failures.
 
-Create a small browser example under this crate, for example:
+## Sanitization
 
-```text
-crates/wasm/examples/codemirror-cleanup/
+`cleanHtml` performs Lectito article cleanup. It is not a complete security
+policy for untrusted HTML.
+
+Browser integrations that accept arbitrary HTML should run a dedicated
+sanitizer such as DOMPurify before passing content into Lectito. Sanitize again
+before rendering returned HTML when the original input is untrusted.
+
+## Verification
+
+Before release, run:
+
+```sh
+pnpm --dir web exec wasm-pack test --node ../crates/wasm
+pnpm --dir web exec wasm-pack build ../crates/wasm --target bundler --out-dir ../../target/wasm-pack/bundler
+pnpm --dir web exec wasm-pack build ../crates/wasm --target web --out-dir ../../target/wasm-pack/web
+pnpm --dir web exec wasm-pack build ../crates/wasm --target nodejs --out-dir ../../target/wasm-pack/nodejs
 ```
 
-The example should:
-
-- Use a dual-pane CodeMirror layout for HTML input and generated output.
-- Run an explicit sanitize step.
-- Run Lectito cleanup/extraction on the sanitized HTML.
-- Render three synchronized outputs:
-  - sanitized HTML
-  - cleaned article HTML
-  - Markdown
-- Include options for `baseUrl`, `contentSelector`, `charThreshold`, and
-  `keepClasses`.
-- Show extraction metadata and a compact diagnostics panel.
-- Run entirely in the browser with the WASM package loaded as an ES module.
-
-The intended processing flow is:
-
-```text
-CodeMirror HTML input
-  -> sanitize HTML
-  -> clean/extract article HTML with Lectito
-  -> convert cleaned HTML to Markdown
-  -> preview outputs
-```
-
-The UI should make the sanitize-vs-cleanup distinction visible so users do not
-assume article cleanup is a complete XSS policy.
+The release build commands run `wasm-opt`. In restricted sandboxes, that may
+need approval to execute.

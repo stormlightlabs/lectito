@@ -65,10 +65,13 @@ export type Article = {
   lang?: string | null;
   content: string;
   markdown: string;
-  textContent: string;
+  text_content?: string;
+  textContent?: string;
   length: number;
   excerpt?: string | null;
+  site_name?: string | null;
   siteName?: string | null;
+  published_time?: string | null;
   publishedTime?: string | null;
   image?: string | null;
   domain?: string | null;

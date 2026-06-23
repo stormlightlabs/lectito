@@ -44,11 +44,15 @@ export function metadataFromArticle(
   article: Article,
   sourceMetadata: Partial<PipelineMetadata> = {},
 ): PipelineMetadata {
+  const siteName = article.site_name ?? article.siteName;
+  const publishedTime = article.published_time ?? article.publishedTime;
+  const articleText = article.text_content ?? article.textContent ?? "";
+
   return {
     title: article.title || sourceMetadata.title || firstHeading(article.content) || "Untitled",
     author: article.byline || sourceMetadata.author,
-    site: article.siteName || sourceMetadata.site,
-    published: article.publishedTime || sourceMetadata.published,
+    site: siteName || sourceMetadata.site,
+    published: publishedTime || sourceMetadata.published,
     source: sourceMetadata.source,
     domain: article.domain || sourceMetadata.domain,
     language: article.lang || sourceMetadata.language,
@@ -57,7 +61,7 @@ export function metadataFromArticle(
     favicon: article.favicon || sourceMetadata.favicon,
     dir: article.dir || sourceMetadata.dir,
     length: article.length,
-    excerpt: article.excerpt || sourceMetadata.excerpt || firstLine(article.textContent),
+    excerpt: article.excerpt || sourceMetadata.excerpt || firstLine(articleText),
   };
 }
 

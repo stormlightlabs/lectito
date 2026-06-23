@@ -50,6 +50,10 @@ Before publishing, run:
 
 ```sh
 cargo check --workspace
+pnpm --dir web exec wasm-pack test --node ../crates/wasm
+pnpm --dir web exec wasm-pack build ../crates/wasm --target bundler --out-dir ../../target/wasm-pack/bundler
+pnpm --dir web exec wasm-pack build ../crates/wasm --target web --out-dir ../../target/wasm-pack/web
+pnpm --dir web exec wasm-pack build ../crates/wasm --target nodejs --out-dir ../../target/wasm-pack/nodejs
 cargo publish --dry-run -p lectito
 scripts/smoke.sh
 ```

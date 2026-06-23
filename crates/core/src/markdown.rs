@@ -91,10 +91,7 @@ fn render_node(node: &NodeRef, ctx: RenderContext) -> String {
     match node.as_text() {
         Some(text) => {
             let text = text.borrow();
-            if ctx.in_pre {
-                return text.to_string();
-            }
-            return patterns::normalize_spaces(&text);
+            if ctx.in_pre { text.to_string() } else { patterns::normalize_spaces(&text) }
         }
         None => match code::is_highlighter_chrome(node) {
             true => String::new(),
@@ -135,7 +132,7 @@ fn render_node(node: &NodeRef, ctx: RenderContext) -> String {
                 "source" => String::new(),
                 "figure" => media::render_figure(node, ctx).unwrap_or_else(|| block(render_children(node, ctx))),
                 "blockquote" => match media::render_embed(node) {
-                    Some(embed) => return block(embed),
+                    Some(embed) => block(embed),
                     None => block(
                         normalize_markdown(&render_children(node, ctx))
                             .lines()
