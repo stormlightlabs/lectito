@@ -16,13 +16,17 @@ Use the library through the `lectito` crate name:
 ```rust
 use lectito::{extract, ReadabilityOptions};
 
-let html = r#"<article><h1>Title</h1><p>Article text.</p></article>"#;
-let article = extract(html, Some("https://example.com/post"), &ReadabilityOptions::default())?;
+fn main() -> Result<(), lectito::Error> {
+    let html = r#"<article><h1>Title</h1><p>Article text.</p></article>"#;
+    let options = ReadabilityOptions::default();
+    let article = extract(html, Some("https://example.com/post"), &options)?;
 
-if let Some(article) = article {
-    println!("{}", article.markdown);
+    if let Some(article) = article {
+        println!("{}", article.markdown);
+    }
+
+    Ok(())
 }
-# Ok::<(), lectito::Error>(())
 ```
 
 The crate does not fetch pages. Pass HTML from your own crawler, browser,

@@ -51,9 +51,15 @@ Before publishing, run:
 ```sh
 cargo check --workspace
 cargo publish --dry-run -p lectito
+scripts/smoke.sh
 ```
 
 Before `lectito` has been published for a new version, Cargo will reject
 `lectito-cli` and `lectito-wasm` dry-runs with `no matching package named
 lectito found`. That is expected for the first crate in a release train. Retry
 those dry-runs after the library crate is visible in the crates.io index.
+
+The smoke script writes CLI output samples to `target/pre-release-smoke` for
+manual review. It covers a normal article fixture, a reference page fixture, a
+news fixture, a code-heavy fixture, and a live Rust blog URL. Use
+`scripts/smoke.sh --skip-live` when network access is unavailable.
