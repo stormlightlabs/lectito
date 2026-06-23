@@ -298,7 +298,7 @@ fn matching_profile(url: &Url, options: &ReadabilityOptions) -> Result<Option<Pr
         }
     }
 
-    matches.sort_by(|a, b| b.profile.specificity.cmp(&a.profile.specificity));
+    matches.sort_by_key(|b| std::cmp::Reverse(b.profile.specificity));
     Ok(matches.into_iter().next())
 }
 

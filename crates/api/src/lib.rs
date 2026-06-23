@@ -103,7 +103,7 @@ impl AppState {
 enum Limit {
     MaxBodyBytes,
     MaxFetchBytes,
-    RedirectLimit,
+    Redirect,
     RequestTimeoutSecs,
 }
 
@@ -112,7 +112,7 @@ impl Limit {
         match self {
             Self::MaxBodyBytes => "LECTITO_MAX_BODY_BYTES",
             Self::MaxFetchBytes => "LECTITO_MAX_FETCH_BYTES",
-            Self::RedirectLimit => "LECTITO_REDIRECT_LIMIT",
+            Self::Redirect => "LECTITO_REDIRECT_LIMIT",
             Self::RequestTimeoutSecs => "LECTITO_REQUEST_TIMEOUT_SECS",
         }
     }
@@ -123,7 +123,7 @@ impl From<Limit> for usize {
         match limit {
             Limit::MaxBodyBytes => 512 * 1024,
             Limit::MaxFetchBytes => 2 * 1024 * 1024,
-            Limit::RedirectLimit => 5,
+            Limit::Redirect => 5,
             Limit::RequestTimeoutSecs => 20,
         }
     }
@@ -157,7 +157,7 @@ impl Config {
             port: env_u16("PORT", 3000),
             max_body_bytes: env_usize(Limit::MaxBodyBytes),
             max_fetch_bytes: env_usize(Limit::MaxFetchBytes),
-            redirect_limit: env_usize(Limit::RedirectLimit),
+            redirect_limit: env_usize(Limit::Redirect),
             request_timeout_secs: env_u64(Limit::RequestTimeoutSecs),
             allowed_origins: env::var("LECTITO_ALLOWED_ORIGINS")
                 .ok()
@@ -566,7 +566,7 @@ mod tests {
             port: 0,
             max_body_bytes: Limit::MaxBodyBytes.into(),
             max_fetch_bytes: Limit::MaxFetchBytes.into(),
-            redirect_limit: Limit::RedirectLimit.into(),
+            redirect_limit: Limit::Redirect.into(),
             request_timeout_secs: Limit::RequestTimeoutSecs.into(),
             allowed_origins: Vec::new(),
             allow_private_network: true,

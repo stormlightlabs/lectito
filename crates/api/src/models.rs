@@ -214,19 +214,19 @@ pub struct MarkdownOptionsDto {
     allow_raw_html: Option<bool>,
 }
 
-impl Into<MarkdownOptions> for MarkdownOptionsDto {
-    fn into(self) -> MarkdownOptions {
+impl From<MarkdownOptionsDto> for MarkdownOptions {
+    fn from(val: MarkdownOptionsDto) -> Self {
         let mut options = MarkdownOptions::default();
-        if let Some(value) = self.gfm {
+        if let Some(value) = val.gfm {
             options.gfm = value;
         }
-        if let Some(value) = self.footnotes {
+        if let Some(value) = val.footnotes {
             options.footnotes = value;
         }
-        if let Some(value) = self.math {
+        if let Some(value) = val.math {
             options.math = value;
         }
-        if let Some(value) = self.allow_raw_html {
+        if let Some(value) = val.allow_raw_html {
             options.allow_raw_html = value;
         }
         options
