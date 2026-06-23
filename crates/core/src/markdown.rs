@@ -5,6 +5,7 @@ mod math;
 mod media;
 mod tables;
 
+use comrak::options::{Extension, Parse};
 pub use frontmatter::markdown_with_toml_frontmatter;
 
 use comrak::markdown_to_html as comrak_markdown_to_html;
@@ -36,12 +37,12 @@ pub fn html_to_markdown(html: &str) -> String {
     let mut output = render_children(&body, RenderContext { in_pre: false, list_depth: 0 });
     output.push_str(&footnotes.render_definitions());
     output = normalize_markdown(&output);
-    format_with_comrak(&output)
+    fmt_with_comrak(&output)
 }
 
 /// Render Markdown to HTML with the provided options.
 pub fn markdown_to_html(markdown: &str, options: &MarkdownOptions) -> String {
-    comrak_markdown_to_html(markdown, &comrak_options(options))
+    comrak_markdown_to_html(markdown, &comrak_opts(options))
 }
 
 pub fn normalize_markdown(value: &str) -> String {
@@ -87,74 +88,73 @@ pub fn render_children(node: &NodeRef, ctx: RenderContext) -> String {
 
 // TODO: instance method on RenderContext
 fn render_node(node: &NodeRef, ctx: RenderContext) -> String {
-    if let Some(text) = node.as_text() {
-        let text = text.borrow();
-        if ctx.in_pre {
-            return text.to_string();
-        }
-        return patterns::normalize_spaces(&text);
-    }
-
-    if code::is_highlighter_chrome(node) {
-        return String::new();
-    }
-
-    let tag = dom::node_name(node);
-    match tag.as_str() {
-        "h1" => block(format!("# {}", inline_children(node, ctx))),
-        "h2" => block(format!("## {}", inline_children(node, ctx))),
-        "h3" => block(format!("### {}", inline_children(node, ctx))),
-        "h4" => block(format!("#### {}", inline_children(node, ctx))),
-        "h5" => block(format!("##### {}", inline_children(node, ctx))),
-        "h6" => block(format!("###### {}", inline_children(node, ctx))),
-        "p" => block(inline_children(node, ctx)),
-        "br" => "  \n".to_string(),
-        "strong" | "b" => format!("**{}**", inline_children(node, ctx)),
-        "em" | "i" => format!("*{}*", inline_children(node, ctx)),
-        "mark" => wrap_inline("==", inline_children(node, ctx)),
-        "del" | "s" | "strike" => wrap_inline("~~", inline_children(node, ctx)),
-        "sup" | "sub" | "svg" => serialize::serialize_node(node).unwrap_or_else(|_| render_children(node, ctx)),
-        "code" if !ctx.in_pre => format!("`{}`", inline_children(node, ctx).replace('`', "\\`")),
-        "pre" => code::render_code_block(node, ctx),
-        "math" | "mjx-container" => math::render_math(node, ctx).unwrap_or_else(|| render_children(node, ctx)),
-        "script" => math::render_math(node, ctx).unwrap_or_default(),
-        "span" | "img" if math::render_math(node, ctx).is_some() => math::render_math(node, ctx).unwrap_or_default(),
-        "iframe" | "video" | "audio" | "object" | "embed" => media::render_embed(node).unwrap_or_default(),
-        "a" => {
-            let label = inline_children(node, ctx);
-            if label.is_empty() {
-                String::new()
-            } else if let Some(href) = dom::attr(node, "href") {
-                format!("[{}]({})", label, escape_commonmark_link_destination(&href))
-            } else {
-                label
+    match node.as_text() {
+        Some(text) => {
+            let text = text.borrow();
+            if ctx.in_pre {
+                return text.to_string();
             }
+            return patterns::normalize_spaces(&text);
         }
-        "img" => media::render_image(node),
-        "picture" => media::render_picture(node),
-        "source" => String::new(),
-        "figure" => media::render_figure(node, ctx).unwrap_or_else(|| block(render_children(node, ctx))),
-        "blockquote" => {
-            if let Some(embed) = media::render_embed(node) {
-                return block(embed);
-            }
-            let inner = normalize_markdown(&render_children(node, ctx));
-            let quoted = inner
-                .lines()
-                .map(|line| if line.trim().is_empty() { ">".to_string() } else { format!("> {line}") })
-                .collect::<Vec<_>>()
-                .join("\n");
-            block(quoted)
-        }
-        "ul" => render_list(node, false, ctx),
-        "ol" => render_list(node, true, ctx),
-        "li" => block(inline_children(node, ctx)),
-        "table" => code::render_code_table(node, ctx).unwrap_or_else(|| tables::render_table(node, ctx)),
-        "div" => code::render_code_container(node, ctx).unwrap_or_else(|| render_children(node, ctx)),
-        "section" | "article" | "main" | "body" => render_children(node, ctx),
-        "figcaption" => block(inline_children(node, ctx)),
-        "hr" => "\n\n---\n\n".to_string(),
-        _ => render_children(node, ctx),
+        None => match code::is_highlighter_chrome(node) {
+            true => String::new(),
+            false => match dom::node_name(node).as_str() {
+                "h1" => block(format!("# {}", inline_children(node, ctx))),
+                "h2" => block(format!("## {}", inline_children(node, ctx))),
+                "h3" => block(format!("### {}", inline_children(node, ctx))),
+                "h4" => block(format!("#### {}", inline_children(node, ctx))),
+                "h5" => block(format!("##### {}", inline_children(node, ctx))),
+                "h6" => block(format!("###### {}", inline_children(node, ctx))),
+                "p" => block(inline_children(node, ctx)),
+                "br" => "  \n".to_string(),
+                "strong" | "b" => format!("**{}**", inline_children(node, ctx)),
+                "em" | "i" => format!("*{}*", inline_children(node, ctx)),
+                "mark" => wrap_inline("==", inline_children(node, ctx)),
+                "del" | "s" | "strike" => wrap_inline("~~", inline_children(node, ctx)),
+                "sup" | "sub" | "svg" => serialize::serialize_node(node).unwrap_or_else(|_| render_children(node, ctx)),
+                "code" if !ctx.in_pre => format!("`{}`", inline_children(node, ctx).replace('`', "\\`")),
+                "pre" => code::render_code_block(node, ctx),
+                "math" | "mjx-container" => math::render_math(node, ctx).unwrap_or_else(|| render_children(node, ctx)),
+                "script" => math::render_math(node, ctx).unwrap_or_default(),
+                "span" | "img" if math::render_math(node, ctx).is_some() => {
+                    math::render_math(node, ctx).unwrap_or_default()
+                }
+                "iframe" | "video" | "audio" | "object" | "embed" => media::render_embed(node).unwrap_or_default(),
+                "a" => {
+                    let label = inline_children(node, ctx);
+                    if label.is_empty() {
+                        preserved_empty_inline(node)
+                    } else if let Some(href) = dom::attr(node, "href") {
+                        format!("[{}]({})", label, escape_commonmark_link_destination(&href))
+                    } else {
+                        label
+                    }
+                }
+                "img" => media::render_image(node),
+                "picture" => media::render_picture(node),
+                "source" => String::new(),
+                "figure" => media::render_figure(node, ctx).unwrap_or_else(|| block(render_children(node, ctx))),
+                "blockquote" => match media::render_embed(node) {
+                    Some(embed) => return block(embed),
+                    None => block(
+                        normalize_markdown(&render_children(node, ctx))
+                            .lines()
+                            .map(|line| if line.trim().is_empty() { ">".to_string() } else { format!("> {line}") })
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    ),
+                },
+                "ul" => render_list(node, false, ctx),
+                "ol" => render_list(node, true, ctx),
+                "li" => block(inline_children(node, ctx)),
+                "table" => code::render_code_table(node, ctx).unwrap_or_else(|| tables::render_table(node, ctx)),
+                "div" => code::render_code_container(node, ctx).unwrap_or_else(|| render_children(node, ctx)),
+                "section" | "article" | "main" | "body" => render_children(node, ctx),
+                "figcaption" => block(inline_children(node, ctx)),
+                "hr" => "\n\n---\n\n".to_string(),
+                _ => render_children(node, ctx),
+            },
+        },
     }
 }
 
@@ -212,26 +212,49 @@ fn wrap_inline(marker: &str, value: String) -> String {
     if value.is_empty() { String::new() } else { format!("{marker}{value}{marker}") }
 }
 
-fn format_with_comrak(markdown: &str) -> String {
-    let arena = Arena::new();
-    let mut options = Options::default();
-    options.extension.footnotes = true;
-    options.extension.math_dollars = true;
-    options.extension.strikethrough = true;
-    options.extension.table = true;
-    options.parse.leave_footnote_definitions = true;
-    let root = parse_document(&arena, markdown, &options);
-    let mut output = String::new();
-    if format_commonmark(root, &options, &mut output).is_err() {
-        return markdown.to_string();
+fn preserved_empty_inline(node: &NodeRef) -> String {
+    let prev_text = node
+        .previous_sibling()
+        .and_then(|sibling| sibling.as_text().map(|text| text.borrow().to_string()))
+        .unwrap_or_default();
+    let next_text = node
+        .next_sibling()
+        .and_then(|sibling| sibling.as_text().map(|text| text.borrow().to_string()))
+        .unwrap_or_default();
+
+    if prev_text.ends_with(char::is_whitespace) && next_text.starts_with(char::is_whitespace) {
+        " ".to_string()
+    } else {
+        String::new()
     }
-    output.trim().to_string()
 }
 
-fn comrak_options(options: &MarkdownOptions) -> Options<'static> {
+fn fmt_with_comrak(markdown: &str) -> String {
+    let arena = Arena::new();
+    let opts = Options {
+        extension: Extension {
+            footnotes: true,
+            math_dollars: true,
+            strikethrough: true,
+            table: true,
+            ..Default::default()
+        },
+        parse: Parse { leave_footnote_definitions: true, ..Default::default() },
+        ..Default::default()
+    };
+
+    let root = parse_document(&arena, markdown, &opts);
+    let mut output = String::new();
+    match format_commonmark(root, &opts, &mut output) {
+        Err(_) => markdown.to_string(),
+        Ok(_) => output.trim().to_string(),
+    }
+}
+
+fn comrak_opts(opts: &MarkdownOptions) -> Options<'static> {
     let mut comrak = Options::default();
 
-    if options.gfm {
+    if opts.gfm {
         comrak.extension.autolink = true;
         comrak.extension.strikethrough = true;
         comrak.extension.table = true;
@@ -240,17 +263,17 @@ fn comrak_options(options: &MarkdownOptions) -> Options<'static> {
         comrak.parse.tasklist_in_table = true;
     }
 
-    if options.footnotes {
+    if opts.footnotes {
         comrak.extension.footnotes = true;
         comrak.extension.inline_footnotes = true;
     }
 
-    if options.math {
+    if opts.math {
         comrak.extension.math_code = true;
         comrak.extension.math_dollars = true;
     }
 
-    comrak.render.r#unsafe = options.allow_raw_html;
+    comrak.render.r#unsafe = opts.allow_raw_html;
     comrak
 }
 

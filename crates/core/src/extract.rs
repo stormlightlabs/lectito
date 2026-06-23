@@ -1341,6 +1341,99 @@ mod tests {
     }
 
     #[test]
+    fn removes_reference_page_table_of_contents_without_url_profile() {
+        let article = extract(
+            r##"
+            <html><head><title>Reference Entry</title></head><body>
+                <main>
+                    <article>
+                        <h1>Reference Entry</h1>
+                        <div id="toc">
+                            <h2>Contents</h2>
+                            <ol>
+                                <li><a href="#history">History</a></li>
+                                <li><a href="#software">Software</a></li>
+                            </ol>
+                        </div>
+                        <p>This reference entry has enough real article text, punctuation, and detail to pass extraction.</p>
+                        <h2 id="history">History</h2>
+                        <p>The body explains the topic without keeping the navigation table of contents in reader output.</p>
+                    </article>
+                </main>
+            </body></html>
+            "##,
+            None,
+            &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert!(!article.text_content.contains("Contents"));
+        assert!(!article.text_content.contains("Software"));
+        assert!(article.text_content.contains("The body explains the topic"));
+    }
+
+    #[test]
+    fn removes_continue_reading_article_chrome() {
+        let article = extract(
+            r##"
+            <html><head><title>Continue Story</title></head><body>
+                <article>
+                    <h1>Continue Story</h1>
+                    <p>This article has enough substance, punctuation, and detail to pass the extraction threshold.</p>
+                    <p>The second paragraph keeps the article body clearly above the minimum length for this regression.</p>
+                    <a href="#whats-next">Continue reading the main story</a>
+                </article>
+            </body></html>
+            "##,
+            None,
+            &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert!(!article.text_content.contains("Continue reading"));
+        assert!(article.text_content.contains("second paragraph"));
+    }
+
+    #[test]
+    fn preserves_short_link_text_that_appears_in_byline_metadata() {
+        let article = extract(
+            r#"
+            <html>
+                <head>
+                    <title>Announcing Rust 1.83.0 | Rust Blog</title>
+                    <meta name="author" content="The Rust Release Team">
+                </head>
+                <body>
+                    <article>
+                        <p>This article has enough substance, punctuation, and detail to pass the extraction threshold.</p>
+                        <p>
+                            Check out everything that changed in
+                            <a rel="external" href="https://github.com/rust-lang/rust/releases/tag/1.83.0">Rust</a>,
+                            <a rel="external" href="https://doc.rust-lang.org/nightly/cargo/CHANGELOG.html">Cargo</a>,
+                            and
+                            <a rel="external" href="https://github.com/rust-lang/rust-clippy/blob/master/CHANGELOG.md">Clippy</a>.
+                        </p>
+                    </article>
+                </body>
+            </html>
+            "#,
+            None,
+            &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert!(article.text_content.contains("changed in Rust, Cargo, and Clippy"));
+        assert!(
+            article
+                .markdown
+                .contains("[Rust](https://github.com/rust-lang/rust/releases/tag/1.83.0)")
+        );
+    }
+
+    #[test]
     fn preserves_footnotes_while_removing_chrome_after_them() {
         let article = extract(
             r##"

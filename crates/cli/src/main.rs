@@ -14,12 +14,14 @@ use lectito::ExtractionReport;
 use lectito::{ReadabilityOptions, ReadableOptions};
 use lectito::{extract_with_diagnostics, is_probably_readable};
 
+use crate::echo::InspectOptions;
+
 mod cli;
 mod echo;
 mod fetch;
 
 fn main() -> ExitCode {
-    match run(Cli::parse()) {
+    match run(Cli::parse(), color_enabled()) {
         Ok(code) => code,
         Err(error) => {
             eprintln!("lectito: {error:#}");
@@ -28,15 +30,15 @@ fn main() -> ExitCode {
     }
 }
 
-fn run(cli: Cli) -> Result<ExitCode> {
+fn run(cli: Cli, color: bool) -> Result<ExitCode> {
     match cli.command {
         Some(Commands::Readable(args)) => run_readable(args),
         Some(Commands::Inspect(args)) => run_inspect(args),
-        None => run_extract(cli.extract),
+        None => run_extract(cli.extract, color),
     }
 }
 
-fn run_extract(args: ExtractArgs) -> Result<ExitCode> {
+fn run_extract(args: ExtractArgs, color: bool) -> Result<ExitCode> {
     if args.readable {
         let input = fetch::InputDocument::read_source(args.input.as_deref(), args.stdin, args.base_url.as_deref())?;
         let readable = is_probably_readable(input.html(), &ReadableOptions::default())?;
@@ -66,10 +68,7 @@ fn run_extract(args: ExtractArgs) -> Result<ExitCode> {
     };
     let output = echo::render_article(
         report.article.as_ref(),
-        format,
-        args.pretty,
-        input.base_url(),
-        frontmatter,
+        echo::RenderOptions::new(format, args.pretty, input.base_url(), frontmatter),
     )?;
 
     match args.output {
@@ -85,11 +84,14 @@ fn run_extract(args: ExtractArgs) -> Result<ExitCode> {
 
     if args.inspect {
         io::stdout().flush().context("failed to flush article output")?;
-        eprintln!("{}", echo::inspect(&report, input.base_url(), false, false)?);
+        eprintln!(
+            "{}",
+            echo::inspect(&report, InspectOptions::new(false, input.base_url(), false))?
+        );
     }
     if let Some(format) = args.diagnostic_format {
         io::stdout().flush().context("failed to flush article output")?;
-        echo::diagnostics(&report.diagnostics, format)?;
+        echo::diagnostics(&report.diagnostics, format, color)?;
     }
 
     Ok(if report.article.is_some() { ExitCode::SUCCESS } else { ExitCode::from(1) })
@@ -122,12 +124,15 @@ fn run_inspect(args: InspectArgs) -> Result<ExitCode> {
         eprintln!("lectito: extraction timed out after {}s", args.timeout);
         return Ok(ExitCode::from(3));
     };
-    println!("{}", echo::inspect(&report, input.base_url(), args.json, args.pretty)?);
+    println!(
+        "{}",
+        echo::inspect(&report, InspectOptions::new(args.pretty, input.base_url(), args.json,))?
+    );
     Ok(if report.article.is_some() { ExitCode::SUCCESS } else { ExitCode::from(1) })
 }
 
 fn extract_with_timeout(
-    html: &str, base_url: Option<&str>, options: ReadabilityOptions, timeout_secs: u64,
+    html: &str, base_url: Option<&str>, options: ReadabilityOptions, timeout: u64,
 ) -> Result<Option<ExtractionReport>> {
     let html = html.to_string();
     let base_url = base_url.map(str::to_string);
@@ -138,7 +143,7 @@ fn extract_with_timeout(
         let _ = sender.send(result);
     });
 
-    match receiver.recv_timeout(Duration::from_secs(timeout_secs)) {
+    match receiver.recv_timeout(Duration::from_secs(timeout)) {
         Ok(result) => result.map(Some).map_err(Into::into),
         Err(mpsc::RecvTimeoutError::Timeout) => Ok(None),
         Err(mpsc::RecvTimeoutError::Disconnected) => anyhow::bail!("extraction worker disconnected"),
@@ -179,6 +184,10 @@ fn markdown_frontmatter(frontmatter: bool, no_frontmatter: bool) -> Result<bool>
     Ok(!no_frontmatter)
 }
 
+fn color_enabled() -> bool {
+    std::env::var_os("NO_COLOR").is_none()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -188,5 +197,31 @@ mod tests {
         let error = output_format(false, true, true, false).expect_err("two formats should be rejected");
 
         assert!(error.to_string().contains("choose only one"));
+    }
+
+    #[test]
+    fn no_color_env_disables_color() {
+        let key = "NO_COLOR";
+        let previous = std::env::var_os(key);
+
+        unsafe {
+            std::env::remove_var(key);
+        }
+        assert!(color_enabled());
+
+        unsafe {
+            std::env::set_var(key, "");
+        }
+        assert!(!color_enabled());
+
+        if let Some(value) = previous {
+            unsafe {
+                std::env::set_var(key, value);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var(key);
+            }
+        }
     }
 }

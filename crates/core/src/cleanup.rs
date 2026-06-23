@@ -9,7 +9,7 @@ use super::scoring::{class_weight, link_density};
 use super::{dom, markdown};
 
 pub fn cleanup_article(
-    nodes: &[NodeRef], options: &ReadabilityOptions, flags: ExtractFlags, base_url: Option<&Url>, metadata: &Metadata,
+    nodes: &[NodeRef], opts: &ReadabilityOptions, flags: ExtractFlags, base_url: Option<&Url>, metadata: &Metadata,
 ) {
     for node in nodes {
         clean_styles(node);
@@ -17,22 +17,22 @@ pub fn cleanup_article(
         fix_lazy_images(node);
         dom::remove_matching(
             node,
-            "script, style, noscript, base, form, fieldset, footer, link, aside",
+            "script, style, noscript, base, form, fieldset, footer, link, aside, nav, #toc, .toc, #jump-to-nav, .mw-jump, #siteSub, #contentSub",
         );
-        apply_media_retention(node, options.media_retention);
-        clean_embeds(node, options.media_retention);
+        apply_media_retention(node, opts.media_retention);
+        clean_embeds(node, opts.media_retention);
         remove_share_nodes(node);
         remove_trailing_page_chrome(node);
         clean_headers(node, metadata.title.as_deref(), flags);
         clean_leading_article_metadata(node, metadata);
         markdown::code::normalize_code_markup(node);
         if flags.clean_conditionally {
-            clean_conditionally(node, options, flags);
+            clean_conditionally(node, opts, flags);
         }
         remove_empty_blocks(node);
         fix_relative_urls(node, base_url);
-        if !options.keep_classes {
-            clean_classes(node, options);
+        if !opts.keep_classes {
+            clean_classes(node, opts);
         }
     }
 }
@@ -331,10 +331,20 @@ fn clean_leading_article_metadata(root: &NodeRef, metadata: &Metadata) {
 
     trim_leading_metadata_siblings(root, metadata);
     for child in root.children().filter(|node| node.as_element().is_some()) {
+        if is_prose_container(&child) {
+            continue;
+        }
         if !has_meaningful_article_content(&child) || dom::inner_text(&child).chars().count() < 400 {
             trim_leading_metadata_siblings(&child, metadata);
         }
     }
+}
+
+fn is_prose_container(node: &NodeRef) -> bool {
+    matches!(
+        dom::node_name(node).as_str(),
+        "p" | "pre" | "blockquote" | "table" | "figure" | "li"
+    )
 }
 
 fn trim_leading_metadata_siblings(root: &NodeRef, metadata: &Metadata) {
@@ -455,10 +465,11 @@ fn is_byline_node(node: &NodeRef, metadata: &Metadata) -> bool {
     if text_len == 0 || text_len > 260 {
         return false;
     }
-    if metadata
-        .byline
-        .as_deref()
-        .is_some_and(|byline| matches_metadata_value(&text, Some(byline)))
+    if text_len >= 8
+        && metadata
+            .byline
+            .as_deref()
+            .is_some_and(|byline| matches_metadata_value(&text, Some(byline)))
     {
         return true;
     }

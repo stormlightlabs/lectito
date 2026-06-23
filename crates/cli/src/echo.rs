@@ -6,59 +6,105 @@ use owo_colors::OwoColorize;
 
 use crate::cli::{DiagnosticFormat, OutputFormat};
 
-pub fn diagnostics(diagnostics: &ExtractionDiagnostics, format: DiagnosticFormat) -> Result<()> {
+pub struct RenderOptions<'a> {
+    format: OutputFormat,
+    pretty: bool,
+    source: Option<&'a str>,
+    frontmatter: bool,
+}
+
+impl<'a> RenderOptions<'a> {
+    pub fn new(format: OutputFormat, pretty: bool, source: Option<&'a str>, frontmatter: bool) -> Self {
+        Self { format, pretty, source, frontmatter }
+    }
+}
+
+pub struct InspectOptions<'a> {
+    source: Option<&'a str>,
+    json: bool,
+    pretty: bool,
+}
+
+impl<'a> InspectOptions<'a> {
+    pub fn new(pretty: bool, source: Option<&'a str>, json: bool) -> Self {
+        Self { pretty, source, json }
+    }
+}
+
+pub fn diagnostics(diagnostics: &ExtractionDiagnostics, format: DiagnosticFormat, color: bool) -> Result<()> {
     match format {
         DiagnosticFormat::Json => {
             eprintln!(
                 "{}",
                 serde_json::to_string_pretty(diagnostics).context("failed to serialize diagnostics")?
-            );
+            )
         }
         DiagnosticFormat::Pretty => {
-            eprintln!("{}", "lectito diagnostics".bold().blue());
-            eprintln!("{} {:?}", "outcome:".bold(), diagnostics.outcome);
+            eprintln!(
+                "{}",
+                style("lectito diagnostics", color, |value| value.bold().blue().to_string())
+            );
+            eprintln!(
+                "{} {:?}",
+                style("outcome:", color, |value| value.bold().to_string()),
+                diagnostics.outcome
+            );
             if let Some(selector) = &diagnostics.content_selector {
-                let status =
-                    if selector.matched { "matched".green().to_string() } else { "not matched".yellow().to_string() };
-                eprintln!("{} {} ({status})", "content selector:".bold(), selector.selector);
+                let status = if selector.matched {
+                    style("matched", color, |value| value.green().to_string())
+                } else {
+                    style("not matched", color, |value| value.yellow().to_string())
+                };
+                eprintln!(
+                    "{} {} ({status})",
+                    style("content selector:", color, |value| value.bold().to_string()),
+                    selector.selector
+                );
             }
             if let Some(site_rule) = &diagnostics.site_rule {
-                let status =
-                    if site_rule.accepted { "accepted".green().to_string() } else { "fallback".yellow().to_string() };
+                let status = if site_rule.accepted {
+                    style("accepted", color, |value| value.green().to_string())
+                } else {
+                    style("fallback", color, |value| value.yellow().to_string())
+                };
                 eprintln!(
                     "{} {} {:?} text_len={} removals={} ({status})",
-                    "site rule:".bold(),
+                    style("site rule:", color, |value| value.bold().to_string()),
                     site_rule.name,
                     site_rule.source,
                     site_rule.text_len,
                     site_rule.removals
                 );
                 if let Some(reason) = &site_rule.fallback_reason {
-                    eprintln!("  {} {}", "reason:".bold(), reason);
+                    eprintln!(
+                        "  {} {}",
+                        style("reason:", color, |value| value.bold().to_string()),
+                        reason
+                    );
                 }
             }
             for attempt in &diagnostics.attempts {
                 let marker = if Some(attempt.index) == diagnostics.selected_attempt {
-                    "*".green().to_string()
+                    style("*", color, |value| value.green().to_string())
                 } else {
                     " ".to_string()
                 };
                 eprintln!(
                     "{marker} {} {} {} {} {}",
-                    "attempt".bold(),
+                    style("attempt", color, |value| value.bold().to_string()),
                     attempt.index,
-                    "text_len=".dimmed(),
+                    style("text_len=", color, |value| value.dimmed().to_string()),
                     attempt.text_len,
                     if attempt.accepted {
-                        "accepted".green().to_string()
+                        style("accepted", color, |value| value.green().to_string())
                     } else {
-                        "below threshold".yellow().to_string()
+                        style("below threshold", color, |value| value.yellow().to_string())
                     }
                 );
                 if let Some(root) = &attempt.selected_root {
                     eprintln!(
                         "  {} {} (text {}, links {:.3})",
-                        "root:".bold(),
+                        style("root:", color, |value| value.bold().to_string()),
                         root.selector,
                         root.text_len,
                         root.link_density
@@ -67,13 +113,13 @@ pub fn diagnostics(diagnostics: &ExtractionDiagnostics, format: DiagnosticFormat
                 if attempt.recovery.shadow_roots_flattened > 0 || attempt.recovery.mobile_rules_applied > 0 {
                     eprintln!(
                         "  {} shadow_roots={}, mobile_rules={}",
-                        "recovery:".bold(),
+                        style("recovery:", color, |value| value.bold().to_string()),
                         attempt.recovery.shadow_roots_flattened,
                         attempt.recovery.mobile_rules_applied
                     );
                 }
                 if !attempt.entry_points.is_empty() {
-                    eprintln!("  {}", "entry points:".bold());
+                    eprintln!("  {}", style("entry points:", color, |value| value.bold().to_string()));
                     for candidate in attempt.entry_points.iter().take(3) {
                         eprintln!(
                             "    {:>8.3} {} text={}",
@@ -82,7 +128,10 @@ pub fn diagnostics(diagnostics: &ExtractionDiagnostics, format: DiagnosticFormat
                     }
                 }
                 if !attempt.candidates.is_empty() {
-                    eprintln!("  {}", "top candidates:".bold());
+                    eprintln!(
+                        "  {}",
+                        style("top candidates:", color, |value| value.bold().to_string())
+                    );
                     for candidate in attempt.candidates.iter().take(5) {
                         eprintln!(
                             "    {:>8.3} {} text={} links={:.3}",
@@ -96,7 +145,7 @@ pub fn diagnostics(diagnostics: &ExtractionDiagnostics, format: DiagnosticFormat
                 if let Some(cleanup) = &attempt.cleanup {
                     eprintln!(
                         "  {} text {} -> {}, elements {} -> {} (removed {})",
-                        "cleanup:".bold(),
+                        style("cleanup:", color, |value| value.bold().to_string()),
                         cleanup.text_len_before,
                         cleanup.text_len_after,
                         cleanup.element_count_before,
@@ -111,42 +160,29 @@ pub fn diagnostics(diagnostics: &ExtractionDiagnostics, format: DiagnosticFormat
     Ok(())
 }
 
-pub fn render_article(
-    article: Option<&Article>, format: OutputFormat, pretty: bool, source: Option<&str>, frontmatter: bool,
-) -> Result<String> {
-    match format {
-        OutputFormat::Json => {
-            if pretty {
-                serde_json::to_string_pretty(&article).context("failed to serialize JSON")
-            } else {
-                serde_json::to_string(&article).context("failed to serialize JSON")
-            }
-        }
-        OutputFormat::Html => {
-            if let Some(article) = article {
-                Ok(article.content.clone())
-            } else {
-                Ok(String::new())
-            }
-        }
-        OutputFormat::Markdown => {
-            if let Some(article) = article {
-                if frontmatter {
-                    markdown_with_toml_frontmatter(article, source).context("failed to serialize TOML frontmatter")
-                } else {
-                    Ok(article.markdown.clone())
+pub fn render_article(article: Option<&Article>, opts: RenderOptions) -> Result<String> {
+    match opts.format {
+        OutputFormat::Json => match opts.pretty {
+            true => serde_json::to_string_pretty(&article).context("failed to serialize JSON"),
+            false => serde_json::to_string(&article).context("failed to serialize JSON"),
+        },
+        OutputFormat::Html => match article {
+            Some(article) => Ok(article.content.clone()),
+            None => Ok(String::new()),
+        },
+        OutputFormat::Markdown => match article {
+            Some(article) => match opts.frontmatter {
+                true => {
+                    markdown_with_toml_frontmatter(article, opts.source).context("failed to serialize TOML frontmatter")
                 }
-            } else {
-                Ok(String::new())
-            }
-        }
-        OutputFormat::Text => {
-            if let Some(article) = article {
-                Ok(article.text_content.clone())
-            } else {
-                Ok(String::new())
-            }
-        }
+                false => Ok(article.markdown.clone()),
+            },
+            None => Ok(String::new()),
+        },
+        OutputFormat::Text => match article {
+            Some(article) => Ok(article.text_content.clone()),
+            None => Ok(String::new()),
+        },
     }
 }
 
@@ -168,43 +204,43 @@ pub fn readable(readable: bool, json: bool, pretty: bool) -> Result<()> {
     Ok(())
 }
 
-pub fn inspect(report: &ExtractionReport, source: Option<&str>, json: bool, pretty: bool) -> Result<String> {
-    if json {
+pub fn inspect(report: &ExtractionReport, opts: InspectOptions) -> Result<String> {
+    if opts.json {
         let value = serde_json::json!({
-            "source": source,
+            "source": opts.source,
             "article": report.article,
             "diagnostics": report.diagnostics,
         });
-        if pretty {
+        if opts.pretty {
             return serde_json::to_string_pretty(&value).context("failed to serialize inspect JSON");
         }
         return serde_json::to_string(&value).context("failed to serialize inspect JSON");
     }
 
-    let mut lines = Vec::new();
-    lines.push("lectito inspect".to_string());
-    if let Some(source) = source {
+    let mut lines: Vec<String> = vec!["lectito inspect".to_string()];
+    if let Some(source) = opts.source {
         lines.push(format!("source: {source}"));
     }
     lines.push(format!("outcome: {:?}", report.diagnostics.outcome));
 
-    if let Some(article) = &report.article {
-        if let Some(title) = &article.title {
-            lines.push(format!("title: {title}"));
+    match &report.article {
+        Some(article) => {
+            if let Some(title) = &article.title {
+                lines.push(format!("title: {title}"));
+            }
+            if let Some(byline) = &article.byline {
+                lines.push(format!("byline: {byline}"));
+            }
+            if let Some(site_name) = &article.site_name {
+                lines.push(format!("site: {site_name}"));
+            }
+            if let Some(published_time) = &article.published_time {
+                lines.push(format!("published: {published_time}"));
+            }
+            lines.push(format!("text chars: {}", article.text_content.chars().count()));
+            lines.push(format!("content html bytes: {}", article.content.len()));
         }
-        if let Some(byline) = &article.byline {
-            lines.push(format!("byline: {byline}"));
-        }
-        if let Some(site_name) = &article.site_name {
-            lines.push(format!("site: {site_name}"));
-        }
-        if let Some(published_time) = &article.published_time {
-            lines.push(format!("published: {published_time}"));
-        }
-        lines.push(format!("text chars: {}", article.text_content.chars().count()));
-        lines.push(format!("content html bytes: {}", article.content.len()));
-    } else {
-        lines.push("article: none".to_string());
+        None => lines.push("article: none".to_string()),
     }
 
     lines.push(format!("attempts: {}", report.diagnostics.attempts.len()));
@@ -265,4 +301,8 @@ pub fn inspect(report: &ExtractionReport, source: Option<&str>, json: bool, pret
     }
 
     Ok(lines.join("\n"))
+}
+
+fn style(value: &str, color: bool, apply: impl FnOnce(&str) -> String) -> String {
+    if color { apply(value) } else { value.to_string() }
 }

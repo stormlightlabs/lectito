@@ -156,7 +156,7 @@ static TRAILING_CHROME_ATTRS: Lazy<Regex> = Lazy::new(|| {
 
 static TRAILING_CHROME_TEXT: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
-        r"(?i)^\s*(comments?|join the (conversation|discussion)|related( articles| posts| stories)?|also in\b|court case:|affiliate:|explore press release|more (from|in|on)|recommended|most (popular|read|viewed)|next article|read (also|more|next)|sponsored|partner offers?|(the )?\w*\s*newsletter|sign up|subscribe|jobs?|mortgage|finance)",
+        r"(?i)^\s*(comments?|join the (conversation|discussion)|related( articles| posts| stories)?|also in\b|court case:|affiliate:|continue reading|explore press release|more (from|in|on)|recommended|most (popular|read|viewed)|next article|read (also|more|next)|sponsored|partner offers?|(the )?\w*\s*newsletter|sign up|subscribe|jobs?|mortgage|finance)",
     )
     .expect("valid trailing chrome text regex")
 });
