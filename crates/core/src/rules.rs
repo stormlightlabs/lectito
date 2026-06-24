@@ -546,6 +546,10 @@ fn serialize_profile_roots(
 ) -> Result<ExtractAttempt> {
     if cleanup {
         super::cleanup::cleanup_article(&roots, opts, flags, base_url, &metadata);
+    } else {
+        for root in &roots {
+            super::cleanup::fix_relative_urls(root, base_url);
+        }
     }
     normalize::normalize_article(&roots, metadata.title.as_deref());
 
@@ -751,6 +755,57 @@ mod tests {
         assert!(extraction.attempt.content.contains("Real body text."));
         assert!(!extraction.attempt.content.contains("chrome"));
         assert_eq!(extraction.diagnostic.source, SiteRuleSource::DeclarativeProfile);
+    }
+
+    #[test]
+    fn disabled_cleanup_profile_still_absolutizes_urls() {
+        let document = kuchiki::parse_html().one(
+            r#"
+            <html><body>
+                <main>
+                    <p>Article text with a <a href="/wiki/Hermitian_matrix">relative link</a>.</p>
+                    <img src="/static/math.svg" alt="matrix">
+                </main>
+            </body></html>
+            "#,
+        );
+        let url = Url::parse("https://en.wikipedia.org/wiki/Hermitian_matrix").unwrap();
+        let options = ReadabilityOptions {
+            site_profiles: vec![
+                r#"
+                name = "relative urls"
+                hosts = ["wikipedia.org"]
+                subdomains = true
+                content_roots = ["main"]
+
+                [cleanup]
+                enabled = false
+                prune = false
+                "#
+                .to_string(),
+            ],
+            ..Default::default()
+        };
+        let extraction = extract_with_site_rule(&document, Some(&url), &options, &Metadata::default())
+            .unwrap()
+            .unwrap();
+
+        assert!(
+            extraction
+                .attempt
+                .content
+                .contains(r#"href="https://en.wikipedia.org/wiki/Hermitian_matrix""#),
+            "{}",
+            extraction.attempt.content
+        );
+        assert!(
+            extraction
+                .attempt
+                .content
+                .contains(r#"src="https://en.wikipedia.org/static/math.svg""#),
+            "{}",
+            extraction.attempt.content
+        );
     }
 
     #[test]

@@ -8,9 +8,23 @@ pub(crate) fn normalize_article(nodes: &[NodeRef], title: Option<&str>) {
         remove_duplicate_title_heading(node, title);
         normalize_code_blocks(node);
         unwrap_heading_permalinks(node);
+        remove_section_permalink_glyphs(node);
         remove_wbr(node);
         collapse_redundant_breaks(node);
         remove_empty_wrappers(node);
+    }
+}
+
+fn remove_section_permalink_glyphs(root: &NodeRef) {
+    for anchor in dom::select_nodes(root, "h1 a, h2 a, h3 a, h4 a, h5 a, h6 a") {
+        if !dom::attr(&anchor, "href").is_some_and(|href| href.starts_with('#') || href.contains('#')) {
+            continue;
+        }
+        let text = dom::inner_text(&anchor);
+        let class = dom::attr(&anchor, "class").unwrap_or_default();
+        if text.trim() == "§" || class.split_whitespace().any(|token| token == "doc-anchor") {
+            anchor.detach();
+        }
     }
 }
 

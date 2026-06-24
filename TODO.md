@@ -38,12 +38,12 @@
   - URL: https://web.dev/articles/responsive-images
   - Remove UI suffixes such as `Stay organized with collections Save and
 categorize content based on your preferences.` from metadata titles.
-- [ ] Decide whether site-profile extraction should still absolutize URLs when
+- [x] Decide whether site-profile extraction should still absolutize URLs when
       cleanup is disabled.
   - URL: https://en.wikipedia.org/wiki/Hermitian_matrix
   - Wikipedia profile output can keep links such as `/wiki/Hermitian_matrix` even
     when the CLI input is a URL.
-- [ ] Improve Rustdoc output polish.
+- [x] Improve Rustdoc output polish.
   - URL: https://docs.rs/serde/latest/serde/
   - Remove `Expand description`, strip section permalink glyphs such as `§`, and
     render item definition lists with spacing instead of concatenating adjacent

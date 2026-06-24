@@ -144,6 +144,7 @@ fn render_node(node: &NodeRef, ctx: RenderContext) -> String {
                 "ul" => render_list(node, false, ctx),
                 "ol" => render_list(node, true, ctx),
                 "li" => block(inline_children(node, ctx)),
+                "dl" => render_definition_list(node, ctx),
                 "table" => code::render_code_table(node, ctx).unwrap_or_else(|| tables::render_table(node, ctx)),
                 "div" => code::render_code_container(node, ctx).unwrap_or_else(|| render_children(node, ctx)),
                 "section" | "article" | "main" | "body" => render_children(node, ctx),
@@ -153,6 +154,18 @@ fn render_node(node: &NodeRef, ctx: RenderContext) -> String {
             },
         },
     }
+}
+
+fn render_definition_list(node: &NodeRef, ctx: RenderContext) -> String {
+    let mut output = String::new();
+    for child in node.children().filter(|child| child.as_element().is_some()) {
+        match dom::node_name(&child).as_str() {
+            "dt" => output.push_str(&block(format!("**{}**", inline_children(&child, ctx)))),
+            "dd" => output.push_str(&block(inline_children(&child, ctx))),
+            _ => output.push_str(&render_node(&child, ctx)),
+        }
+    }
+    output
 }
 
 // TODO: instance method on RenderContext
@@ -311,6 +324,18 @@ mod tests {
         assert!(markdown.contains("| --- | --- |"));
         assert!(markdown.contains(r"| A | x\|y |"));
         assert!(markdown.contains("| B | [z](https://example.com) |"));
+    }
+
+    #[test]
+    fn spaces_definition_lists() {
+        let markdown = html_to_markdown(
+            r#"<dl><dt><a href="struct.Value.html">Value</a></dt><dd>A borrowed value.</dd><dt><a href="trait.Serialize.html">Serialize</a></dt><dd>Serializes data.</dd></dl>"#,
+        );
+
+        assert!(
+            markdown.contains("**[Value](struct.Value.html)**\n\nA borrowed value.\n\n**[Serialize](trait.Serialize.html)**\n\nSerializes data."),
+            "{markdown}"
+        );
     }
 
     #[test]

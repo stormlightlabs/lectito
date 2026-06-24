@@ -22,6 +22,7 @@ pub fn cleanup_article(
         apply_media_retention(node, opts.media_retention);
         clean_embeds(node, opts.media_retention);
         remove_app_doc_controls(node);
+        remove_rustdoc_controls(node);
         remove_share_nodes(node);
         remove_trailing_page_chrome(node);
         clean_headers(node, metadata.title.as_deref(), flags);
@@ -206,6 +207,14 @@ fn is_orphan_doc_tablist(node: &NodeRef) -> bool {
     text_len <= 120
         && dom::select_nodes(node, "pre, code").is_empty()
         && !dom::select_nodes(node, "[role='tab'], button").is_empty()
+}
+
+fn remove_rustdoc_controls(root: &NodeRef) {
+    for node in dom::select_nodes(root, "a, button") {
+        if dom::inner_text(&node).trim().eq_ignore_ascii_case("Expand description") {
+            node.detach();
+        }
+    }
 }
 
 fn remove_trailing_page_chrome(root: &NodeRef) {
@@ -716,7 +725,7 @@ fn remove_empty_blocks(root: &NodeRef) {
     }
 }
 
-fn fix_relative_urls(root: &NodeRef, base_url: Option<&Url>) {
+pub(crate) fn fix_relative_urls(root: &NodeRef, base_url: Option<&Url>) {
     let Some(base_url) = base_url else {
         return;
     };
