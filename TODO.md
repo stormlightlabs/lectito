@@ -6,19 +6,14 @@
   - `lectito`
   - `lectito-cli`
   - `lectito-wasm`
-- Add CI
-- Keep Markdown conversion behavior covered by golden tests for headings, links,
-  images, tables, code, math, footnotes, and frontmatter.
-- Keep `lectito-api` and `lectito-fixtures` unpublished.
-
-## Pre-release Prep
-
-- Add a Rust CI workflow for `cargo fmt --check`, `cargo check --workspace`,
-  `cargo test --workspace`, Clippy with denied warnings, Rustdoc warnings, and
-  publish dry-runs for public crates.
-  - Include `wasm-pack test --node` and `wasm-pack build` checks for the `bundler`, `web`, and `nodejs` WASM targets.
-- After `lectito` is published, rerun dry-runs for `lectito-cli` and
-  `lectito-wasm`; both depend on the published core crate version.
+  - Keep `lectito-api` and `lectito-fixtures` unpublished.
+- Add a Rust CI workflow for:
+  - `cargo fmt --check` & `cargo check --workspace`
+  - `cargo test --workspace`
+  - Clippy with denied warnings & Rustdoc warnings
+  - Publish dry-runs for public crates.
+- Include `wasm-pack test --node` and `wasm-pack build` checks for the
+  `bundler`, `web`, and `nodejs` WASM targets.
 
 ## API (`crates/api`)
 
@@ -113,16 +108,34 @@ The web app has two primary flows:
 
 ## Extraction Quality
 
-Context: current extraction is strong for many article pages, but the remaining
-edge cases usually fall into wrong-root selection, over-included chrome, or
-metadata/header cleanup.
+### `examples.txt` Audit
 
-### Current Known Regressions
-
-- Fix dropped inline text/link output such as `changed in , Cargo, and Clippy`.
-- Tighten Wikipedia/reference-page profiles so sidebars and navigation tables do
-  not survive article extraction.
-- Add fixture tests for both cases before changing broader scoring behavior.
+- Fix MDN-style code block rendering. The HTML extractor keeps usable
+  `<pre><code>` nodes, but Markdown output can emit broken fences like
+  `js```js notranslate`. Normalize language IDs such as `js notranslate`,
+  remove sibling language labels, and add a focused MDN fixture.
+- Clean app-doc controls from Mintlify-style pages. Current output can include
+  duplicated `Copy page` SVG/button text and tab labels without their code
+  panels. Extend button/control cleanup and add a fixture for tabbed code docs.
+- Improve modern docs root scoring. Mintlify first selects `body.antialiased`
+  and cleans it to empty before accepting `main#content-container`. Prefer
+  focused `main`/article roots over body-level app shells when both are
+  available.
+- Tighten web.dev title cleanup. Remove UI suffixes like `Stay organized with
+collections Save and categorize content based on your preferences.` from
+  metadata titles.
+- Decide whether site-profile extraction should still absolutize URLs when
+  cleanup is disabled. Wikipedia profile output keeps links such as
+  `/wiki/Hermitian_matrix` even when the CLI input is a URL.
+- Improve Rustdoc output polish. Remove `Expand description`, strip section
+  permalink glyphs such as `§`, and render item definition lists with spacing
+  instead of concatenating adjacent entries.
+- Add a site rule for `unthread.at` post pages:
+  - These are ATProtocol records: `unthread.at/@{handle}/rkey` so we should
+    implement a fetcher for these
+  - Look into implementing standard.site parsing
+    - https://standard.site/
+    - https://atproto.com/blog/standard-site-bluesky-timeline
 
 ### Retry Short Or Suspicious Extractions
 
