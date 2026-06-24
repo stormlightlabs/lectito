@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js";
 import type { AppMode, PipelineFailure, PipelineResult } from "../lib/types";
 
 function statusText(running: boolean, result?: PipelineResult | PipelineFailure): string {
@@ -36,13 +37,14 @@ type StatusStripProps = { mode: AppMode; running: boolean; result?: PipelineResu
 export function StatusStrip(props: StatusStripProps) {
   const result = () => props.result;
   const status = () => statusText(props.running, result());
-  const details = () =>
+  const details = createMemo(() =>
     [
-      props.mode === "html" ? "HTML / WASM" : "URL / API",
+      props.mode === "html" ? "Pasted HTML" : "URL / API",
       result() ? resultKind(result()) : "",
       textLength(result()) === "-" ? "" : `${textLength(result())} chars`,
       elapsedText(result()) === "-" ? "" : elapsedText(result()),
-    ].filter(Boolean).join(" · ");
+    ].filter(Boolean).join(" · ")
+  );
 
   return (
     <section class="status-strip" aria-label="Current conversion status">

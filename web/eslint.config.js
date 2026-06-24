@@ -12,7 +12,7 @@ const solidConfig = /** @type {FlatConfig} */ (/** @type {unknown} */ (solid));
 const unicornConfig = /** @type {FlatConfig} */ (/** @type {unknown} */ (unicorn.configs["flat/recommended"]));
 
 export default defineConfig(
-  { ignores: ["dist/**", "node_modules/**", "public/lectito-wasm/**", "src-tauri/target/**"] },
+  { ignores: ["dist/**", "node_modules/**", "public/lectito-wasm/**", "src/locales/*.js", "src-tauri/target/**"] },
   eslint.configs.recommended,
   tseslint.configs.recommended,
   unicornConfig,

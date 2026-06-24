@@ -1,3 +1,4 @@
 allowBuilds:
   dprint: true
+  esbuild: true
   wasm-pack: true

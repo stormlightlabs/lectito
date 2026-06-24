@@ -1,11 +1,13 @@
-@import "@fontsource-variable/figtree";
-@import "@fontsource-variable/lora";
-@import "@fontsource-variable/geist-mono";
+@import "@fontsource-variable/mozilla-text";
+@import "@fontsource-variable/mozilla-headline";
+@import "@fontsource-variable/martian-mono";
+@import "@fontsource/zilla-slab";
 @import "./reset.css";
 @import "./tokens.css";
 @import "./base.css";
 @import "./utilities.css";
 @import "./components/app-shell.css";
+@import "./components/landing.css";
 @import "./components/buttons.css";
 @import "./components/forms.css";
 @import "./components/panes.css";

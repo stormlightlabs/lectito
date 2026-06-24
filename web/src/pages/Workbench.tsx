@@ -77,10 +77,6 @@ export function WorkbenchPage() {
   return (
     <main class="app-shell">
       <header class="app-header">
-        <div>
-          <p class="eyebrow">Lectito</p>
-          <h1>Extract clean articles</h1>
-        </div>
         <AppModeTabs mode={mode()} onMode={setAppMode} />
       </header>
 
@@ -109,11 +105,6 @@ export function WorkbenchPage() {
           onInspectTab={setInspectTab}
           onToggleInspect={() => setInspectOpen((open) => !open)} />
       </section>
-
-      <footer class="app-footer">
-        <span>Lectito web workbench</span>
-        <span>URL extraction uses the configured API; HTML extraction runs locally in WASM.</span>
-      </footer>
     </main>
   );
 }

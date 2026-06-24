@@ -1,33 +1,37 @@
 .button,
 .tabs button,
 .inspect-panel__tabs button {
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--radius-2);
-  background: var(--paper-raised);
-  color: var(--ink);
-  font-size: var(--text-sm);
-  font-weight: 640;
-  line-height: var(--line-sm);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-2);
+    background: var(--paper-raised);
+    color: var(--ink);
+    font-size: var(--text-sm);
+    font-weight: 640;
+    line-height: var(--line-sm);
 }
 
 .button {
-  min-height: 2.125rem;
-  padding: 0 var(--space-3);
+    min-height: 2.125rem;
+    padding: 0 var(--space-3);
+    display: flex;
+    align-items: center;
 }
 
 .button--primary {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--paper);
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--paper);
 }
 
+/* TODO: .button--primary:hover */
+
 .button:disabled {
-  cursor: default;
-  opacity: 0.58;
+    cursor: default;
+    opacity: 0.58;
 }
 
 .button--secondary:hover,
 .tabs button:hover,
 .inspect-panel__tabs button:hover {
-  background: var(--paper-muted);
+    background: var(--paper-muted);
 }

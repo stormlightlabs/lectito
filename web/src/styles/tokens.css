@@ -1,16 +1,16 @@
 @import "reasonable-colors/reasonable-colors.css";
 
 :root {
-    --paper: #fcfcfc;
-    --paper-raised: #fffefa;
-    --paper-muted: #f3f0e8;
+    --paper: #f8f1e3;
+    --paper-raised: #fffaf0;
+    --paper-muted: #eee5d2;
     --ink: #171717;
     --ink-soft: var(--color-gray-5);
     --ink-muted: var(--color-gray-4);
     --rule: #ded9cc;
     --rule-strong: #c4bdaf;
-    --field: #fffdf7;
-    --field-subtle: #f8f6ef;
+    --field: #fff9ed;
+    --field-subtle: #f3ead8;
     --accent: var(--color-blue-4);
     --accent-strong: var(--color-blue-5);
     --accent-soft: var(--color-blue-1);
@@ -18,9 +18,10 @@
     --focus-ring: var(--color-blue-4);
     --shadow-thin: 0 1px 0 rgb(23 23 23 / 0.04);
 
-    --font-ui: "Figtree Variable", Figtree, ui-sans-serif, system-ui, sans-serif;
-    --font-article: "Lora Variable", Lora, Georgia, serif;
-    --font-code: "Geist Mono Variable", "SFMono-Regular", Consolas, monospace;
+    --font-ui: "Mozilla Text Variable", "Mozilla Text", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Mozilla Headline Variable", "Mozilla Headline", ui-sans-serif, system-ui, sans-serif;
+    --font-article: "Zilla Slab", Georgia, serif;
+    --font-code: "Martian Mono Variable", "Martian Mono", "SFMono-Regular", Consolas, monospace;
 
     --text-xs: 0.75rem;
     --line-xs: 1rem;

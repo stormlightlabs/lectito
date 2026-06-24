@@ -16,7 +16,6 @@ body,
 
 body {
     background-color: var(--paper);
-    background-image: url("../assets/page-grid.svg");
 }
 
 a {

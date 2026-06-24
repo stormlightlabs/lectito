@@ -18,7 +18,7 @@
 .prose h2,
 .prose h3 {
   color: var(--ink);
-  font-family: var(--font-article);
+  font-family: var(--font-display);
   font-weight: 620;
   letter-spacing: 0;
 }

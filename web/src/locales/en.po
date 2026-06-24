@@ -1,0 +1,130 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-06-24 00:00+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#: src/pages/Landing.tsx:29
+msgid "ad slot"
+msgstr "ad slot"
+
+#: src/pages/Landing.tsx:69
+msgid "Add a page"
+msgstr "Add a page"
+
+#: src/pages/Landing.tsx:38
+#~ msgid "After / article"
+#~ msgstr "After / article"
+
+#: src/pages/Landing.tsx:20
+msgid "article body"
+msgstr "article body"
+
+#: src/pages/Landing.tsx:114
+msgid "Article extraction"
+msgstr "Article extraction"
+
+#: src/pages/Landing.tsx:10
+#~ msgid "Before / as served"
+#~ msgstr "Before / as served"
+
+#: src/pages/Landing.tsx:135
+#~ msgid "Check the article before you use it."
+#~ msgstr "Check the article before you use it."
+
+#: src/pages/Landing.tsx:134
+msgid "Clean up the document before read it."
+msgstr "Clean up the document before read it."
+
+#: src/pages/Landing.tsx:13
+msgid "cookie banner"
+msgstr "cookie banner"
+
+#: src/pages/Landing.tsx:85
+msgid "Copy what you need"
+msgstr "Copy what you need"
+
+#: src/pages/Landing.tsx:38
+msgid "Extracted"
+msgstr "Extracted"
+
+#: src/pages/Landing.tsx:117
+msgid "Focus on what matters."
+msgstr "Focus on what matters."
+
+#: src/pages/Landing.tsx:32
+msgid "footer links"
+msgstr "footer links"
+
+#: src/pages/Landing.tsx:120
+msgid "Lectito is a tool that removes cruft to make the web more readable."
+msgstr "Lectito is a tool that removes cruft to make the web more readable."
+
+#: src/pages/Landing.tsx:119
+#~ msgid "Lectito removes navigation, ads, sidebars, and footers so you can read or export the article body."
+#~ msgstr "Lectito removes navigation, ads, sidebars, and footers so you can read or export the article body."
+
+#: src/pages/Landing.tsx:41
+msgid "On Reading the Web"
+msgstr "On Reading the Web"
+
+#: src/pages/Landing.tsx:99
+msgid "Open the workbench"
+msgstr "Open the workbench"
+
+#: src/pages/Landing.tsx:10
+msgid "Original"
+msgstr "Original"
+
+#: src/pages/Landing.tsx:72
+msgid "Paste HTML or enter a URL. Lectito finds the article and removes the surrounding chrome."
+msgstr "Paste HTML or enter a URL. Lectito finds the article and removes the surrounding chrome."
+
+#: src/pages/Landing.tsx:80
+msgid "Preview the cleaned article before you copy anything out of the workbench."
+msgstr "Preview the cleaned article before you copy anything out of the workbench."
+
+#: src/pages/Landing.tsx:101
+#~ msgid "Read the API notes"
+#~ msgstr "Read the API notes"
+
+#: src/pages/Landing.tsx:102
+msgid "Read the Docs"
+msgstr "Read the Docs"
+
+#: src/pages/Landing.tsx:77
+msgid "Read the result"
+msgstr "Read the result"
+
+#: src/pages/Landing.tsx:25
+msgid "related links"
+msgstr "related links"
+
+#: src/pages/Landing.tsx:16
+msgid "site navigation"
+msgstr "site navigation"
+
+#: src/pages/Landing.tsx:44
+msgid "The article body remains. The page chrome is gone."
+msgstr "The article body remains. The page chrome is gone."
+
+#: src/pages/Landing.tsx:116
+#~ msgid "Turn a web page into an article."
+#~ msgstr "Turn a web page into an article."
+
+#: src/pages/Landing.tsx:88
+msgid "Use Markdown, clean HTML, metadata, or diagnostics from the same run."
+msgstr "Use Markdown, clean HTML, metadata, or diagnostics from the same run."
+
+#: src/pages/Landing.tsx:131
+msgid "Workbench"
+msgstr "Workbench"

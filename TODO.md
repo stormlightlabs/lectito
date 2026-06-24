@@ -30,6 +30,8 @@ The web app has two primary flows:
 
 ### Pages
 
+- `/`: landing page with a direct workbench CTA, before/after extraction
+  diagram, capability summary, and links to the API and samples.
 - `/workbench`: the main extraction workspace.
 - `/history`: saved local runs, with source, status, elapsed time, length,
   title, timestamp, and options.
@@ -42,7 +44,6 @@ The web app has two primary flows:
 
 ### Controls
 
-- Expand the collapsible sidebar with saved runs and sample shortcuts.
 - Add a command bar with convert, cancel, reset, copy, download, save run,
   share view link, and open result actions.
 - Add output actions for copying Markdown, copying HTML, copying metadata JSON,
@@ -66,28 +67,11 @@ The web app has two primary flows:
   `aria-controls`, tab panels, and keyboard navigation.
 - Keep failed input intact and show field-level recovery messages.
 
-### Router
-
-- Keep the route definition in `web/src/App.tsx`.
-- Put route wrappers and pages in `web/src/pages/*.tsx`.
-- Use URL search params for lightweight workbench state such as mode, output
-  tab, inspect tab, selected sample, and option preset.
-- Do not put pasted HTML in the URL.
-
-### Developer Tools
-
-- Add a small smoke test that loads the app and runs one WASM extraction.
-- Add a smoke test for URL mode against a mocked API response.
-
-### Build And Deploy
-
-- Keep `pnpm build`, `pnpm lint`, and `pnpm build:wasm` green.
-- Make production builds work without a local API.
-
 ### Implementation Order
 
 - [ ] URL-back lightweight workbench state with `useSearchParams`.
 - [ ] Add output copy, download, and fullscreen actions.
+- [ ] Add reader-style preview controls for the extracted article.
 - [ ] Add run history and `/runs/:id`.
   - [ ] Back with Dexie.js
 - [ ] Add grouped presets and better advanced options.

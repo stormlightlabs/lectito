@@ -1,6 +1,7 @@
 import { ApiPage } from "$pages/Api";
 import { AppLayout } from "$pages/AppLayout";
 import { HistoryPage } from "$pages/History";
+import { LandingPage } from "$pages/Landing";
 import { NotFoundPage } from "$pages/NotFound";
 import { RunPage } from "$pages/Run";
 import { SamplesPage } from "$pages/Samples";
@@ -11,7 +12,8 @@ import { Route, Router } from "@solidjs/router";
 export default function App() {
   return (
     <Router root={AppLayout}>
-      <Route path={["/", "/workbench"]} component={WorkbenchPage} />
+      <Route path="/" component={LandingPage} />
+      <Route path="/workbench" component={WorkbenchPage} />
       <Route path="/history" component={HistoryPage} />
       <Route path="/runs/:id" component={RunPage} />
       <Route path="/samples" component={SamplesPage} />

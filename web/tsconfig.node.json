@@ -10,7 +10,7 @@
       "$components/*": ["./src/components/*"],
       "$lib/*": ["./src/lib/*"],
       "$pages/*": ["./src/pages/*"],
-      "$styles/*": ["./src/styles/*"]
+      "$styles/*": ["./src/styles/*"],
     },
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -22,7 +22,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "lingui.config.ts"],
 }
