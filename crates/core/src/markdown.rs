@@ -86,8 +86,8 @@ impl RenderContext {
                             label
                         }
                     }
-                    "img" => media::render_image(node),
-                    "picture" => media::render_picture(node),
+                    "img" => space_before_ambiguous_image(node, media::render_image(node)),
+                    "picture" => space_before_ambiguous_image(node, media::render_picture(node)),
                     "source" => String::new(),
                     "figure" => media::render_figure(node, self).unwrap_or_else(|| block(self.render_children(node))),
                     "blockquote" => match media::render_embed(node) {
@@ -256,6 +256,24 @@ fn preserved_empty_inline(node: &NodeRef) -> String {
     } else {
         String::new()
     }
+}
+
+fn space_before_ambiguous_image(node: &NodeRef, image: String) -> String {
+    if image.starts_with("![") && previous_inline_text(node).trim_end().ends_with('!') {
+        format!(" {image}")
+    } else {
+        image
+    }
+}
+
+fn previous_inline_text(node: &NodeRef) -> String {
+    let mut output = String::new();
+    let mut sibling = node.previous_sibling();
+    while let Some(current) = sibling {
+        output.insert_str(0, &dom::inner_text(&current));
+        sibling = current.previous_sibling();
+    }
+    output
 }
 
 fn is_heading_permalink(node: &NodeRef, label: &str) -> bool {
@@ -551,6 +569,64 @@ mod tests {
 
         assert!(markdown.contains("## Overview"), "{markdown}");
         assert!(!markdown.contains("[#](#overview)"), "{markdown}");
+    }
+
+    #[test]
+    fn strips_wbr_without_inserting_spaces() {
+        let markdown = html_to_markdown(r#"<p>https://example.com/very<wbr>long<wbr>path</p>"#);
+        assert!(markdown.contains("https://example.com/verylongpath"), "{markdown}");
+        assert!(!markdown.contains("very long path"), "{markdown}");
+    }
+
+    #[test]
+    fn removes_empty_links_but_preserves_images() {
+        let markdown =
+            html_to_markdown(r#"<p>Before <a href="https://example.com"></a> after <img src="photo.jpg" alt=""></p>"#);
+        assert!(!markdown.contains("[](https://example.com)"), "{markdown}");
+        assert!(markdown.contains("Before after ![](photo.jpg)"), "{markdown}");
+    }
+
+    #[test]
+    fn separates_exclamation_marks_from_image_markdown() {
+        let markdown = html_to_markdown(r#"<p>Yey!!<img src="photo.jpg" alt="A photo"></p>"#);
+        assert!(markdown.contains(r"Yey\!\! ![A photo](photo.jpg)"), "{markdown}");
+        assert!(!markdown.contains(r"Yey\!\!![A photo](photo.jpg)"), "{markdown}");
+    }
+
+    #[test]
+    fn article_markdown_omits_duplicate_title_heading() {
+        let html = r#"
+            <html>
+                <head><title>Maker's Schedule, Manager's Schedule</title></head>
+                <body>
+                    <article>
+                        <h1>Maker's Schedule, Manager's Schedule</h1>
+                        <p>One reason programmers dislike meetings so much is that
+                        they're on a different type of schedule from other people.</p>
+                        <p>Meetings cost them more.</p>
+                    </article>
+                </body>
+            </html>
+        "#;
+        let article = extract(
+            html,
+            Some("https://www.paulgraham.com/makersschedule.html"),
+            &ReadabilityOptions::default(),
+        )
+        .unwrap()
+        .unwrap();
+
+        assert_eq!(article.title.as_deref(), Some("Maker's Schedule, Manager's Schedule"));
+        assert!(
+            !article.markdown.contains("# Maker's Schedule, Manager's Schedule"),
+            "{}",
+            article.markdown
+        );
+        assert!(
+            article.markdown.contains("One reason programmers dislike meetings"),
+            "{}",
+            article.markdown
+        );
     }
 
     #[test]

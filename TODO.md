@@ -35,22 +35,8 @@
 
 ## Markdown Conversion
 
-### Markdown Cleanup Edge Cases
-
-- [ ] Strip `<wbr>` without introducing spaces.
-  - URL:
-    https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/HTML_images
-- [ ] Remove empty links like `[](url)` while preserving images.
-  - URL: https://web.dev/articles/responsive-images
-- [ ] Add a space between sentence exclamation marks and image markdown so
-      `Yey!![img]` does not become ambiguous markdown.
-  - URL: https://web.dev/articles/responsive-images
-- [ ] Continue removing duplicate leading title headings before markdown output.
-  - URL: https://www.paulgraham.com/makersschedule.html
-
 ### Expand Test Coverage
 
-- [ ] Add focused Rust tests in `crates/core/src/markdown.rs` for each feature class above.
 - [ ] Add an `elements--data-table` fixture.
   - URL: https://en.wikipedia.org/wiki/Hermitian_matrix
 - [ ] Add an `elements--complex-tables` fixture.

@@ -39,6 +39,9 @@ reader content:
 - math
 - footnotes
 
+Markdown cleanup also strips zero-width break hints, drops empty links, keeps
+images intact, and removes duplicate title headings before rendering.
+
 The CLI Markdown output includes TOML frontmatter:
 
 ```sh
