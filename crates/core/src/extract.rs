@@ -32,6 +32,19 @@ const KNOWN_CONTENT_SELECTORS: &[&str] = &[
 const USEFUL_WORD_THRESHOLD: usize = 180;
 const EXTREMELY_SHORT_WORD_THRESHOLD: usize = 80;
 const SUSPICIOUS_SIGNAL_RATIO: usize = 3;
+const ENTRY_POINT_SELECTORS: &[&str] = &[
+    "article",
+    "main",
+    r#"[role="main"]"#,
+    "#content",
+    "#main",
+    "#article",
+    ".content",
+    ".main",
+    ".article",
+    ".post",
+    ".entry-content",
+];
 
 pub struct ExtractAttempt {
     pub metadata: Metadata,
@@ -40,34 +53,41 @@ pub struct ExtractAttempt {
     pub text_len: usize,
 }
 
-impl ExtractAttempt {
-    fn into_article(mut self) -> Article {
-        if title_duplicates_site_name(&self.metadata)
-            && let Some(heading) = first_content_heading(&self.content)
+impl From<ExtractAttempt> for Article {
+    fn from(attempt: ExtractAttempt) -> Self {
+        let mut metadata = attempt.metadata;
+        if title_duplicates_site_name(&metadata)
+            && let Some(heading) = first_content_heading(&attempt.content)
         {
-            self.metadata.title = Some(heading);
+            metadata.title = Some(heading);
         }
 
-        if self.metadata.excerpt.as_deref().unwrap_or_default().trim().is_empty() {
-            self.metadata.excerpt = metadata::first_paragraph_excerpt(&self.content);
+        if metadata.excerpt.as_deref().unwrap_or_default().trim().is_empty() {
+            metadata.excerpt = metadata::first_paragraph_excerpt(&attempt.content);
         }
 
         Article {
-            title: self.metadata.title,
-            byline: self.metadata.byline,
-            dir: self.metadata.dir,
-            lang: self.metadata.lang,
-            markdown: markdown::html_to_markdown(&self.content),
-            content: self.content,
-            text_content: self.text_content,
-            length: self.text_len,
-            excerpt: self.metadata.excerpt,
-            site_name: self.metadata.site_name,
-            published_time: self.metadata.published_time,
-            image: self.metadata.image,
-            domain: self.metadata.domain,
-            favicon: self.metadata.favicon,
+            title: metadata.title,
+            byline: metadata.byline,
+            dir: metadata.dir,
+            lang: metadata.lang,
+            markdown: markdown::html_to_markdown(&attempt.content),
+            content: attempt.content,
+            text_content: attempt.text_content,
+            length: attempt.text_len,
+            excerpt: metadata.excerpt,
+            site_name: metadata.site_name,
+            published_time: metadata.published_time,
+            image: metadata.image,
+            domain: metadata.domain,
+            favicon: metadata.favicon,
         }
+    }
+}
+
+impl From<Metadata> for ExtractAttempt {
+    fn from(metadata: Metadata) -> Self {
+        Self { metadata, content: String::new(), text_content: String::new(), text_len: 0 }
     }
 }
 
@@ -141,7 +161,7 @@ pub fn extract_with_diagnostics(
         diagnostics.selected_attempt = Some(0);
         diagnostics.outcome = ExtractionOutcome::Accepted;
         diagnostics.attempts.push(attempt_diagnostic);
-        return Ok(ExtractionReport { article: Some(attempt.into_article()), diagnostics });
+        return Ok(ExtractionReport { article: Some(attempt.into()), diagnostics });
     }
 
     if options.content_selector.is_none()
@@ -152,7 +172,7 @@ pub fn extract_with_diagnostics(
         diagnostics.selected_attempt = Some(0);
         diagnostics.outcome = ExtractionOutcome::Accepted;
         diagnostics.attempts.push(attempt_diagnostic);
-        return Ok(ExtractionReport { article: Some(attempt.into_article()), diagnostics });
+        return Ok(ExtractionReport { article: Some(attempt.into()), diagnostics });
     }
 
     if let Some(mut rule_extraction) = try_site_rule(html, options, base_url.as_ref(), &metadata)?
@@ -175,7 +195,7 @@ pub fn extract_with_diagnostics(
         if rule_extraction.diagnostic.accepted {
             diagnostics.site_rule = Some(rule_extraction.diagnostic);
             diagnostics.outcome = ExtractionOutcome::Accepted;
-            return Ok(ExtractionReport { article: Some(rule_extraction.attempt.into_article()), diagnostics });
+            return Ok(ExtractionReport { article: Some(rule_extraction.attempt.into()), diagnostics });
         }
         rule_extraction.diagnostic.fallback_reason = Some(format!(
             "site rule text_len {} below char_threshold {}",
@@ -255,7 +275,7 @@ pub fn extract_with_diagnostics(
             attempt.metadata = metadata;
             diagnostics.selected_attempt = Some(diagnostic_index);
             diagnostics.outcome = ExtractionOutcome::Accepted;
-            return Ok(ExtractionReport { article: Some(attempt.into_article()), diagnostics });
+            return Ok(ExtractionReport { article: Some(attempt.into()), diagnostics });
         }
 
         if best_attempt
@@ -282,7 +302,7 @@ pub fn extract_with_diagnostics(
     )?;
     attempt.metadata = metadata;
     diagnostics.outcome = ExtractionOutcome::BestAttempt;
-    Ok(ExtractionReport { article: Some(attempt.into_article()), diagnostics })
+    Ok(ExtractionReport { article: Some(attempt.into()), diagnostics })
 }
 
 pub fn prep_document(document: &NodeRef, options: &ReadabilityOptions, flags: ExtractFlags) -> RecoveryDiagnostic {
@@ -567,7 +587,7 @@ fn effective_base_url(document: &Html, base_url: Option<&Url>) -> Option<Url> {
 
 fn unwrap_noscript_images(document: &NodeRef) {
     for noscript in dom::select_nodes(document, "noscript") {
-        let content = unescape_basic_html(&noscript.text_contents());
+        let content = unescape_noscript_markup(&noscript.text_contents());
         let lower_content = content.to_ascii_lowercase();
         if !lower_content.contains("<img") && !lower_content.contains("<picture") {
             continue;
@@ -589,8 +609,7 @@ fn unwrap_noscript_images(document: &NodeRef) {
     }
 }
 
-// TODO: should this be in this mod?
-fn unescape_basic_html(value: &str) -> String {
+fn unescape_noscript_markup(value: &str) -> String {
     value
         .replace("&lt;", "<")
         .replace("&gt;", ">")
@@ -761,24 +780,10 @@ fn grab_article(
 }
 
 fn entry_point_candidates(document: &NodeRef) -> Vec<EntryPointCandidate> {
-    // TODO: could this be a constant?
-    let selectors = [
-        "article",
-        "main",
-        r#"[role="main"]"#,
-        "#content",
-        "#main",
-        "#article",
-        ".content",
-        ".main",
-        ".article",
-        ".post",
-        ".entry-content",
-    ];
     let mut candidates = Vec::new();
     let mut seen = std::collections::HashSet::new();
 
-    for selector in selectors {
+    for selector in ENTRY_POINT_SELECTORS {
         for node in dom::select_nodes(document, selector) {
             if !seen.insert(dom::node_id(&node)) {
                 continue;

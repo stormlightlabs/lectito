@@ -374,9 +374,11 @@ fn render_content_object(fields: &serde_json::Map<String, Value>) -> String {
         } else {
             render_first_nested(fields, &["content", "children", "blocks", "items"])
         };
-        return (!inner.trim().is_empty())
-            .then(|| format!("<blockquote>{inner}</blockquote>"))
-            .unwrap_or_default();
+        return if !inner.trim().is_empty() {
+            format!("<blockquote>{inner}</blockquote>")
+        } else {
+            Default::default()
+        };
     }
     if block_type.contains("horizontalrule") || block_type.contains("horizontal-rule") || block_type == "hr" {
         return "<hr>".to_string();

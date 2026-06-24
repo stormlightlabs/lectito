@@ -385,12 +385,10 @@ fn run_generate(args: LlmsGenerateArgs) -> Result<ExitCode> {
         .or_else(|| entries.first().map(|entry| entry.title.clone()))
         .unwrap_or_else(|| "Site documentation".to_string());
     let source = args.sitemap.as_deref().or(args.input.as_deref()).unwrap_or("sitemap");
-    let summary = args.summary.clone().unwrap_or_else(|| {
-        format!(
-            "Readable pages discovered from {}.",
-            source.trim_end_matches('/').to_string()
-        )
-    });
+    let summary = args
+        .summary
+        .clone()
+        .unwrap_or_else(|| format!("Readable pages discovered from {}.", source.trim_end_matches('/')));
     let output = render_generated_llms_txt(&title, &summary, &args.section, &entries);
 
     write_output(args.output.as_ref(), &output)?;
@@ -609,10 +607,8 @@ fn parse_robots_groups(text: &str) -> Vec<RobotsGroup> {
                 agents.push(value.to_ascii_lowercase());
             }
             "allow" if !agents.is_empty() => rules.push(RobotsRule { allow: true, pattern: value.to_string() }),
-            "disallow" if !agents.is_empty() => {
-                if !value.is_empty() {
-                    rules.push(RobotsRule { allow: false, pattern: value.to_string() });
-                }
+            "disallow" if !agents.is_empty() && !value.is_empty() => {
+                rules.push(RobotsRule { allow: false, pattern: value.to_string() });
             }
             _ => {}
         }
@@ -935,7 +931,7 @@ fn ranked_entries(entries: Vec<CrawledEntry>) -> Vec<CrawledEntry> {
     }
 
     let mut entries = best_by_url.into_values().collect::<Vec<_>>();
-    entries.sort_by(|left, right| compare_entries(left, right));
+    entries.sort_by(compare_entries);
     entries
 }
 

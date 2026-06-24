@@ -43,7 +43,7 @@ pub struct RuleExtraction {
 }
 
 #[derive(Clone, Debug, Default)]
-struct SiteProfile {
+pub struct SiteProfile {
     name: String,
     hosts: Vec<String>,
     subdomains: bool,
@@ -57,6 +57,12 @@ struct SiteProfile {
     fallback: FallbackProfile,
     bundled: bool,
     specificity: usize,
+}
+
+impl From<&SiteProfile> for ExtractFlags {
+    fn from(profile: &SiteProfile) -> Self {
+        Self { strip_unlikely: false, weight_classes: false, clean_conditionally: profile.cleanup.prune }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -208,8 +214,8 @@ fn extract_with_profile(
             return Ok(None);
         }
         return Ok(Some(RuleExtraction {
-            attempt: empty_attempt(metadata.clone()),
-            flags: profile_flags(&profile),
+            attempt: metadata.clone().into(),
+            flags: (&profile).into(),
             diagnostic: SiteRuleDiagnostic {
                 name: profile.name,
                 source: SiteRuleSource::DeclarativeProfile,
@@ -231,7 +237,7 @@ fn extract_with_profile(
     apply_metadata_hints(doc, &profile, &mut metadata);
 
     let root_selectors = roots.iter().map(node_selector).collect::<Vec<_>>();
-    let flags = profile_flags(&profile);
+    let flags = ExtractFlags::from(&profile);
     let attempt = serialize_profile_roots(roots, opts, flags, url.into(), metadata, profile.cleanup.enabled)?;
     let diagnostic = SiteRuleDiagnostic {
         name: profile.name,
@@ -533,11 +539,6 @@ fn strip_title_suffixes(title: String, suffixes: &[String]) -> String {
     title
 }
 
-// TODO: this could be an into/from
-fn profile_flags(profile: &SiteProfile) -> ExtractFlags {
-    ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: profile.cleanup.prune }
-}
-
 fn serialize_profile_roots(
     roots: Vec<NodeRef>, opts: &ReadabilityOptions, flags: ExtractFlags, base_url: Option<&Url>, metadata: Metadata,
     cleanup: bool,
@@ -564,15 +565,10 @@ fn serialize_profile_roots(
     let text_len = text_content.encode_utf16().count();
 
     if text_len == 0 && roots.iter().map(element_count).sum::<usize>() == 0 {
-        return Ok(empty_attempt(metadata));
+        return Ok(metadata.into());
     }
 
     Ok(ExtractAttempt { metadata, content, text_content, text_len })
-}
-
-// TODO: this could be an into/from
-fn empty_attempt(metadata: Metadata) -> ExtractAttempt {
-    ExtractAttempt { metadata, content: String::new(), text_content: String::new(), text_len: 0 }
 }
 
 fn node_selector(node: &NodeRef) -> String {

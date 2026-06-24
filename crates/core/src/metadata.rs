@@ -9,9 +9,6 @@ use super::config::ReadabilityOptions;
 use super::regexes::RegexPattern;
 use super::{json_schema, patterns};
 
-// TODO: move to patterns
-const TITLE_SEPARATORS: &[&str] = &[" | ", " - ", " – ", " — ", " \\ ", " / ", " > ", " » "];
-
 #[derive(Clone, Debug, Default)]
 pub struct Metadata {
     pub title: Option<String>,
@@ -130,13 +127,37 @@ pub fn extract_metadata(document: &Html, html: &str, options: &ReadabilityOption
     metadata.favicon = metadata
         .favicon
         .or_else(|| first_value(&values, &["og:image:favicon"]))
-        .or_else(|| favicon_from_document(document))
+        .or_else(|| {
+            let selector =
+                patterns::selector(r#"link[rel~="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]"#);
+
+            document
+                .select(&selector)
+                .find_map(|link| link.value().attr("href").and_then(clean_metadata_value))
+        })
         .or_else(|| base_url.and_then(|_| absolutize_url("/favicon.ico", base_url)));
     metadata.favicon = metadata.favicon.and_then(|favicon| absolutize_url(&favicon, base_url));
     metadata.domain = metadata
         .domain
-        .or_else(|| canonical_url(document).and_then(|url| domain_from_url(&url)))
-        .or_else(|| base_url.and_then(|url| url.host_str().map(strip_www)));
+        .or_else(|| {
+            let selector = patterns::selector(r#"link[rel="canonical"]"#);
+            let canonical_url = document
+                .select(&selector)
+                .find_map(|link| link.value().attr("href").and_then(clean_metadata_value));
+
+            canonical_url.and_then(|url| {
+                Url::parse(&url)
+                    .ok()?
+                    .host_str()
+                    .map(|value| value.strip_prefix("www.").unwrap_or(value).to_string())
+            })
+        })
+        .or_else(|| {
+            base_url.and_then(|url| {
+                url.host_str()
+                    .map(|value| value.strip_prefix("www.").unwrap_or(value).to_string())
+            })
+        });
 
     let html_selector = patterns::selector("html");
     let body_selector = patterns::selector("body");
@@ -161,7 +182,7 @@ pub fn extract_metadata(document: &Html, html: &str, options: &ReadabilityOption
 }
 
 pub fn normalize_byline(value: &str) -> Option<String> {
-    if is_url(value) {
+    if Url::parse(value).is_ok() {
         return None;
     }
 
@@ -304,7 +325,7 @@ fn article_title(document: &Html) -> Option<String> {
     }
 
     let title_word_count = shared::word_count(&title);
-    let original_without_separators = TITLE_SEPARATORS
+    let original_without_separators = patterns::TITLE_SEPARATORS
         .iter()
         .fold(original.clone(), |title, separator| title.replace(separator, " "));
     if title_word_count <= 4
@@ -358,7 +379,7 @@ fn specific_heading(document: &Html) -> Option<String> {
 }
 
 fn last_separator(title: &str) -> Option<(&'static str, usize)> {
-    TITLE_SEPARATORS
+    patterns::TITLE_SEPARATORS
         .iter()
         .filter_map(|separator| title.rfind(separator).map(|index| (*separator, index)))
         .max_by_key(|(_, index)| *index)
@@ -503,20 +524,6 @@ fn is_placeholder_value(value: &str) -> bool {
         || lower == "n/a"
 }
 
-fn favicon_from_document(document: &Html) -> Option<String> {
-    let selector = patterns::selector(r#"link[rel~="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]"#);
-    document
-        .select(&selector)
-        .find_map(|link| link.value().attr("href").and_then(clean_metadata_value))
-}
-
-fn canonical_url(document: &Html) -> Option<String> {
-    let selector = patterns::selector(r#"link[rel="canonical"]"#);
-    document
-        .select(&selector)
-        .find_map(|link| link.value().attr("href").and_then(clean_metadata_value))
-}
-
 fn published_time_from_document(document: &Html) -> Option<String> {
     let selector = patterns::selector(
         r#"time[datetime], [itemprop*="datePublished"][datetime], [itemprop*="datePublished"][content], [property="article:published_time"][content]"#,
@@ -538,18 +545,9 @@ fn absolutize_url(value: &str, base_url: Option<&Url>) -> Option<String> {
     base_url.and_then(|base_url| base_url.join(&value).ok().map(|url| url.to_string()))
 }
 
-fn domain_from_url(value: &str) -> Option<String> {
-    Url::parse(value).ok()?.host_str().map(strip_www)
-}
-
-fn strip_www(value: &str) -> String {
-    value.strip_prefix("www.").unwrap_or(value).to_string()
-}
-
-fn first_excerpt_for_selector(document: &Html, selector_pattern: &str) -> Option<String> {
+fn first_excerpt_for_selector(doc: &Html, selector_pattern: &str) -> Option<String> {
     let selector = patterns::selector(selector_pattern);
-    document
-        .select(&selector)
+    doc.select(&selector)
         .filter(|element| element.value().attr("id") != Some("readability-page-1"))
         .map(|element| decode_html_entities(&patterns::normalize_spaces(element.text().collect::<String>().trim())))
         .find(|excerpt| {
@@ -585,10 +583,6 @@ fn decode_numeric_entity(value: &str, radix: u32) -> Option<String> {
         .filter(|character| *character != '\0')
         .unwrap_or('\u{fffd}');
     Some(character.to_string())
-}
-
-fn is_url(value: &str) -> bool {
-    Url::parse(value).is_ok()
 }
 
 #[cfg(test)]

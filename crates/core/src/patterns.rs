@@ -6,6 +6,8 @@ pub const DEPRECATED_SIZE_ATTRIBUTE_ELEMS: &[&str] = &["table", "th", "td", "hr"
 
 pub const DEFAULT_CLASSES_TO_PRESERVE: &[&str] = &["page"];
 
+pub const TITLE_SEPARATORS: &[&str] = &[" | ", " - ", " – ", " — ", " \\ ", " / ", " > ", " » "];
+
 pub const PRESENTATIONAL_ATTRIBUTES: &[&str] = &[
     "align",
     "background",

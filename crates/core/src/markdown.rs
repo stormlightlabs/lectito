@@ -17,10 +17,157 @@ use kuchiki::traits::TendrilSink;
 use super::{dom, patterns, serialize};
 use crate::MarkdownOptions;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct RenderContext {
     in_pre: bool,
     list_depth: usize,
+}
+
+impl RenderContext {
+    fn render_children(self, node: &NodeRef) -> String {
+        let mut output = String::new();
+        for child in node.children() {
+            output.push_str(&self.render_node(&child));
+        }
+        output
+    }
+
+    fn render_node(self, node: &NodeRef) -> String {
+        match node.as_text() {
+            Some(text) => {
+                let text = text.borrow();
+                if self.in_pre { text.to_string() } else { patterns::normalize_spaces(&text) }
+            }
+            None => match code::is_highlighter_chrome(node) {
+                true => String::new(),
+                false => match dom::node_name(node).as_str() {
+                    "h1" => block(format!("# {}", self.inline_children(node))),
+                    "h2" => block(format!("## {}", self.inline_children(node))),
+                    "h3" => block(format!("### {}", self.inline_children(node))),
+                    "h4" => block(format!("#### {}", self.inline_children(node))),
+                    "h5" => block(format!("##### {}", self.inline_children(node))),
+                    "h6" => block(format!("###### {}", self.inline_children(node))),
+                    "p" => block(self.inline_children(node)),
+                    "br" => "  \n".to_string(),
+                    "strong" | "b" => format!("**{}**", self.inline_children(node)),
+                    "em" | "i" => format!("*{}*", self.inline_children(node)),
+                    "mark" => wrap_inline("==", self.inline_children(node)),
+                    "del" | "s" | "strike" => wrap_inline("~~", self.inline_children(node)),
+                    "sup"
+                        if dom::class_id_string(node)
+                            .to_ascii_lowercase()
+                            .split_whitespace()
+                            .any(|token| token == "reference") =>
+                    {
+                        self.inline_children(node)
+                    }
+                    "sup" | "sub" | "svg" => {
+                        serialize::serialize_node(node).unwrap_or_else(|_| self.render_children(node))
+                    }
+                    "code" if !self.in_pre => format!("`{}`", self.inline_children(node).replace('`', "\\`")),
+                    "pre" => code::render_code_block(node, self),
+                    "math" | "mjx-container" => {
+                        math::render_math(node, self).unwrap_or_else(|| self.render_children(node))
+                    }
+                    "script" => math::render_math(node, self).unwrap_or_default(),
+                    "span" | "img" if math::render_math(node, self).is_some() => {
+                        math::render_math(node, self).unwrap_or_default()
+                    }
+                    "iframe" | "video" | "audio" | "object" | "embed" => media::render_embed(node).unwrap_or_default(),
+                    "a" => {
+                        let label = self.inline_children(node);
+                        if is_heading_permalink(node, &label) {
+                            String::new()
+                        } else if label.is_empty() {
+                            preserved_empty_inline(node)
+                        } else if let Some(href) = dom::attr(node, "href") {
+                            format!("[{}]({})", label, escape_commonmark_link_destination(&href))
+                        } else {
+                            label
+                        }
+                    }
+                    "img" => media::render_image(node),
+                    "picture" => media::render_picture(node),
+                    "source" => String::new(),
+                    "figure" => media::render_figure(node, self).unwrap_or_else(|| block(self.render_children(node))),
+                    "blockquote" => match media::render_embed(node) {
+                        Some(embed) => block(embed),
+                        None => block(
+                            normalize_markdown(&self.render_children(node))
+                                .lines()
+                                .map(|line| if line.trim().is_empty() { ">".to_string() } else { format!("> {line}") })
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                        ),
+                    },
+                    "ul" => self.render_list(node, false),
+                    "ol" => self.render_list(node, true),
+                    "li" => block(self.inline_children(node)),
+                    "dl" => self.render_definition_list(node),
+                    "table" => code::render_code_table(node, self).unwrap_or_else(|| tables::render_table(node, self)),
+                    "div" => code::render_code_container(node, self).unwrap_or_else(|| self.render_children(node)),
+                    "section" | "article" | "main" | "body" => self.render_children(node),
+                    "figcaption" => block(self.inline_children(node)),
+                    "hr" => "\n\n---\n\n".to_string(),
+                    _ => self.render_children(node),
+                },
+            },
+        }
+    }
+
+    fn render_definition_list(self, node: &NodeRef) -> String {
+        let mut output = String::new();
+        for child in node.children().filter(|child| child.as_element().is_some()) {
+            match dom::node_name(&child).as_str() {
+                "dt" => output.push_str(&block(format!("**{}**", self.inline_children(&child)))),
+                "dd" => output.push_str(&block(self.inline_children(&child))),
+                _ => output.push_str(&self.render_node(&child)),
+            }
+        }
+        output
+    }
+
+    fn render_list(self, node: &NodeRef, ordered: bool) -> String {
+        let mut output = String::new();
+        let indent = "  ".repeat(self.list_depth);
+        let mut index = 1;
+        for child in node.children().filter(|child| dom::node_name(child) == "li") {
+            let marker = if ordered {
+                let marker = format!("{index}.");
+                index += 1;
+                marker
+            } else {
+                "-".to_string()
+            };
+            let (label, nested) = RenderContext { list_depth: self.list_depth + 1, ..self }.render_list_item(&child);
+            output.push_str(&format!("{indent}{marker} {label}\n"));
+            for line in nested.lines().filter(|line| !line.trim().is_empty()) {
+                output.push_str(line);
+                output.push('\n');
+            }
+        }
+        output.push('\n');
+        output
+    }
+
+    fn render_list_item(self, node: &NodeRef) -> (String, String) {
+        let mut label = String::new();
+        let mut nested = String::new();
+
+        for child in node.children() {
+            match dom::node_name(&child).as_str() {
+                "ul" => nested.push_str(&self.render_list(&child, false)),
+                "ol" => nested.push_str(&self.render_list(&child, true)),
+                _ => label.push_str(&self.render_node(&child)),
+            }
+        }
+
+        (patterns::normalize_spaces(normalize_markdown(&label).trim()), nested)
+    }
+
+    fn inline_children(self, node: &NodeRef) -> String {
+        patterns::normalize_spaces(self.render_children(node).trim())
+    }
 }
 
 /// Convert a cleaned HTML fragment to Markdown.
@@ -34,15 +181,15 @@ pub fn html_to_markdown(html: &str) -> String {
         .next()
         .unwrap_or(document);
     let footnotes = footnotes::FootnoteContext::extract(&body);
-    let mut output = render_children(&body, RenderContext { in_pre: false, list_depth: 0 });
+    let mut output = RenderContext::default().render_children(&body);
     output.push_str(&footnotes.render_defs());
     output = normalize_markdown(&output);
     fmt_with_comrak(&output)
 }
 
 /// Render Markdown to HTML with the provided options.
-pub fn markdown_to_html(markdown: &str, options: &MarkdownOptions) -> String {
-    comrak_markdown_to_html(markdown, &comrak_opts(options))
+pub fn markdown_to_html(markdown: &str, opts: &MarkdownOptions) -> String {
+    comrak_markdown_to_html(markdown, &comrak_opts(opts))
 }
 
 pub fn normalize_markdown(value: &str) -> String {
@@ -77,151 +224,12 @@ pub fn normalize_markdown(value: &str) -> String {
     output.trim().to_string()
 }
 
-// TODO: instance method on RenderContext
 pub fn render_children(node: &NodeRef, ctx: RenderContext) -> String {
-    let mut output = String::new();
-    for child in node.children() {
-        output.push_str(&render_node(&child, ctx));
-    }
-    output
+    ctx.render_children(node)
 }
 
-// TODO: instance method on RenderContext
-fn render_node(node: &NodeRef, ctx: RenderContext) -> String {
-    match node.as_text() {
-        Some(text) => {
-            let text = text.borrow();
-            if ctx.in_pre { text.to_string() } else { patterns::normalize_spaces(&text) }
-        }
-        None => match code::is_highlighter_chrome(node) {
-            true => String::new(),
-            false => match dom::node_name(node).as_str() {
-                "h1" => block(format!("# {}", inline_children(node, ctx))),
-                "h2" => block(format!("## {}", inline_children(node, ctx))),
-                "h3" => block(format!("### {}", inline_children(node, ctx))),
-                "h4" => block(format!("#### {}", inline_children(node, ctx))),
-                "h5" => block(format!("##### {}", inline_children(node, ctx))),
-                "h6" => block(format!("###### {}", inline_children(node, ctx))),
-                "p" => block(inline_children(node, ctx)),
-                "br" => "  \n".to_string(),
-                "strong" | "b" => format!("**{}**", inline_children(node, ctx)),
-                "em" | "i" => format!("*{}*", inline_children(node, ctx)),
-                "mark" => wrap_inline("==", inline_children(node, ctx)),
-                "del" | "s" | "strike" => wrap_inline("~~", inline_children(node, ctx)),
-                "sup"
-                    if dom::class_id_string(node)
-                        .to_ascii_lowercase()
-                        .split_whitespace()
-                        .any(|token| token == "reference") =>
-                {
-                    inline_children(node, ctx)
-                }
-                "sup" | "sub" | "svg" => serialize::serialize_node(node).unwrap_or_else(|_| render_children(node, ctx)),
-                "code" if !ctx.in_pre => format!("`{}`", inline_children(node, ctx).replace('`', "\\`")),
-                "pre" => code::render_code_block(node, ctx),
-                "math" | "mjx-container" => math::render_math(node, ctx).unwrap_or_else(|| render_children(node, ctx)),
-                "script" => math::render_math(node, ctx).unwrap_or_default(),
-                "span" | "img" if math::render_math(node, ctx).is_some() => {
-                    math::render_math(node, ctx).unwrap_or_default()
-                }
-                "iframe" | "video" | "audio" | "object" | "embed" => media::render_embed(node).unwrap_or_default(),
-                "a" => {
-                    let label = inline_children(node, ctx);
-                    if is_heading_permalink(node, &label) {
-                        String::new()
-                    } else if label.is_empty() {
-                        preserved_empty_inline(node)
-                    } else if let Some(href) = dom::attr(node, "href") {
-                        format!("[{}]({})", label, escape_commonmark_link_destination(&href))
-                    } else {
-                        label
-                    }
-                }
-                "img" => media::render_image(node),
-                "picture" => media::render_picture(node),
-                "source" => String::new(),
-                "figure" => media::render_figure(node, ctx).unwrap_or_else(|| block(render_children(node, ctx))),
-                "blockquote" => match media::render_embed(node) {
-                    Some(embed) => block(embed),
-                    None => block(
-                        normalize_markdown(&render_children(node, ctx))
-                            .lines()
-                            .map(|line| if line.trim().is_empty() { ">".to_string() } else { format!("> {line}") })
-                            .collect::<Vec<_>>()
-                            .join("\n"),
-                    ),
-                },
-                "ul" => render_list(node, false, ctx),
-                "ol" => render_list(node, true, ctx),
-                "li" => block(inline_children(node, ctx)),
-                "dl" => render_definition_list(node, ctx),
-                "table" => code::render_code_table(node, ctx).unwrap_or_else(|| tables::render_table(node, ctx)),
-                "div" => code::render_code_container(node, ctx).unwrap_or_else(|| render_children(node, ctx)),
-                "section" | "article" | "main" | "body" => render_children(node, ctx),
-                "figcaption" => block(inline_children(node, ctx)),
-                "hr" => "\n\n---\n\n".to_string(),
-                _ => render_children(node, ctx),
-            },
-        },
-    }
-}
-
-// TODO: instance method on RenderContext
-fn render_definition_list(node: &NodeRef, ctx: RenderContext) -> String {
-    let mut output = String::new();
-    for child in node.children().filter(|child| child.as_element().is_some()) {
-        match dom::node_name(&child).as_str() {
-            "dt" => output.push_str(&block(format!("**{}**", inline_children(&child, ctx)))),
-            "dd" => output.push_str(&block(inline_children(&child, ctx))),
-            _ => output.push_str(&render_node(&child, ctx)),
-        }
-    }
-    output
-}
-
-// TODO: instance method on RenderContext
 fn inline_children(node: &NodeRef, ctx: RenderContext) -> String {
-    patterns::normalize_spaces(render_children(node, ctx).trim())
-}
-
-// TODO: instance method on RenderContext
-fn render_list(node: &NodeRef, ordered: bool, ctx: RenderContext) -> String {
-    let mut output = String::new();
-    let indent = "  ".repeat(ctx.list_depth);
-    let mut index = 1;
-    for child in node.children().filter(|child| dom::node_name(child) == "li") {
-        let marker = if ordered {
-            let marker = format!("{index}.");
-            index += 1;
-            marker
-        } else {
-            "-".to_string()
-        };
-        let (label, nested) = render_list_item(&child, RenderContext { list_depth: ctx.list_depth + 1, ..ctx });
-        output.push_str(&format!("{indent}{marker} {label}\n"));
-        for line in nested.lines().filter(|line| !line.trim().is_empty()) {
-            output.push_str(line);
-            output.push('\n');
-        }
-    }
-    output.push('\n');
-    output
-}
-
-// TODO: instance method on RenderContext
-fn render_list_item(node: &NodeRef, ctx: RenderContext) -> (String, String) {
-    let mut label = String::new();
-    let mut nested = String::new();
-
-    for child in node.children() {
-        match dom::node_name(&child).as_str() {
-            "ul" => nested.push_str(&render_list(&child, false, ctx)),
-            "ol" => nested.push_str(&render_list(&child, true, ctx)),
-            _ => label.push_str(&render_node(&child, ctx)),
-        }
-    }
-
-    (patterns::normalize_spaces(normalize_markdown(&label).trim()), nested)
+    ctx.inline_children(node)
 }
 
 fn block(value: String) -> String {
