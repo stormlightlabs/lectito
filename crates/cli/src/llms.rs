@@ -1,4 +1,4 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
@@ -47,6 +47,12 @@ struct CrawlItem {
     depth: usize,
 }
 
+impl CrawlItem {
+    fn new(target: String, depth: usize) -> Self {
+        Self { target, depth }
+    }
+}
+
 struct CrawlPage {
     id: String,
     html: String,
@@ -57,6 +63,28 @@ struct CrawledEntry {
     title: String,
     url: String,
     notes: Option<String>,
+}
+
+struct GenerateFilters<'a> {
+    includes: &'a [String],
+    excludes: &'a [String],
+    include_paths: &'a [String],
+    exclude_paths: &'a [String],
+    include_globs: &'a [String],
+    exclude_globs: &'a [String],
+}
+
+impl<'a> GenerateFilters<'a> {
+    fn new(args: &'a LlmsGenerateArgs) -> Self {
+        Self {
+            includes: &args.include,
+            excludes: &args.exclude,
+            include_paths: &args.include_paths,
+            exclude_paths: &args.exclude_paths,
+            include_globs: &args.include_globs,
+            exclude_globs: &args.exclude_globs,
+        }
+    }
 }
 
 struct FetchThrottle {
@@ -219,6 +247,13 @@ fn run_generate(args: LlmsGenerateArgs) -> Result<ExitCode> {
     }
     validate_filters(&args.include, "include")?;
     validate_filters(&args.exclude, "exclude")?;
+    validate_filters(&args.include_paths, "include-path")?;
+    validate_filters(&args.exclude_paths, "exclude-path")?;
+    validate_filters(&args.include_globs, "include-glob")?;
+    validate_filters(&args.exclude_globs, "exclude-glob")?;
+    if args.robots_user_agent.trim().is_empty() {
+        anyhow::bail!("--robots-user-agent must not be empty");
+    }
 
     let entries = generate_entries(&args)?;
     let title = args
@@ -249,16 +284,23 @@ fn generate_entries(args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
 fn crawl_entries(args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
     let input = args.input.as_deref().context("missing crawl seed")?;
     let seed = normalize_seed(input)?;
-    let mut queue = VecDeque::from([CrawlItem { target: seed.clone(), depth: 0 }]);
+    let mut queue = VecDeque::from([CrawlItem::new(seed.clone(), 0)]);
     let mut seen = HashSet::new();
     let mut entries = Vec::new();
     let mut throttle = FetchThrottle::new(args.delay_ms);
+    let filters = GenerateFilters::new(args);
+    let mut robots = RobotsCache::new(&args.robots_user_agent, args.ignore_robots);
 
     while let Some(item) = queue.pop_front() {
         if seen.len() >= args.max_pages {
             break;
         }
         if !seen.insert(item.target.clone()) {
+            continue;
+        }
+
+        if !robots.allowed(&item.target) {
+            eprintln!("lectito: skipping {}: disallowed by robots.txt", item.target);
             continue;
         }
 
@@ -280,8 +322,8 @@ fn crawl_entries(args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
         }
 
         for link in discover_links(&page, &seed) {
-            if !seen.contains(&link) && passes_filters(&link, &args.include, &args.exclude) {
-                queue.push_back(CrawlItem { target: link, depth: item.depth + 1 });
+            if !seen.contains(&link) && passes_filters(&link, &filters) {
+                queue.push_back(CrawlItem::new(link, item.depth + 1));
             }
         }
     }
@@ -293,15 +335,22 @@ fn sitemap_entries(input: &str, args: &LlmsGenerateArgs) -> Result<Vec<CrawledEn
     let urls = sitemap_urls(input, args.max_sitemaps, args.max_pages)?;
     let mut entries = Vec::new();
     let mut throttle = FetchThrottle::new(args.delay_ms);
+    let filters = GenerateFilters::new(args);
+    let mut robots = RobotsCache::new(&args.robots_user_agent, args.ignore_robots);
 
     for url in urls.into_iter().take(args.max_pages) {
-        if !passes_filters(&url, &args.include, &args.exclude) {
+        if !passes_filters(&url, &filters) {
             continue;
         }
         if !Url::parse(&url)
             .ok()
             .is_none_or(|parsed| crawlable_url_path(parsed.path()))
         {
+            continue;
+        }
+
+        if !robots.allowed(&url) {
+            eprintln!("lectito: skipping {url}: disallowed by robots.txt");
             continue;
         }
 
@@ -329,9 +378,266 @@ fn validate_filters(values: &[String], name: &str) -> Result<()> {
     Ok(())
 }
 
-fn passes_filters(url: &str, includes: &[String], excludes: &[String]) -> bool {
-    (includes.is_empty() || includes.iter().any(|include| url.contains(include)))
-        && !excludes.iter().any(|exclude| url.contains(exclude))
+fn passes_filters(url: &str, filters: &GenerateFilters<'_>) -> bool {
+    if !filters.includes.is_empty() && !filters.includes.iter().any(|include| url.contains(include)) {
+        return false;
+    }
+    if filters.excludes.iter().any(|exclude| url.contains(exclude)) {
+        return false;
+    }
+    if !filters.include_globs.is_empty() && !filters.include_globs.iter().any(|glob| wildcard_match(glob, url)) {
+        return false;
+    }
+    if filters.exclude_globs.iter().any(|glob| wildcard_match(glob, url)) {
+        return false;
+    }
+
+    let path = filter_path(url);
+    if !filters.include_paths.is_empty() && !filters.include_paths.iter().any(|include| path.starts_with(include)) {
+        return false;
+    }
+    if filters.exclude_paths.iter().any(|exclude| path.starts_with(exclude)) {
+        return false;
+    }
+
+    true
+}
+
+fn filter_path(value: &str) -> String {
+    if let Ok(url) = Url::parse(value)
+        && matches!(url.scheme(), "http" | "https" | "file")
+    {
+        return url.path().to_string();
+    }
+
+    value.to_string()
+}
+
+struct RobotsCache {
+    user_agent: String,
+    ignore: bool,
+    origins: HashMap<String, Option<RobotsRules>>,
+}
+
+impl RobotsCache {
+    fn new(user_agent: &str, ignore: bool) -> Self {
+        Self { user_agent: user_agent.to_string(), ignore, origins: HashMap::new() }
+    }
+
+    fn allowed(&mut self, target: &str) -> bool {
+        if self.ignore {
+            return true;
+        }
+        let Some(origin) = robots_origin(target) else {
+            return true;
+        };
+
+        if !self.origins.contains_key(&origin) {
+            let rules = read_robots_txt(&origin)
+                .ok()
+                .and_then(|text| RobotsRules::parse(&text, &self.user_agent));
+            self.origins.insert(origin.clone(), rules);
+        }
+
+        self.origins
+            .get(&origin)
+            .and_then(|rules| rules.as_ref())
+            .is_none_or(|rules| rules.allowed(target))
+    }
+}
+
+#[derive(Debug)]
+struct RobotsRules {
+    rules: Vec<RobotsRule>,
+}
+
+#[derive(Debug)]
+struct RobotsRule {
+    allow: bool,
+    pattern: String,
+}
+
+impl RobotsRules {
+    fn parse(text: &str, user_agent: &str) -> Option<Self> {
+        let groups = parse_robots_groups(text);
+        let user_agent = user_agent.to_ascii_lowercase();
+        let best_len = groups
+            .iter()
+            .filter(|group| group.matches(&user_agent))
+            .flat_map(|group| group.agents.iter())
+            .filter(|agent| agent_matches(agent, &user_agent))
+            .map(|agent| if agent == "*" { 0 } else { agent.len() })
+            .max()?;
+        let rules = groups
+            .into_iter()
+            .filter(|group| group.matches(&user_agent) && group.best_match_len(&user_agent) == Some(best_len))
+            .flat_map(|group| group.rules)
+            .collect::<Vec<_>>();
+        Some(Self { rules })
+    }
+
+    fn allowed(&self, target: &str) -> bool {
+        let path = robots_path(target);
+        let mut best: Option<(usize, bool)> = None;
+
+        for rule in &self.rules {
+            if rule.pattern.is_empty() || !robots_pattern_match(&rule.pattern, &path) {
+                continue;
+            }
+            let len = robots_pattern_len(&rule.pattern);
+            match best {
+                Some((best_len, best_allow)) if best_len > len || (best_len == len && best_allow) => {}
+                _ => best = Some((len, rule.allow)),
+            }
+        }
+
+        best.map(|(_, allow)| allow).unwrap_or(true)
+    }
+}
+
+struct RobotsGroup {
+    agents: Vec<String>,
+    rules: Vec<RobotsRule>,
+}
+
+impl RobotsGroup {
+    fn matches(&self, user_agent: &str) -> bool {
+        self.agents.iter().any(|agent| agent_matches(agent, user_agent))
+    }
+
+    fn best_match_len(&self, user_agent: &str) -> Option<usize> {
+        self.agents
+            .iter()
+            .filter(|agent| agent_matches(agent, user_agent))
+            .map(|agent| if agent == "*" { 0 } else { agent.len() })
+            .max()
+    }
+}
+
+fn parse_robots_groups(text: &str) -> Vec<RobotsGroup> {
+    let mut groups = Vec::new();
+    let mut agents = Vec::new();
+    let mut rules = Vec::new();
+
+    for raw_line in text.lines() {
+        let line = raw_line.split('#').next().unwrap_or("").trim();
+        if line.is_empty() {
+            push_robots_group(&mut groups, &mut agents, &mut rules);
+            continue;
+        }
+        let Some((name, value)) = line.split_once(':') else {
+            continue;
+        };
+        let name = name.trim().to_ascii_lowercase();
+        let value = value.trim();
+        match name.as_str() {
+            "user-agent" => {
+                if !rules.is_empty() {
+                    push_robots_group(&mut groups, &mut agents, &mut rules);
+                }
+                agents.push(value.to_ascii_lowercase());
+            }
+            "allow" if !agents.is_empty() => rules.push(RobotsRule { allow: true, pattern: value.to_string() }),
+            "disallow" if !agents.is_empty() => {
+                if !value.is_empty() {
+                    rules.push(RobotsRule { allow: false, pattern: value.to_string() });
+                }
+            }
+            _ => {}
+        }
+    }
+    push_robots_group(&mut groups, &mut agents, &mut rules);
+    groups
+}
+
+fn push_robots_group(groups: &mut Vec<RobotsGroup>, agents: &mut Vec<String>, rules: &mut Vec<RobotsRule>) {
+    if agents.is_empty() {
+        rules.clear();
+        return;
+    }
+    groups.push(RobotsGroup { agents: std::mem::take(agents), rules: std::mem::take(rules) });
+}
+
+fn agent_matches(agent: &str, user_agent: &str) -> bool {
+    agent == "*" || user_agent.contains(agent)
+}
+
+fn robots_origin(target: &str) -> Option<String> {
+    let url = Url::parse(target).ok()?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return None;
+    }
+    Some(format!(
+        "{}://{}{}",
+        url.scheme(),
+        url.host_str()?,
+        url.port().map(|port| format!(":{port}")).unwrap_or_default()
+    ))
+}
+
+fn read_robots_txt(origin: &str) -> Result<String> {
+    let url = format!("{}/robots.txt", origin.trim_end_matches('/'));
+    let document = fetch::InputDocument::read_src(Some(&url), false, None)?;
+    Ok(document.html().to_string())
+}
+
+fn robots_path(target: &str) -> String {
+    let Ok(url) = Url::parse(target) else {
+        return target.to_string();
+    };
+    let mut path = url.path().to_string();
+    if let Some(query) = url.query() {
+        path.push('?');
+        path.push_str(query);
+    }
+    path
+}
+
+fn robots_pattern_match(pattern: &str, path: &str) -> bool {
+    if let Some(prefix) = pattern.strip_suffix('$') {
+        return wildcard_match(prefix, path);
+    }
+    wildcard_prefix_match(pattern, path)
+}
+
+fn robots_pattern_len(pattern: &str) -> usize {
+    pattern.chars().filter(|ch| !matches!(ch, '*' | '$')).count()
+}
+
+fn wildcard_prefix_match(pattern: &str, value: &str) -> bool {
+    (0..=value.len()).any(|index| value.is_char_boundary(index) && wildcard_match(pattern, &value[..index]))
+}
+
+fn wildcard_match(pattern: &str, value: &str) -> bool {
+    let pattern = pattern.as_bytes();
+    let value = value.as_bytes();
+    let mut p = 0;
+    let mut v = 0;
+    let mut star = None;
+    let mut star_value = 0;
+
+    while v < value.len() {
+        if p < pattern.len() && (pattern[p] == b'?' || pattern[p] == value[v]) {
+            p += 1;
+            v += 1;
+        } else if p < pattern.len() && pattern[p] == b'*' {
+            star = Some(p);
+            p += 1;
+            star_value = v;
+        } else if let Some(star_index) = star {
+            p = star_index + 1;
+            star_value += 1;
+            v = star_value;
+        } else {
+            return false;
+        }
+    }
+
+    while p < pattern.len() && pattern[p] == b'*' {
+        p += 1;
+    }
+
+    p == pattern.len()
 }
 
 fn sitemap_urls(input: &str, max_sitemaps: usize, max_urls: usize) -> Result<Vec<String>> {
@@ -925,16 +1231,56 @@ Use Markdown outputs for agent context.
     }
 
     #[test]
-    fn include_and_exclude_filters_match_url_substrings() {
+    fn layered_filters_match_url_path_and_globs() {
         let includes = vec!["/docs/".to_string()];
         let excludes = vec!["/tags/".to_string()];
+        let include_paths = vec!["/docs/".to_string()];
+        let exclude_paths = vec!["/docs/archive/".to_string()];
+        let include_globs = vec!["https://example.com/docs/*".to_string()];
+        let exclude_globs = vec!["*/drafts/*".to_string()];
+        let filters = GenerateFilters {
+            includes: &includes,
+            excludes: &excludes,
+            include_paths: &include_paths,
+            exclude_paths: &exclude_paths,
+            include_globs: &include_globs,
+            exclude_globs: &exclude_globs,
+        };
 
-        assert!(passes_filters("https://example.com/docs/guide", &includes, &excludes));
-        assert!(!passes_filters("https://example.com/blog/post", &includes, &excludes));
-        assert!(!passes_filters(
-            "https://example.com/docs/tags/rust",
-            &includes,
-            &excludes
-        ));
+        assert!(passes_filters("https://example.com/docs/guide", &filters));
+        assert!(!passes_filters("https://example.com/blog/post", &filters));
+        assert!(!passes_filters("https://example.com/docs/tags/rust", &filters));
+        assert!(!passes_filters("https://example.com/docs/archive/old", &filters));
+        assert!(!passes_filters("https://example.com/docs/drafts/post", &filters));
+    }
+
+    #[test]
+    fn robots_rules_use_longest_match_and_allow_wins_ties() {
+        let rules = RobotsRules::parse(
+            r#"
+User-agent: *
+Disallow: /
+
+User-agent: Lectito
+Disallow: /private/
+Allow: /private/public/
+Disallow: /tmp$
+"#,
+            "Lectito",
+        )
+        .expect("robots rules");
+
+        assert!(rules.allowed("https://example.com/docs/guide"));
+        assert!(!rules.allowed("https://example.com/private/secret"));
+        assert!(rules.allowed("https://example.com/private/public/page"));
+        assert!(!rules.allowed("https://example.com/tmp"));
+        assert!(rules.allowed("https://example.com/tmp/file"));
+    }
+
+    #[test]
+    fn robots_ignore_allows_remote_targets() {
+        let mut robots = RobotsCache::new("Lectito", true);
+
+        assert!(robots.allowed("https://example.com/private/page"));
     }
 }

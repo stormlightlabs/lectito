@@ -346,11 +346,37 @@ pub struct LlmsGenerateArgs {
     #[arg(long, value_name = "TEXT")]
     pub exclude: Vec<String>,
 
+    // TODO: these should be paths/globs with ! syntax for exclude
+    /// Only include candidate URL paths with this prefix. May be repeated.
+    #[arg(long = "include-path", value_name = "PATH")]
+    pub include_paths: Vec<String>,
+
+    /// Exclude candidate URL paths with this prefix. May be repeated.
+    #[arg(long = "exclude-path", value_name = "PATH")]
+    pub exclude_paths: Vec<String>,
+
+    /// Only include candidate URLs matching this glob. May be repeated.
+    #[arg(long = "include-glob", value_name = "GLOB")]
+    pub include_globs: Vec<String>,
+
+    /// Exclude candidate URLs matching this glob. May be repeated.
+    #[arg(long = "exclude-glob", value_name = "GLOB")]
+    pub exclude_globs: Vec<String>,
+
     /// Delay between page fetches while generating.
     ///
     /// TODO: alias as delay
     #[arg(long, default_value_t = 0)]
     pub delay_ms: u64,
+
+    // FIXME: This is clunky
+    /// User-agent token used when evaluating robots.txt.
+    #[arg(long, default_value = "Lectito")]
+    pub robots_user_agent: String,
+
+    /// Ignore robots.txt checks during remote generation.
+    #[arg(long)]
+    pub ignore_robots: bool,
 
     /// Maximum sitemap files to read when a sitemap index is used.
     #[arg(long, default_value_t = 25)]
@@ -438,8 +464,19 @@ mod tests {
             "/docs/",
             "--exclude",
             "/tags/",
+            "--include-path",
+            "/docs/",
+            "--exclude-path",
+            "/docs/archive/",
+            "--include-glob",
+            "https://example.com/docs/*",
+            "--exclude-glob",
+            "*/drafts/*",
             "--delay-ms",
             "100",
+            "--robots-user-agent",
+            "LectitoBot",
+            "--ignore-robots",
         ])
         .expect("llms generate filters should parse");
 
@@ -448,7 +485,13 @@ mod tests {
                 LlmsCommands::Generate(args) => {
                     assert_eq!(args.include, vec!["/docs/"]);
                     assert_eq!(args.exclude, vec!["/tags/"]);
+                    assert_eq!(args.include_paths, vec!["/docs/"]);
+                    assert_eq!(args.exclude_paths, vec!["/docs/archive/"]);
+                    assert_eq!(args.include_globs, vec!["https://example.com/docs/*"]);
+                    assert_eq!(args.exclude_globs, vec!["*/drafts/*"]);
                     assert_eq!(args.delay_ms, 100);
+                    assert_eq!(args.robots_user_agent, "LectitoBot");
+                    assert!(args.ignore_robots);
                 }
                 other => panic!("unexpected llms subcommand: {other:?}"),
             },

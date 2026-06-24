@@ -151,8 +151,18 @@ Filter generated entries by URL substring and add a delay between page fetches:
 ```sh
 lectito llms generate --sitemap https://example.com/sitemap.xml \
   --include /docs/ \
+  --include-path /docs/ \
+  --exclude-glob '*/drafts/*' \
   --exclude /tags/ \
   --delay-ms 250
+```
+
+Remote generation checks `robots.txt` before fetching page URLs. It evaluates
+rules as `Lectito` by default:
+
+```sh
+lectito llms generate https://example.com/docs/ --robots-user-agent Lectito
+lectito llms generate https://example.com/docs/ --ignore-robots
 ```
 
 See the [llms.txt guide](./llms-txt.md) for the expected file shape and the

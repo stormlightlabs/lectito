@@ -164,10 +164,41 @@ lectito llms generate --sitemap https://example.com/sitemap.xml \
   --exclude /archive/
 ```
 
+Use path-prefix filters when you want to match only the URL path:
+
+```sh
+lectito llms generate --sitemap https://example.com/sitemap.xml \
+  --include-path /docs/ \
+  --exclude-path /docs/archive/
+```
+
+Use glob filters when a simple wildcard is easier than repeated substrings:
+
+```sh
+lectito llms generate --sitemap https://example.com/sitemap.xml \
+  --include-glob 'https://example.com/docs/*' \
+  --exclude-glob '*/drafts/*'
+```
+
 Use `--delay-ms` to wait between page fetches:
 
 ```sh
 lectito llms generate https://example.com/docs/ --delay-ms 250
+```
+
+Remote generation checks `robots.txt` before fetching page URLs. Lectito keeps
+the existing browser-like user agent for HTTP requests, but evaluates robots
+rules as `Lectito` unless you pass another token:
+
+```sh
+lectito llms generate https://example.com/docs/ \
+  --robots-user-agent LectitoDocsBot
+```
+
+Use `--ignore-robots` only when you explicitly want to bypass those checks:
+
+```sh
+lectito llms generate https://example.com/docs/ --ignore-robots
 ```
 
 Only pages that produce readable article content are included. Each accepted
