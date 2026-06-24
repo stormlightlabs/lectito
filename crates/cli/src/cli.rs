@@ -3,13 +3,13 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use lectito::MediaRetention;
 
-/// Extract readable article content from URLs, files, or stdin.
+/// Extract readable article content from URLs, AT URIs, files, or stdin.
 #[derive(Debug, Parser)]
 #[command(name = "lectito")]
 #[command(about = "Extract readable article content")]
 #[command(long_about = "\
-Extract readable article content from a URL, HTML file, or stdin. Markdown \
-with TOML frontmatter is the default output.")]
+Extract readable article content from a URL, AT URI, HTML file, or stdin. \
+Markdown with TOML frontmatter is the default output.")]
 pub struct Cli {
     #[command(flatten)]
     pub extract: ExtractArgs,
@@ -51,7 +51,7 @@ pub enum DiagnosticFormat {
 /// Extract article content. This is the default command.
 #[derive(Debug, Args)]
 pub struct ExtractArgs {
-    /// URL, HTML file path, or '-' for stdin.
+    /// URL, AT URI, HTML file path, or '-' for stdin.
     pub input: Option<String>,
 
     /// Read HTML from stdin instead of an input argument.
@@ -157,7 +157,7 @@ pub struct ExtractArgs {
 /// article content.
 #[derive(Debug, Args)]
 pub struct ReadableArgs {
-    /// URL, HTML file path, or '-' for stdin.
+    /// URL, AT URI, HTML file path, or '-' for stdin.
     pub input: Option<String>,
 
     /// Read HTML from stdin instead of an input argument.
@@ -188,7 +188,7 @@ pub struct ReadableArgs {
 /// Print extraction metadata and scoring details.
 #[derive(Debug, Args)]
 pub struct InspectArgs {
-    /// URL, HTML file path, or '-' for stdin.
+    /// URL, AT URI, HTML file path, or '-' for stdin.
     pub input: Option<String>,
 
     /// Read HTML from stdin instead of an input argument.

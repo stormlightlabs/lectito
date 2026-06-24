@@ -16,6 +16,7 @@ use lectito::{extract_with_diagnostics, is_probably_readable};
 
 use crate::echo::InspectOptions;
 
+mod atproto;
 mod cli;
 mod echo;
 mod fetch;

@@ -54,6 +54,21 @@ categorize content based on your preferences.` from metadata titles.
   - Implement a fetcher for them and check whether standard.site parsing applies:
     - https://standard.site/
     - https://atproto.com/blog/standard-site-bluesky-timeline
+    - https://jola.dev/posts/publishing-your-blog
+
+## Atproto
+
+- [ ] Preserve rich-text facets when rendering Standard.site content records.
+- [ ] Resolve blob images into usable image URLs.
+- [ ] Render footnotes from publisher block records.
+- [ ] Render embedded Standard.site posts.
+- [ ] Render Bluesky post embeds.
+- [ ] Render web bookmark and web embed blocks.
+- [ ] Render tables from publisher block records.
+- [ ] Render math blocks.
+- [ ] Keep image captions and alt text when the publisher supplies both.
+- [ ] Add frozen fixtures for Leaflet, pckt, and Offprint records.
+- [ ] Report Standard.site resolution and rendering warnings in diagnostics.
 
 ### Retry Short Or Suspicious Extractions
 

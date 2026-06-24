@@ -1,4 +1,4 @@
-pub(crate) fn escape_html(value: &str) -> String {
+pub fn escape_html(value: &str) -> String {
     value
         .replace('&', "&amp;")
         .replace('<', "&lt;")

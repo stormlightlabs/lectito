@@ -27,7 +27,7 @@ mod diagnostics;
 mod dom;
 mod error;
 mod extract;
-mod html;
+pub mod html;
 mod json_schema;
 mod markdown;
 mod metadata;

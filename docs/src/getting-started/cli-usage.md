@@ -11,14 +11,21 @@ The root command extracts article content. The CLI also has these subcommands:
 
 ## Extract
 
-Pass a URL, a file path, or `-` for stdin. Markdown with TOML frontmatter is
-the default output.
+Pass a URL, an AT URI, a file path, or `-` for stdin. Markdown with TOML
+frontmatter is the default output.
 
 ```sh
 lectito article.html
 lectito https://example.com/article
+lectito at://did:plc:abc123/site.standard.document/xyz
 lectito - < article.html
 ```
+
+When a fetched page advertises `rel="site.standard.document"`, the CLI resolves
+the ATProto record and uses the record content when it can render it. Direct
+`at://` inputs are supported for renderable `site.standard.document` records.
+If a normal web URL cannot be resolved through Standard.site, the CLI extracts
+from the fetched HTML.
 
 Output formats:
 

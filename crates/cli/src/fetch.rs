@@ -10,6 +10,8 @@ use std::path::Path;
 use std::process;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use crate::atproto::{self, AtprotoClient};
+
 pub const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36";
 pub const CURL_USER_AGENT: &str = "curl/8.7.1";
 pub const MAX_REDIRECTS: usize = 10;
@@ -99,6 +101,13 @@ impl InputDocument {
                 anyhow::bail!("cannot combine --base-url with a URL input");
             }
             return Self::read(None, false, Some(input));
+        }
+
+        if input.starts_with("at://") {
+            if base_url.is_some() {
+                anyhow::bail!("cannot combine --base-url with an AT URI input");
+            }
+            return Self::atproto(input);
         }
 
         let path = Path::new(input);
@@ -214,6 +223,8 @@ impl InputDocument {
                 continue;
             }
 
+            let html = standard_site_html(&client, &html, Some(current_url.as_str())).unwrap_or(html);
+
             return Ok(InputDocument::new(
                 html,
                 Some(current_url.to_string()),
@@ -276,6 +287,36 @@ impl InputDocument {
             last_modified,
         ))
     }
+
+    fn atproto(at_uri: &str) -> anyhow::Result<InputDocument> {
+        let client = Client::builder()
+            .user_agent(USER_AGENT)
+            .timeout(FETCH_TIMEOUT)
+            .build()
+            .with_context(|| format!("failed to build ATProto client for {at_uri}"))?;
+        let atproto = AtprotoClient::new(client);
+        let record = atproto
+            .get_record(at_uri)
+            .with_context(|| format!("failed to resolve AT URI {at_uri}"))?;
+        let metadata = atproto.standard_site_render_metadata(&record, None).unwrap_or_default();
+        let html = atproto::standard_site_document_html(&record, None, &metadata)?.ok_or_else(|| {
+            anyhow::anyhow!("AT URI {at_uri} did not resolve to renderable Standard.site document content")
+        })?;
+
+        Ok(InputDocument::new(html, None, Some("text/html".to_string()), None))
+    }
+}
+
+fn standard_site_html(client: &Client, html: &str, source_url: Option<&str>) -> Option<String> {
+    let at_uri = atproto::standard_site_link(html)?;
+    let atproto = AtprotoClient::new(client.clone());
+    let record = atproto.get_record(&at_uri).ok()?;
+    let metadata = atproto
+        .standard_site_render_metadata(&record, source_url)
+        .unwrap_or_default();
+    atproto::standard_site_document_html(&record, source_url, &metadata)
+        .ok()
+        .flatten()
 }
 
 pub fn html_redirect_target(html: &str, current_url: &Url) -> Option<Url> {
