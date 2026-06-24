@@ -12,8 +12,8 @@ The workspace has three publishable crates:
 The API service and fixture helpers are workspace-only crates and are not
 published.
 
-Run the local fixture helper with:
+Run the local corpus helper with:
 
 ```sh
-cargo run -p lectito-fixtures --bin lectito-fixture -- sample-name
+cargo run -p lectito-fixtures --bin corpus -- sample-name
 ```

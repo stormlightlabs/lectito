@@ -6,7 +6,7 @@ use lectito::{Article, ReadabilityOptions, ReadableOptions, extract, is_probably
 
 /// Inspect fixture extraction behavior.
 #[derive(Debug, Parser)]
-#[command(name = "lectito-fixture")]
+#[command(name = "corpus")]
 struct Args {
     /// Fixture name or path to a fixture directory.
     path: PathBuf,

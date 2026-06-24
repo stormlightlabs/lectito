@@ -1245,21 +1245,21 @@ mod tests {
         let examples = [
             (
                 "leaflet",
-                include_str!("../fixtures/atproto/leaflet.json"),
+                include_str!("../../fixtures/atproto/leaflet.json"),
                 "did:plc:4vjd3fe2cgzq5d24j4f3zvar",
                 "https://hydnum.us-west.host.bsky.network",
                 "Skyreader update",
             ),
             (
                 "pckt",
-                include_str!("../fixtures/atproto/pckt.json"),
+                include_str!("../../fixtures/atproto/pckt.json"),
                 "did:plc:lqmen5vsre5oabzmepfv3r7e",
                 "https://shimeji.us-east.host.bsky.network",
                 "Hello, Forest",
             ),
             (
                 "offprint",
-                include_str!("../fixtures/atproto/offprint.json"),
+                include_str!("../../fixtures/atproto/offprint.json"),
                 "did:plc:4hodhjl2kposuchzvpiviwps",
                 "https://gomphus.us-west.host.bsky.network",
                 "Agentic Software Development",

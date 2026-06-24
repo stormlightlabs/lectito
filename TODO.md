@@ -1,6 +1,6 @@
 # To-Dos
 
-## Release Preparation
+## Release Prep
 
 - Keep package metadata current for the public crates:
   - `lectito`
@@ -14,21 +14,3 @@
   - Publish dry-runs for public crates.
 - Include `wasm-pack test --node` and `wasm-pack build` checks for the
   `bundler`, `web`, and `nodejs` WASM targets.
-
-## Atproto
-
-- URLS:
-  - https://standard.site/
-  - https://atproto.com/blog/standard-site-bluesky-timeline
-  - https://jola.dev/posts/publishing-your-blog
-- [x] Preserve rich-text facets when rendering Standard.site content records.
-- [x] Resolve blob images into usable image URLs.
-- [x] Render footnotes from publisher block records.
-- [x] Render embedded Standard.site posts.
-- [x] Render Bluesky post embeds.
-- [x] Render web bookmark and web embed blocks.
-- [x] Render tables from publisher block records.
-- [x] Render math blocks.
-- [x] Keep image captions and alt text when the publisher supplies both.
-- [x] Add frozen fixtures for Leaflet, pckt, and Offprint records.
-- [x] Report Standard.site resolution and rendering warnings in diagnostics.
