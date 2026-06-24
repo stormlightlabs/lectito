@@ -315,7 +315,7 @@ fn article_title(document: &Html) -> Option<String> {
 }
 
 fn prefer_specific_headline(document: &Html, site_name: Option<&str>, title: &str) -> Option<String> {
-    let title = patterns::normalize_spaces(title.trim());
+    let title = clean_title_chrome(&patterns::normalize_spaces(title.trim()));
     if title.is_empty() {
         return None;
     }
@@ -334,6 +334,17 @@ fn prefer_specific_headline(document: &Html, site_name: Option<&str>, title: &st
     }
 
     Some(title)
+}
+
+fn clean_title_chrome(title: &str) -> String {
+    ["Stay organized with collections Save and categorize content based on your preferences."]
+        .iter()
+        .fold(title.to_string(), |title, suffix| {
+            title
+                .strip_suffix(suffix)
+                .map(|title| patterns::normalize_spaces(title.trim().trim_matches(['-', '|', '•']).trim()))
+                .unwrap_or(title)
+        })
 }
 
 fn specific_heading(document: &Html) -> Option<String> {
@@ -600,5 +611,18 @@ mod tests {
 
         assert_eq!(metadata.title.as_deref(), Some("Datasette Agent"));
         assert_eq!(metadata.site_name.as_deref(), Some("Simon Willison’s Weblog"));
+    }
+
+    #[test]
+    fn removes_web_dev_collection_ui_from_titles() {
+        let html = r#"
+            <html><head>
+                <meta property="og:title" content="Responsive images Stay organized with collections Save and categorize content based on your preferences.">
+            </head><body><main><h1>Responsive images</h1></main></body></html>
+        "#;
+        let document = Html::parse_document(html);
+        let metadata = extract_metadata(&document, html, &ReadabilityOptions::default(), None);
+
+        assert_eq!(metadata.title.as_deref(), Some("Responsive images"));
     }
 }

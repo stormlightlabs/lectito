@@ -21,6 +21,7 @@ pub fn cleanup_article(
         );
         apply_media_retention(node, opts.media_retention);
         clean_embeds(node, opts.media_retention);
+        remove_app_doc_controls(node);
         remove_share_nodes(node);
         remove_trailing_page_chrome(node);
         clean_headers(node, metadata.title.as_deref(), flags);
@@ -173,6 +174,38 @@ fn remove_share_nodes(root: &NodeRef) {
             node.detach();
         }
     }
+}
+
+fn remove_app_doc_controls(root: &NodeRef) {
+    for node in dom::select_nodes(root, "button, [role='button']") {
+        if is_doc_control_button(&node) {
+            node.detach();
+        }
+    }
+
+    for node in dom::select_nodes(root, "[role='tablist']") {
+        if is_orphan_doc_tablist(&node) {
+            node.detach();
+        }
+    }
+}
+
+fn is_doc_control_button(node: &NodeRef) -> bool {
+    let label = dom::attr(node, "aria-label")
+        .or_else(|| dom::attr(node, "title"))
+        .unwrap_or_else(|| dom::inner_text(node));
+    let label = super::patterns::normalize_spaces(&label).to_ascii_lowercase();
+    matches!(
+        label.as_str(),
+        "copy" | "copy code" | "copied" | "copied!" | "copy page" | "copy page contents"
+    )
+}
+
+fn is_orphan_doc_tablist(node: &NodeRef) -> bool {
+    let text_len = dom::inner_text(node).chars().count();
+    text_len <= 120
+        && dom::select_nodes(node, "pre, code").is_empty()
+        && !dom::select_nodes(node, "[role='tab'], button").is_empty()
 }
 
 fn remove_trailing_page_chrome(root: &NodeRef) {

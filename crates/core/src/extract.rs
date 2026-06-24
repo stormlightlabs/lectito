@@ -576,15 +576,21 @@ fn grab_article(
         candidate.score *= 1.0 - scoring::link_density(&candidate.node);
     }
 
+    let max_candidate_score = candidates
+        .iter()
+        .map(|candidate| candidate.score)
+        .max_by(|a, b| a.total_cmp(b))
+        .unwrap_or(0.0);
     let selected_entry_id = selected_entry_point(&entry_points).map(|entry_point| {
         let id = dom::node_id(&entry_point.node);
+        let preferred_score = entry_point.score.max(max_candidate_score + 25.0);
         if let Some(candidate) = candidates
             .iter_mut()
             .find(|candidate| dom::node_id(&candidate.node) == id)
         {
-            candidate.score = candidate.score.max(entry_point.score);
+            candidate.score = candidate.score.max(preferred_score);
         } else {
-            candidates.push(Candidate { node: entry_point.node.clone(), score: entry_point.score });
+            candidates.push(Candidate { node: entry_point.node.clone(), score: preferred_score });
         }
         id
     });
@@ -1547,6 +1553,70 @@ mod tests {
         let shadow_article = shadow.article.unwrap();
         assert!(shadow_article.text_content.contains("shadow article"));
         assert!(shadow.diagnostics.attempts[0].recovery.shadow_roots_flattened > 0);
+    }
+
+    #[test]
+    fn prefers_focused_main_over_body_app_shell() {
+        let report = extract_with_diagnostics(
+            r#"
+            <html><head><title>Focused docs</title></head><body class="antialiased">
+                <nav>
+                    <a href="/a">Overview</a><a href="/b">SDKs</a><a href="/c">API</a>
+                    <a href="/d">Guides</a><a href="/e">Examples</a><a href="/f">Changelog</a>
+                </nav>
+                <main id="content-container">
+                    <h1>Focused docs</h1>
+                    <p>This documentation page has enough focused prose, commas, and detail to be selected as the article root.</p>
+                    <p>The body also contains an app shell, but this main element is the useful content readers requested.</p>
+                </main>
+                <footer><a href="/privacy">Privacy</a><a href="/terms">Terms</a></footer>
+            </body></html>
+            "#,
+            Some("https://example.com/docs/code"),
+            &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+        )
+        .unwrap();
+        let article = report.article.unwrap();
+        let selected = report.diagnostics.attempts[0]
+            .selected_root
+            .as_ref()
+            .map(|node| node.selector.as_str());
+
+        assert_eq!(selected, Some("main#content-container"));
+        assert!(article.text_content.contains("useful content readers requested"));
+        assert!(!article.text_content.contains("OverviewSDKsAPI"));
+    }
+
+    #[test]
+    fn removes_doc_controls_without_dropping_code_panels() {
+        let article = extract(
+            r#"
+            <html><head><title>Tabbed code docs</title></head><body>
+                <main>
+                    <h1>Tabbed code docs</h1>
+                    <p>This page explains a code sample with enough prose to be readable and selected correctly.</p>
+                    <button aria-label="Copy page"><svg></svg>Copy page</button>
+                    <div role="tablist"><button role="tab">JavaScript</button><button role="tab">Python</button></div>
+                    <section>
+                        <pre data-language="js"><code>client.extract(url)</code></pre>
+                    </section>
+                    <p>The code panel should remain while toolbar controls and orphan labels are removed.</p>
+                </main>
+            </body></html>
+            "#,
+            Some("https://example.com/docs/create/code"),
+            &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert!(
+            article
+                .content
+                .contains("<pre data-language=\"js\"><code data-language=\"js\">client.extract(url)</code></pre>")
+        );
+        assert!(!article.text_content.contains("Copy page"));
+        assert!(!article.text_content.contains("JavaScriptPython"));
     }
 
     #[test]

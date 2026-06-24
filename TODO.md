@@ -19,30 +19,30 @@
 
 ### `examples.txt` Audit
 
-- [ ] Fix MDN-style code block rendering.
+- [x] Fix MDN-style code block rendering.
       URL:
   - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy
   - Keep usable `<pre><code>` nodes, normalize language IDs such as
     `js notranslate`, remove sibling language labels, and add a focused fixture.
-- [ ] Clean app-doc controls from Mintlify-style pages.
+- [x] Clean app-doc controls from Mintlify-style pages.
   - URL: https://www.mintlify.com/docs/create/code
   - Remove duplicated `Copy page` SVG/button text and tab labels without their
     code panels. Extend button/control cleanup and add a fixture for tabbed code
     docs.
-- [ ] Improve modern docs root scoring.
+- [x] Improve modern docs root scoring.
   - URL: https://mintlify.com/docs/code
   - Prefer focused `main`/article roots over body-level app shells when both are
     available. Mintlify can select `body.antialiased` and clean it to empty
     before accepting `main#content-container`.
-- [ ] Tighten web.dev title cleanup.
+- [x] Tighten web.dev title cleanup.
   - URL: https://web.dev/articles/responsive-images
   - Remove UI suffixes such as `Stay organized with collections Save and
 categorize content based on your preferences.` from metadata titles.
 - [ ] Decide whether site-profile extraction should still absolutize URLs when
       cleanup is disabled.
-      URL: https://en.wikipedia.org/wiki/Hermitian_matrix
-      Wikipedia profile output can keep links such as `/wiki/Hermitian_matrix` even
-      when the CLI input is a URL.
+  - URL: https://en.wikipedia.org/wiki/Hermitian_matrix
+  - Wikipedia profile output can keep links such as `/wiki/Hermitian_matrix` even
+    when the CLI input is a URL.
 - [ ] Improve Rustdoc output polish.
   - URL: https://docs.rs/serde/latest/serde/
   - Remove `Expand description`, strip section permalink glyphs such as `§`, and

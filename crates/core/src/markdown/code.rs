@@ -132,10 +132,15 @@ fn clean_lang_id(value: &str) -> Option<String> {
         .trim()
         .trim_matches(|c: char| c == ';' || c == ':' || c == ',' || c == '"' || c == '\'')
         .to_ascii_lowercase();
-    if value.is_empty() || matches!(value.as_str(), "none" | "text" | "plain" | "plaintext") {
+    let value = value
+        .split_whitespace()
+        .find(|part| !matches!(*part, "notranslate" | "highlight" | "syntax"))
+        .unwrap_or_default()
+        .trim_matches(|c: char| c == ';' || c == ':' || c == ',' || c == '"' || c == '\'');
+    if value.is_empty() || matches!(value, "none" | "text" | "plain" | "plaintext") {
         None
     } else {
-        Some(value)
+        Some(value.to_string())
     }
 }
 
@@ -192,6 +197,7 @@ pub(super) fn is_highlighter_chrome(node: &NodeRef) -> bool {
         "copy-button",
         "clipboard",
         "filename",
+        "language-name",
         "code-header",
         "code-title",
         "codemirror-gutters",
@@ -426,5 +432,19 @@ mod tests {
             markdown.contains("```jsx\nexport const Button = () => (\n  <button>Save</button>\n);\n```"),
             "{markdown}"
         );
+    }
+
+    #[test]
+    fn normalizes_mdn_language_classes_and_labels() {
+        let markdown = html_to_markdown(
+            r#"<div class="code-example"><div class="example-header"><span class="language-name">JavaScript</span></div><pre class="brush: js notranslate"><code>const proxy = new Proxy(target, handler);</code></pre></div>"#,
+        );
+
+        assert!(
+            markdown.contains("```js\nconst proxy = new Proxy(target, handler);\n```"),
+            "{markdown}"
+        );
+        assert!(!markdown.contains("JavaScript"), "{markdown}");
+        assert!(!markdown.contains("notranslate"), "{markdown}");
     }
 }
