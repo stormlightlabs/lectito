@@ -21,6 +21,8 @@ pub fn cleanup_article(
         );
         apply_media_retention(node, opts.media_retention);
         clean_embeds(node, opts.media_retention);
+        remove_media_player_chrome(node);
+        remove_gallery_chrome(node);
         remove_app_doc_controls(node);
         remove_rustdoc_controls(node);
         remove_mdn_chrome(node);
@@ -112,6 +114,44 @@ fn allowed_video(value: &str) -> bool {
     ]
     .iter()
     .any(|needle| value.contains(needle))
+}
+
+fn remove_media_player_chrome(root: &NodeRef) {
+    for node in dom::select_nodes(root, "*") {
+        if is_video_player_chrome(&node) {
+            node.detach();
+        }
+    }
+}
+
+fn is_video_player_chrome(node: &NodeRef) -> bool {
+    let attrs = dom::class_id_string(node).to_ascii_lowercase();
+    attrs
+        .split_whitespace()
+        .any(|part| part == "video-js" || part.starts_with("vjs-"))
+}
+
+fn remove_gallery_chrome(root: &NodeRef) {
+    for node in dom::select_nodes(root, "*") {
+        if is_gallery_chrome(&node) {
+            node.detach();
+        }
+    }
+}
+
+fn is_gallery_chrome(node: &NodeRef) -> bool {
+    let attrs = dom::class_id_string(node).to_ascii_lowercase();
+    if !(attrs.contains("gallery") || attrs.contains("slideshow") || attrs.contains("slide-show")) {
+        return false;
+    }
+
+    let item_count = dom::select_nodes(node, "[data-gallery-item], [data-gallery-legend], .slide").len();
+    if item_count >= 3 {
+        return true;
+    }
+
+    let text = dom::inner_text(node).to_ascii_lowercase();
+    text.contains("show all") || text.contains("featured slide shows") || text.contains("recent slide shows")
 }
 
 fn clean_styles(node: &NodeRef) {

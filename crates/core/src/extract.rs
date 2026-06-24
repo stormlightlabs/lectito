@@ -25,6 +25,7 @@ const KNOWN_CONTENT_SELECTORS: &[&str] = &[
     ".article__body",
     ".article-content",
     ".article__content",
+    ".articleContent",
     ".entry-content",
     ".post-content",
     ".content-wrapper",
@@ -414,6 +415,10 @@ fn extremely_short(attempt: &ExtractAttempt) -> bool {
 }
 
 fn far_below_best_content_signal(text_len: usize, diagnostic: &AttemptDiagnostic, char_threshold: usize) -> bool {
+    if text_len >= char_threshold.saturating_mul(4).max(2_000) {
+        return false;
+    }
+
     best_content_signal_len(diagnostic) >= char_threshold.saturating_mul(2).max(1)
         && text_len.saturating_mul(SUSPICIOUS_SIGNAL_RATIO) < best_content_signal_len(diagnostic)
 }
@@ -995,6 +1000,37 @@ mod tests {
     }
 
     #[test]
+    fn accepts_camel_case_article_content_container_before_scoring() {
+        let body = (0..10)
+            .map(|index| {
+                format!(
+                    "<p>This camel-case article content paragraph {index} has enough prose, \
+                    punctuation, and detail to be the focused story body.</p>"
+                )
+            })
+            .collect::<String>();
+        let html = format!(
+            r#"
+            <html><body>
+                <div class="horizontalPostList">
+                    <div class="slideShow">
+                        <p>A promoted slideshow should not become the article root.</p>
+                    </div>
+                </div>
+                <div class="articleContent">{body}</div>
+            </body></html>
+            "#
+        );
+
+        let report = extract_with_diagnostics(&html, None, &ReadabilityOptions::default()).unwrap();
+        let article = report.article.unwrap();
+
+        assert_eq!(report.diagnostics.selected_attempt, Some(0));
+        assert!(article.text_content.contains("camel-case article content paragraph 9"));
+        assert!(!article.text_content.contains("promoted slideshow"));
+    }
+
+    #[test]
     fn reports_invalid_base_url_and_element_limit() {
         let invalid_url = extract(
             "<html><body><p>text</p></body></html>",
@@ -1294,6 +1330,43 @@ mod tests {
         assert_eq!(report.diagnostics.selected_attempt, Some(2));
         assert_eq!(report.diagnostics.attempts.len(), 3);
         assert!(article.text_content.contains("Recovered paragraph 11"));
+    }
+
+    #[test]
+    fn keeps_substantial_clean_result_instead_of_accepting_page_chrome() {
+        let article_paragraphs = (0..24)
+            .map(|index| {
+                format!(
+                    "<p>Article paragraph {index} has useful prose, commas, and enough \
+                    detail to make the cleaned result substantial without nearby cards.</p>"
+                )
+            })
+            .collect::<String>();
+        let link_cards = (0..30)
+            .map(|index| {
+                format!(
+                    r#"<li><a href="/story-{index}">Related story {index}</a>
+                    <p>Teaser copy that should stay out of the readable article.</p></li>"#
+                )
+            })
+            .collect::<String>();
+        let html = format!(
+            r#"
+            <html><body>
+                <main>
+                    <article>{article_paragraphs}</article>
+                    <section class="related"><h2>More stories</h2><ol>{link_cards}</ol></section>
+                </main>
+            </body></html>
+            "#
+        );
+
+        let report = extract_with_diagnostics(&html, None, &ReadabilityOptions::default()).unwrap();
+        let article = report.article.unwrap();
+
+        assert_eq!(report.diagnostics.selected_attempt, Some(0));
+        assert!(article.text_content.contains("Article paragraph 23"));
+        assert!(!article.text_content.contains("Teaser copy"));
     }
 
     #[test]

@@ -105,7 +105,9 @@ cargo run -p lectito-fixtures --bin corpus -- --all
 ```
 
 The aggregate audit reports readability, metadata, normalized text, and tag
-sequence pass counts.
+sequence pass counts. We want to use text deltas as the primary body-quality signal.
+Treat tag-only mismatches as low priority unless the output is less readable or loses
+important tables, media, footnotes, or code.
 
 It also prints a metadata-field mismatch histogram so publisher metadata drift
 can be reviewed without inspecting every fixture by hand.
