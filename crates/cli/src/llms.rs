@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
 use std::io::{self, Read};
@@ -45,11 +46,12 @@ struct LlmsSource {
 struct CrawlItem {
     target: String,
     depth: usize,
+    sitemap_lastmod: Option<String>,
 }
 
 impl CrawlItem {
     fn new(target: String, depth: usize) -> Self {
-        Self { target, depth }
+        Self { target, depth, sitemap_lastmod: None }
     }
 }
 
@@ -57,12 +59,22 @@ struct CrawlPage {
     id: String,
     html: String,
     base_url: Option<String>,
+    last_modified: Option<String>,
 }
 
 struct CrawledEntry {
     title: String,
     url: String,
     notes: Option<String>,
+    last_modified: Option<String>,
+    markdown: String,
+    source_index: usize,
+    rank_score: i32,
+}
+
+struct SitemapUrl {
+    url: String,
+    lastmod: Option<String>,
 }
 
 struct GenerateFilters {
@@ -331,8 +343,8 @@ fn run_expand(args: LlmsExpandArgs) -> Result<ExitCode> {
 
     for link in links {
         let resolved = resolve_link(&link.url, source.base.as_deref())?;
-        let content = read_resource_markdown(&resolved, args.timeout)
-            .with_context(|| format!("failed to expand {}", link.url))?;
+        let content =
+            read_resource_md(&resolved, args.timeout).with_context(|| format!("failed to expand {}", link.url))?;
 
         output.push_str("---\n\n");
         output.push_str("# Source: ");
@@ -373,13 +385,18 @@ fn run_generate(args: LlmsGenerateArgs) -> Result<ExitCode> {
         .or_else(|| entries.first().map(|entry| entry.title.clone()))
         .unwrap_or_else(|| "Site documentation".to_string());
     let source = args.sitemap.as_deref().or(args.input.as_deref()).unwrap_or("sitemap");
-    let summary = args
-        .summary
-        .clone()
-        .unwrap_or_else(|| format!("Readable pages discovered from {}.", display_seed(source)));
+    let summary = args.summary.clone().unwrap_or_else(|| {
+        format!(
+            "Readable pages discovered from {}.",
+            source.trim_end_matches('/').to_string()
+        )
+    });
     let output = render_generated_llms_txt(&title, &summary, &args.section, &entries);
 
     write_output(args.output.as_ref(), &output)?;
+    if let Some(path) = args.full_output.as_ref() {
+        write_output(Some(path), &render_generated_full_context(&title, &summary, &entries))?;
+    }
     Ok(if entries.is_empty() { ExitCode::from(1) } else { ExitCode::SUCCESS })
 }
 
@@ -433,7 +450,7 @@ fn crawl_entries(args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
             }
         };
 
-        if let Some(entry) = crawled_entry(&page, args.timeout)? {
+        if let Some(entry) = crawled_entry(&page, args.timeout, entries.len(), item.sitemap_lastmod.as_deref())? {
             entries.push(entry);
         }
 
@@ -448,11 +465,11 @@ fn crawl_entries(args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
         }
     }
 
-    Ok(entries)
+    Ok(ranked_entries(entries))
 }
 
 fn sitemap_entries(input: &str, args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
-    let urls = sitemap_urls(input, args.max_sitemaps, args.max_pages)?;
+    let urls = sitemap_urls_from_inputs(vec![input.to_string()], args.max_sitemaps, args.max_pages)?;
     entries_from_urls(urls, args)
 }
 
@@ -462,43 +479,43 @@ fn discovered_sitemap_entries(input: &str, args: &LlmsGenerateArgs) -> Result<Ve
     entries_from_urls(urls, args)
 }
 
-fn entries_from_urls(urls: Vec<String>, args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
+fn entries_from_urls(urls: Vec<SitemapUrl>, args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
     let mut entries = Vec::new();
     let mut throttle = FetchThrottle::new(args.delay_ms);
     let filters = GenerateFilters::new(args)?;
     let mut robots = RobotsCache::new(&args.robots_user_agent, args.ignore_robots);
 
-    for url in urls.into_iter().take(args.max_pages) {
-        if !passes_filters(&url, &filters) {
+    for candidate in urls.into_iter().take(args.max_pages) {
+        if !passes_filters(&candidate.url, &filters) {
             continue;
         }
-        if !Url::parse(&url)
+        if !Url::parse(&candidate.url)
             .ok()
             .is_none_or(|parsed| crawlable_url_path(parsed.path()))
         {
             continue;
         }
 
-        if !robots.allowed(&url) {
-            eprintln!("lectito: skipping {url}: disallowed by robots.txt");
+        if !robots.allowed(&candidate.url) {
+            eprintln!("lectito: skipping {}: disallowed by robots.txt", candidate.url);
             continue;
         }
 
         throttle.wait();
-        let page = match read_crawl_page(&url) {
+        let page = match read_crawl_page(&candidate.url) {
             Ok(page) => page,
             Err(error) => {
-                eprintln!("lectito: skipping {url}: {error:#}");
+                eprintln!("lectito: skipping {}: {error:#}", candidate.url);
                 continue;
             }
         };
 
-        if let Some(entry) = crawled_entry(&page, args.timeout)? {
+        if let Some(entry) = crawled_entry(&page, args.timeout, entries.len(), candidate.lastmod.as_deref())? {
             entries.push(entry);
         }
     }
 
-    Ok(entries)
+    Ok(ranked_entries(entries))
 }
 
 fn validate_filters(values: &[String], name: &str) -> Result<()> {
@@ -678,11 +695,7 @@ fn wildcard_match(pattern: &str, value: &str) -> bool {
     p == pattern.len()
 }
 
-fn sitemap_urls(input: &str, max_sitemaps: usize, max_urls: usize) -> Result<Vec<String>> {
-    sitemap_urls_from_inputs(vec![input.to_string()], max_sitemaps, max_urls)
-}
-
-fn sitemap_urls_from_inputs(inputs: Vec<String>, max_sitemaps: usize, max_urls: usize) -> Result<Vec<String>> {
+fn sitemap_urls_from_inputs(inputs: Vec<String>, max_sitemaps: usize, max_urls: usize) -> Result<Vec<SitemapUrl>> {
     let mut sitemap_queue = inputs
         .into_iter()
         .map(|input| {
@@ -713,7 +726,7 @@ fn sitemap_urls_from_inputs(inputs: Vec<String>, max_sitemaps: usize, max_urls: 
                         continue;
                     }
                     if seen_urls.insert(url.clone()) {
-                        urls.push(url);
+                        urls.push(SitemapUrl { url, lastmod: entry.lastmod.get_time().map(|time| time.to_rfc3339()) });
                         if urls.len() >= max_urls {
                             break;
                         }
@@ -806,7 +819,8 @@ fn read_crawl_page(input: &str) -> Result<CrawlPage> {
         let document = fetch::InputDocument::read_src(Some(input), false, None)?;
         let base_url = document.base_url().map(str::to_string);
         let id = base_url.clone().unwrap_or_else(|| input.to_string());
-        return Ok(CrawlPage { id, html: document.html().to_string(), base_url });
+        let last_modified = document.last_modified().map(str::to_string);
+        return Ok(CrawlPage { id, html: document.html().to_string(), base_url, last_modified });
     }
 
     if input.starts_with("file://") {
@@ -815,15 +829,17 @@ fn read_crawl_page(input: &str) -> Result<CrawlPage> {
             .to_file_path()
             .map_err(|_| anyhow::anyhow!("file URL cannot be converted to a local path: {input}"))?;
         let html = fs::read_to_string(&path).with_context(|| format!("failed to read {}", path.display()))?;
-        return Ok(CrawlPage { id: input.to_string(), html, base_url: None });
+        return Ok(CrawlPage { id: input.to_string(), html, base_url: None, last_modified: None });
     }
 
     let path = Path::new(input);
     let html = fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
-    Ok(CrawlPage { id: path.to_string_lossy().to_string(), html, base_url: None })
+    Ok(CrawlPage { id: path.to_string_lossy().to_string(), html, base_url: None, last_modified: None })
 }
 
-fn crawled_entry(page: &CrawlPage, timeout: u64) -> Result<Option<CrawledEntry>> {
+fn crawled_entry(
+    page: &CrawlPage, timeout: u64, source_index: usize, sitemap_lastmod: Option<&str>,
+) -> Result<Option<CrawledEntry>> {
     let options = ReadabilityOptions::default();
     let Some(report) = super::extract_with_timeout(&page.html, page.base_url.as_deref(), options, timeout)? else {
         eprintln!("lectito: extraction timed out for {}", page.id);
@@ -840,13 +856,136 @@ fn crawled_entry(page: &CrawlPage, timeout: u64) -> Result<Option<CrawledEntry>>
         .unwrap_or(page.id.as_str())
         .trim()
         .to_string();
-    let notes = article
-        .excerpt
-        .as_deref()
-        .map(clean_note)
-        .filter(|note| !note.is_empty());
+    let last_modified = page.last_modified.as_deref().or(sitemap_lastmod).map(str::to_string);
+    let notes = entry_notes(article.excerpt.as_deref(), last_modified.as_deref());
+    let url = canonical_page_url(&page.html, page.base_url.as_deref()).unwrap_or_else(|| page.id.clone());
+    let markdown = echo::render_article(
+        Some(&article),
+        echo::RenderOptions::new(
+            crate::cli::OutputFormat::Markdown,
+            false,
+            page.base_url.as_deref(),
+            false,
+        ),
+    )?;
+    let rank_score = entry_rank_score(&title, &url, &notes, last_modified.as_deref());
 
-    Ok(Some(CrawledEntry { title, url: page.id.clone(), notes }))
+    Ok(Some(CrawledEntry {
+        title,
+        url,
+        notes,
+        last_modified,
+        markdown,
+        source_index,
+        rank_score,
+    }))
+}
+
+fn canonical_page_url(html: &str, base_url: Option<&str>) -> Option<String> {
+    let document = Html::parse_document(html);
+    let selector = Selector::parse("link[rel][href]").expect("valid canonical selector");
+
+    document.select(&selector).find_map(|link| {
+        let rel = link.value().attr("rel")?;
+        if !rel
+            .split_whitespace()
+            .any(|value| value.eq_ignore_ascii_case("canonical"))
+        {
+            return None;
+        }
+        let href = link.value().attr("href")?.trim();
+        if href.is_empty() {
+            return None;
+        }
+        normalized_page_url(href, base_url)
+    })
+}
+
+fn normalized_page_url(value: &str, base_url: Option<&str>) -> Option<String> {
+    let mut url = if let Ok(url) = Url::parse(value) { url } else { Url::parse(base_url?).ok()?.join(value).ok()? };
+    url.set_fragment(None);
+    Some(url.to_string())
+}
+
+fn entry_notes(excerpt: Option<&str>, last_modified: Option<&str>) -> Option<String> {
+    let mut parts = Vec::new();
+    if let Some(last_modified) = last_modified.and_then(clean_modified_time) {
+        parts.push(format!("Updated: {last_modified}."));
+    }
+    if let Some(excerpt) = excerpt.map(clean_note).filter(|note| !note.is_empty()) {
+        parts.push(excerpt);
+    }
+    (!parts.is_empty()).then(|| clean_note(&parts.join(" ")))
+}
+
+fn clean_modified_time(value: &str) -> Option<String> {
+    let value = value.trim();
+    if value.is_empty() { None } else { Some(value.to_string()) }
+}
+
+fn ranked_entries(entries: Vec<CrawledEntry>) -> Vec<CrawledEntry> {
+    let mut best_by_url = HashMap::<String, CrawledEntry>::new();
+    for entry in entries {
+        match best_by_url.get(&entry.url) {
+            Some(existing) if compare_entries(existing, &entry) != Ordering::Greater => {}
+            _ => {
+                best_by_url.insert(entry.url.clone(), entry);
+            }
+        }
+    }
+
+    let mut entries = best_by_url.into_values().collect::<Vec<_>>();
+    entries.sort_by(|left, right| compare_entries(left, right));
+    entries
+}
+
+fn compare_entries(left: &CrawledEntry, right: &CrawledEntry) -> Ordering {
+    right
+        .rank_score
+        .cmp(&left.rank_score)
+        .then_with(|| right.last_modified.cmp(&left.last_modified))
+        .then_with(|| left.source_index.cmp(&right.source_index))
+        .then_with(|| left.title.cmp(&right.title))
+}
+
+fn entry_rank_score(title: &str, url: &str, notes: &Option<String>, last_modified: Option<&str>) -> i32 {
+    let title = title.to_ascii_lowercase();
+    let path = Url::parse(url)
+        .ok()
+        .map(|url| url.path().trim_matches('/').to_ascii_lowercase())
+        .unwrap_or_else(|| url.to_ascii_lowercase());
+    let segments = path.split('/').filter(|segment| !segment.is_empty()).count() as i32;
+    let mut score = 100 - (segments * 4);
+
+    for signal in [
+        "quickstart",
+        "quick-start",
+        "getting-started",
+        "guide",
+        "docs",
+        "reference",
+        "api",
+    ] {
+        if title.contains(signal) || path.contains(signal) {
+            score += 10;
+        }
+    }
+    for weak_signal in ["tag", "category", "archive", "page/", "feed", "changelog", "release"] {
+        if path.contains(weak_signal) {
+            score -= 12;
+        }
+    }
+    if path.is_empty() || path == "docs" || path.ends_with("/index") || path.ends_with("/index.html") {
+        score += 16;
+    }
+    if notes.as_deref().is_some_and(|note| note.len() > 40) {
+        score += 4;
+    }
+    if last_modified.is_some() {
+        score += 2;
+    }
+
+    score
 }
 
 fn discover_links(page: &CrawlPage, seed: &str) -> Vec<String> {
@@ -955,7 +1094,13 @@ fn render_generated_llms_txt(title: &str, summary: &str, section: &str, entries:
 
     for entry in entries {
         output.push_str("- [");
-        output.push_str(&escape_link_label(&entry.title));
+        output.push_str(
+            &entry
+                .title
+                .replace('\\', "\\\\")
+                .replace('[', "\\[")
+                .replace(']', "\\]"),
+        );
         output.push_str("](");
         output.push_str(&entry.url.replace(' ', "%20").replace(')', "%29"));
         output.push(')');
@@ -969,8 +1114,36 @@ fn render_generated_llms_txt(title: &str, summary: &str, section: &str, entries:
     output
 }
 
-fn display_seed(input: &str) -> String {
-    input.trim_end_matches('/').to_string()
+fn render_generated_full_context(title: &str, summary: &str, entries: &[CrawledEntry]) -> String {
+    let mut output = String::new();
+    output.push_str("# ");
+    output.push_str(&clean_heading(title));
+    output.push_str("\n\n> ");
+    output.push_str(&clean_note(summary));
+    output.push_str("\n\nGenerated by Lectito from crawled readable pages.\n\n");
+
+    for entry in entries {
+        output.push_str("---\n\n# Source: ");
+        output.push_str(&clean_heading(&entry.title));
+        output.push('\n');
+        output.push_str("URL: ");
+        output.push_str(&entry.url);
+        if let Some(last_modified) = entry.last_modified.as_deref() {
+            output.push('\n');
+            output.push_str("Updated: ");
+            output.push_str(last_modified);
+        }
+        if let Some(notes) = entry.notes.as_deref() {
+            output.push('\n');
+            output.push_str("Notes: ");
+            output.push_str(notes);
+        }
+        output.push_str("\n\n");
+        output.push_str(entry.markdown.trim());
+        output.push_str("\n\n");
+    }
+
+    output
 }
 
 fn selected_links(document: &LlmsDocument, include_optional: bool, max_links: usize) -> Vec<LlmsLink> {
@@ -1011,23 +1184,23 @@ fn llms_url(input: &str) -> Result<Url> {
     Ok(url)
 }
 
-fn read_resource_markdown(input: &str, timeout: u64) -> Result<String> {
+fn read_resource_md(input: &str, timeout: u64) -> Result<String> {
     if input.starts_with("http://") || input.starts_with("https://") {
         let document = fetch::InputDocument::read_src(Some(input), false, None)?;
         if looks_like_md(input, document.content_type(), document.html()) {
             return Ok(document.html().to_string());
         }
-        return extract_resource_markdown(document.html(), document.base_url(), timeout);
+        return extract_resource_md(document.html(), document.base_url(), timeout);
     }
 
     let text = fs::read_to_string(input).with_context(|| format!("failed to read {input}"))?;
     if looks_like_md(input, None, &text) {
         return Ok(text);
     }
-    extract_resource_markdown(&text, None, timeout)
+    extract_resource_md(&text, None, timeout)
 }
 
-fn extract_resource_markdown(html: &str, base_url: Option<&str>, timeout: u64) -> Result<String> {
+fn extract_resource_md(html: &str, base_url: Option<&str>, timeout: u64) -> Result<String> {
     let options = ReadabilityOptions::default();
     let Some(report) = super::extract_with_timeout(html, base_url, options, timeout)? else {
         anyhow::bail!("extraction timed out after {timeout}s");
@@ -1143,10 +1316,6 @@ fn clean_note(value: &str) -> String {
     clipped
 }
 
-fn escape_link_label(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('[', "\\[").replace(']', "\\]")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1211,6 +1380,7 @@ Use Markdown outputs for agent context.
         let page = CrawlPage {
             id: "https://example.com/docs/index.html".to_string(),
             base_url: Some("https://example.com/docs/index.html".to_string()),
+            last_modified: None,
             html: r##"
                 <a href="/docs/guide.html#intro">Guide</a>
                 <a href="https://other.example/docs/offsite.html">Offsite</a>
@@ -1235,12 +1405,89 @@ Use Markdown outputs for agent context.
                 title: "A [guide]".to_string(),
                 url: "https://example.com/a guide.html".to_string(),
                 notes: Some("Short note.".to_string()),
+                last_modified: None,
+                markdown: "# A guide\n\nBody.".to_string(),
+                source_index: 0,
+                rank_score: 0,
             }],
         );
 
         assert!(output.contains("# Example"));
         assert!(output.contains("## Guides"));
         assert!(output.contains("- [A \\[guide\\]](https://example.com/a%20guide.html): Short note."));
+    }
+
+    #[test]
+    fn canonical_page_url_resolves_relative_href() {
+        let url = canonical_page_url(
+            r#"<html><head><link rel="canonical" href="../guide/"></head></html>"#,
+            Some("https://example.com/docs/page.html"),
+        );
+
+        assert_eq!(url.as_deref(), Some("https://example.com/guide/"));
+    }
+
+    #[test]
+    fn entry_notes_include_modified_time_before_excerpt() {
+        let notes = entry_notes(Some("A concise page summary."), Some("Wed, 01 May 2024 10:00:00 GMT"));
+
+        assert_eq!(
+            notes.as_deref(),
+            Some("Updated: Wed, 01 May 2024 10:00:00 GMT. A concise page summary.")
+        );
+    }
+
+    #[test]
+    fn ranked_entries_prefers_important_and_recent_pages() {
+        let entries = ranked_entries(vec![
+            CrawledEntry {
+                title: "Archive".to_string(),
+                url: "https://example.com/blog/archive/page".to_string(),
+                notes: None,
+                last_modified: None,
+                markdown: "Archive".to_string(),
+                source_index: 0,
+                rank_score: entry_rank_score("Archive", "https://example.com/blog/archive/page", &None, None),
+            },
+            CrawledEntry {
+                title: "API Reference".to_string(),
+                url: "https://example.com/docs/api".to_string(),
+                notes: Some("Reference docs for the API.".to_string()),
+                last_modified: Some("2025-01-01T00:00:00+00:00".to_string()),
+                markdown: "API".to_string(),
+                source_index: 1,
+                rank_score: entry_rank_score(
+                    "API Reference",
+                    "https://example.com/docs/api",
+                    &Some("Reference docs for the API.".to_string()),
+                    Some("2025-01-01T00:00:00+00:00"),
+                ),
+            },
+        ]);
+
+        assert_eq!(entries[0].title, "API Reference");
+    }
+
+    #[test]
+    fn renders_generated_full_context() {
+        let output = render_generated_full_context(
+            "Example",
+            "Readable pages.",
+            &[CrawledEntry {
+                title: "Guide".to_string(),
+                url: "https://example.com/guide".to_string(),
+                notes: Some("Updated: 2025-01-01. Summary.".to_string()),
+                last_modified: Some("2025-01-01".to_string()),
+                markdown: "# Guide\n\nBody.".to_string(),
+                source_index: 0,
+                rank_score: 0,
+            }],
+        );
+
+        assert!(output.contains("# Example"));
+        assert!(output.contains("# Source: Guide"));
+        assert!(output.contains("URL: https://example.com/guide"));
+        assert!(output.contains("# Guide\n\nBody."));
     }
 
     #[test]
@@ -1252,19 +1499,20 @@ Use Markdown outputs for agent context.
             &sitemap,
             r#"<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://example.com/docs/a.html</loc></url>
+  <url><loc>https://example.com/docs/a.html</loc><lastmod>2024-05-01</lastmod></url>
   <url><loc>https://example.com/docs/b.html</loc></url>
 </urlset>
 "#,
         )
         .expect("write sitemap");
 
-        let urls = sitemap_urls(sitemap.to_str().expect("utf-8 path"), 5, 10).expect("parse sitemap");
+        let urls = sitemap_urls_from_inputs(vec![sitemap.to_str().expect("utf-8 path").to_string()], 5, 10)
+            .expect("parse sitemap");
 
-        assert_eq!(
-            urls,
-            vec!["https://example.com/docs/a.html", "https://example.com/docs/b.html"]
-        );
+        assert_eq!(urls[0].url, "https://example.com/docs/a.html");
+        assert_eq!(urls[0].lastmod.as_deref(), Some("2024-05-01T00:00:00+00:00"));
+        assert_eq!(urls[1].url, "https://example.com/docs/b.html");
+        assert_eq!(urls[1].lastmod, None);
     }
 
     #[test]

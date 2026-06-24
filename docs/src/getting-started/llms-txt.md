@@ -127,6 +127,16 @@ same-origin links only. For local HTML files, it follows relative local links.
 Assets such as images, stylesheets, scripts, PDFs, archives, and feeds are
 skipped.
 
+To write the expanded context at the same time, pass `--full`:
+
+```sh
+lectito llms generate https://example.com/docs/ \
+  --output llms.txt \
+  --full llms-full.txt
+```
+
+`--full-output` is the same option with a more explicit name.
+
 You can also generate from a sitemap:
 
 ```sh
@@ -201,7 +211,14 @@ lectito llms generate https://example.com/docs/ --ignore-robots
 
 Only pages that produce readable article content are included. Each accepted
 page becomes one link in the generated file. Lectito uses the extracted title as
-the link label and the extracted excerpt as the link note.
+the link label, switches to a page's canonical URL when one is available, and
+uses the extracted excerpt as the link note.
+
+Remote generation also reads `Last-Modified` response headers. Sitemap
+generation reads `lastmod` values. When either value is present, Lectito adds it
+to the generated note and uses it as a small ranking signal. Ranking favors
+likely entry points such as docs roots, guides, API references, and pages with
+useful notes. Archive-like URLs are pushed down.
 
 Set the generated title, summary, or section name when the defaults are too
 generic:

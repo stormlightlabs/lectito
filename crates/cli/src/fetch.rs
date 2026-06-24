@@ -1,6 +1,6 @@
 use anyhow::Context;
 use reqwest::header::{
-    ACCEPT, ACCEPT_LANGUAGE, CACHE_CONTROL, CONTENT_TYPE, HeaderMap, HeaderValue, LOCATION, REFERER,
+    ACCEPT, ACCEPT_LANGUAGE, CACHE_CONTROL, CONTENT_TYPE, HeaderMap, HeaderValue, LAST_MODIFIED, LOCATION, REFERER,
 };
 use reqwest::redirect::Policy;
 use reqwest::{StatusCode, Url, blocking::Client};
@@ -8,7 +8,7 @@ use scraper::{Html, Selector};
 use std::io::{self, Read};
 use std::path::Path;
 use std::process;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36";
 pub const CURL_USER_AGENT: &str = "curl/8.7.1";
@@ -55,9 +55,14 @@ pub struct InputDocument {
     html: String,
     base_url: Option<String>,
     content_type: Option<String>,
+    last_modified: Option<String>,
 }
 
 impl InputDocument {
+    fn new(html: String, base_url: Option<String>, content_type: Option<String>, lastmod: Option<String>) -> Self {
+        Self { html, base_url, content_type, last_modified: lastmod }
+    }
+
     pub fn html(&self) -> &str {
         &self.html
     }
@@ -70,6 +75,10 @@ impl InputDocument {
         self.content_type.as_deref()
     }
 
+    pub fn last_modified(&self) -> Option<&str> {
+        self.last_modified.as_deref()
+    }
+
     pub fn read_src(input: Option<&str>, read_stdin: bool, base_url: Option<&str>) -> anyhow::Result<InputDocument> {
         if read_stdin && input.is_some_and(|value| value != "-") {
             anyhow::bail!("cannot combine --stdin with an input path or URL");
@@ -78,7 +87,7 @@ impl InputDocument {
         if read_stdin || input == Some("-") {
             let mut html = String::new();
             io::stdin().read_to_string(&mut html).context("failed to read stdin")?;
-            return Ok(InputDocument { html, base_url: base_url.map(str::to_string), content_type: None });
+            return Ok(InputDocument::new(html, base_url.map(str::to_string), None, None));
         }
 
         let Some(input) = input else {
@@ -94,7 +103,7 @@ impl InputDocument {
 
         let path = Path::new(input);
         let html = std::fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
-        Ok(InputDocument { html, base_url: base_url.map(str::to_string), content_type: None })
+        Ok(InputDocument::new(html, base_url.map(str::to_string), None, None))
     }
 
     pub fn read(path: Option<&Path>, read_stdin: bool, url: Option<&str>) -> anyhow::Result<InputDocument> {
@@ -105,12 +114,12 @@ impl InputDocument {
         if read_stdin {
             let mut html = String::new();
             io::stdin().read_to_string(&mut html).context("failed to read stdin")?;
-            return Ok(InputDocument { html, base_url: url.map(str::to_string), content_type: None });
+            return Ok(InputDocument::new(html, url.map(str::to_string), None, None));
         }
 
         if let Some(path) = path {
             let html = std::fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
-            return Ok(InputDocument { html, base_url: url.map(str::to_string), content_type: None });
+            return Ok(InputDocument::new(html, url.map(str::to_string), None, None));
         }
 
         if let Some(url) = url {
@@ -187,6 +196,11 @@ impl InputDocument {
                 .get(CONTENT_TYPE)
                 .and_then(|value| value.to_str().ok())
                 .map(str::to_string);
+            let last_modified = response
+                .headers()
+                .get(LAST_MODIFIED)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_string);
             let html = response
                 .text()
                 .with_context(|| format!("failed to read response body for {current_url}"))?;
@@ -200,7 +214,12 @@ impl InputDocument {
                 continue;
             }
 
-            return Ok(InputDocument { html, base_url: Some(current_url.to_string()), content_type });
+            return Ok(InputDocument::new(
+                html,
+                Some(current_url.to_string()),
+                content_type,
+                last_modified,
+            ));
         }
 
         unreachable!("redirect loop exits by returning a response or bailing at the redirect limit")
@@ -208,14 +227,17 @@ impl InputDocument {
 
     fn curl(url: &str) -> anyhow::Result<InputDocument> {
         let marker = "\nLECTITO_EFFECTIVE_URL:";
+        let headers_path = {
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|duration| duration.as_nanos())
+                .unwrap_or_default();
+            std::env::temp_dir().join(format!("lectito-curl-headers-{}-{nanos}", std::process::id()))
+        };
         let output = process::Command::new("curl")
+            .args(["-sS", "-L", "--fail", "--compressed", "--max-time", "20", "-D"])
+            .arg(&headers_path)
             .args([
-                "-sS",
-                "-L",
-                "--fail",
-                "--compressed",
-                "--max-time",
-                "20",
                 "-A",
                 CURL_USER_AGENT,
                 "-w",
@@ -226,9 +248,14 @@ impl InputDocument {
             .with_context(|| format!("failed to run curl fallback for {url}"))?;
 
         if !output.status.success() {
+            let _ = std::fs::remove_file(&headers_path);
             anyhow::bail!("curl fallback failed for {url} with status {}", output.status);
         }
 
+        let last_modified = std::fs::read_to_string(&headers_path)
+            .ok()
+            .and_then(|headers| final_header_value(&headers, "last-modified"));
+        let _ = std::fs::remove_file(&headers_path);
         let output = String::from_utf8(output.stdout).context("curl fallback returned non-UTF-8 body")?;
         let Some((html, metadata)) = output.rsplit_once(marker) else {
             anyhow::bail!("curl fallback output did not include final URL for {url}");
@@ -242,7 +269,12 @@ impl InputDocument {
             })
             .unwrap_or((metadata.trim(), None));
 
-        Ok(InputDocument { html: html.to_string(), base_url: Some(effective_url.to_string()), content_type })
+        Ok(InputDocument::new(
+            html.to_string(),
+            Some(effective_url.to_string()),
+            content_type,
+            last_modified,
+        ))
     }
 }
 
@@ -293,6 +325,29 @@ pub fn html_redirect_target(html: &str, current_url: &Url) -> Option<Url> {
         .and_then(|target| current_url.join(&target).ok())
 }
 
+fn final_header_value(headers: &str, name: &str) -> Option<String> {
+    let mut current = None;
+
+    for line in headers.lines() {
+        let line = line.trim_end_matches('\r');
+        if line.starts_with("HTTP/") {
+            current = None;
+            continue;
+        }
+        let Some((header_name, value)) = line.split_once(':') else {
+            continue;
+        };
+        if header_name.trim().eq_ignore_ascii_case(name) {
+            let value = value.trim();
+            if !value.is_empty() {
+                current = Some(value.to_string());
+            }
+        }
+    }
+
+    current
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -332,7 +387,7 @@ mod tests {
             let (mut stream, _) = listener.accept().expect("accept test request");
             let body = "# Hello\n";
             let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: text/markdown; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                "HTTP/1.1 200 OK\r\nContent-Type: text/markdown; charset=utf-8\r\nLast-Modified: Wed, 01 May 2024 10:00:00 GMT\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
                 body.len(),
                 body
             );
@@ -344,6 +399,39 @@ mod tests {
 
         server.join().expect("join test server");
         assert_eq!(document.content_type(), Some("text/markdown; charset=utf-8"));
+        assert_eq!(document.last_modified(), Some("Wed, 01 May 2024 10:00:00 GMT"));
         assert_eq!(document.html(), "# Hello\n");
+    }
+
+    #[test]
+    fn final_header_value_uses_final_response_block() {
+        let headers = "\
+HTTP/1.1 301 Moved Permanently\r\n\
+Last-Modified: Tue, 30 Apr 2024 10:00:00 GMT\r\n\
+Location: /final\r\n\
+\r\n\
+HTTP/1.1 200 OK\r\n\
+Content-Type: text/html\r\n\
+Last-Modified: Wed, 01 May 2024 10:00:00 GMT\r\n\
+\r\n";
+
+        assert_eq!(
+            final_header_value(headers, "Last-Modified").as_deref(),
+            Some("Wed, 01 May 2024 10:00:00 GMT")
+        );
+    }
+
+    #[test]
+    fn final_header_value_ignores_redirect_header_when_final_response_lacks_it() {
+        let headers = "\
+HTTP/1.1 301 Moved Permanently\r\n\
+Last-Modified: Tue, 30 Apr 2024 10:00:00 GMT\r\n\
+Location: /final\r\n\
+\r\n\
+HTTP/1.1 200 OK\r\n\
+Content-Type: text/html\r\n\
+\r\n";
+
+        assert_eq!(final_header_value(headers, "Last-Modified"), None);
     }
 }

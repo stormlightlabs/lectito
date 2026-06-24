@@ -124,6 +124,7 @@ lectito llms fetch https://example.com
 lectito llms parse https://example.com/llms.txt --pretty
 lectito llms expand https://example.com/llms.txt --output llms-full.txt
 lectito llms generate https://example.com/docs/ --output llms.txt
+lectito llms generate https://example.com/docs/ --output llms.txt --full llms-full.txt
 lectito llms generate --sitemap https://example.com/sitemap.xml --output llms.txt
 lectito llms generate https://example.com --discover --output llms.txt
 ```
@@ -131,7 +132,11 @@ lectito llms generate https://example.com --discover --output llms.txt
 `fetch` resolves a bare site URL to `/llms.txt`. `parse` prints structured JSON.
 `expand` reads the linked resources, keeps Markdown resources as-is, and runs
 HTML resources through Lectito before adding them to the bundle. `generate`
-crawls same-origin links from a seed page and writes a new `llms.txt` index.
+crawls same-origin links from a seed page and writes a new `llms.txt` index. It
+uses canonical links for generated entries when pages publish them, includes
+HTTP `Last-Modified` or sitemap `lastmod` values in notes, and ranks accepted
+pages so likely entry points appear first. Pass `--full` (or `--full-output`) to
+write the expanded Markdown context while generating the index.
 
 Links in the special `Optional` section are skipped unless you pass
 `--include-optional`:

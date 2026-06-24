@@ -15,14 +15,6 @@
 - Include `wasm-pack test --node` and `wasm-pack build` checks for the
   `bundler`, `web`, and `nodejs` WASM targets.
 
-## LLMs
-
-- [x] Add sitemap discovery for `lectito llms generate`.
-- [ ] Use canonical URLs when generating `llms.txt` entries.
-- [ ] Use HTTP `Last-Modified` and sitemap `lastmod` data during generation.
-- [ ] Add generated full-context output alongside generated `llms.txt`.
-- [ ] Improve ranking and selection for generated `llms.txt` entries.
-
 ## Extraction Quality
 
 ### `examples.txt` Audit

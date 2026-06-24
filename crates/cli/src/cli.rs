@@ -373,6 +373,10 @@ pub struct LlmsGenerateArgs {
     /// Write output to a file instead of stdout.
     #[arg(short, long, value_name = "PATH")]
     pub output: Option<PathBuf>,
+
+    /// Also write expanded full-context Markdown for the generated links.
+    #[arg(long = "full-output", visible_alias = "full", value_name = "PATH")]
+    pub full_output: Option<PathBuf>,
 }
 
 #[cfg(test)]
@@ -417,6 +421,8 @@ mod tests {
             "5",
             "--max-depth",
             "1",
+            "--full-output",
+            "llms-full.txt",
         ])
         .expect("llms generate command should parse");
 
@@ -426,6 +432,30 @@ mod tests {
                     assert_eq!(args.input.as_deref(), Some("https://example.com/docs/"));
                     assert_eq!(args.max_pages, 5);
                     assert_eq!(args.max_depth, 1);
+                    assert_eq!(args.full_output, Some(PathBuf::from("llms-full.txt")));
+                }
+                other => panic!("unexpected llms subcommand: {other:?}"),
+            },
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn llms_generate_full_alias_parses() {
+        let cli = Cli::try_parse_from([
+            "lectito",
+            "llms",
+            "generate",
+            "https://example.com/docs/",
+            "--full",
+            "full.md",
+        ])
+        .expect("llms generate --full alias should parse");
+
+        match cli.command {
+            Some(Commands::Llms(args)) => match args.command {
+                LlmsCommands::Generate(args) => {
+                    assert_eq!(args.full_output, Some(PathBuf::from("full.md")));
                 }
                 other => panic!("unexpected llms subcommand: {other:?}"),
             },
