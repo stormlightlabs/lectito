@@ -146,6 +146,15 @@ lectito llms generate https://example.com/docs/ --max-depth 1 --max-pages 10
 lectito llms generate --sitemap https://example.com/sitemap.xml --max-pages 50
 ```
 
+Filter generated entries by URL substring and add a delay between page fetches:
+
+```sh
+lectito llms generate --sitemap https://example.com/sitemap.xml \
+  --include /docs/ \
+  --exclude /tags/ \
+  --delay-ms 250
+```
+
 See the [llms.txt guide](./llms-txt.md) for the expected file shape and the
 tradeoffs.
 

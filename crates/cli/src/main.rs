@@ -42,7 +42,7 @@ fn run(cli: Cli, color: bool) -> Result<ExitCode> {
 
 fn run_extract(args: ExtractArgs, color: bool) -> Result<ExitCode> {
     if args.readable {
-        let input = fetch::InputDocument::read_source(args.input.as_deref(), args.stdin, args.base_url.as_deref())?;
+        let input = fetch::InputDocument::read_src(args.input.as_deref(), args.stdin, args.base_url.as_deref())?;
         let readable = is_probably_readable(input.html(), &ReadableOptions::default())?;
         echo::readable(readable, args.json, args.pretty)?;
         return Ok(if readable { ExitCode::SUCCESS } else { ExitCode::from(1) });
@@ -50,7 +50,7 @@ fn run_extract(args: ExtractArgs, color: bool) -> Result<ExitCode> {
 
     let format = output_format(args.markdown, args.html, args.text, args.json)?;
     let frontmatter = markdown_frontmatter(args.frontmatter, args.no_frontmatter)?;
-    let input = fetch::InputDocument::read_source(args.input.as_deref(), args.stdin, args.base_url.as_deref())?;
+    let input = fetch::InputDocument::read_src(args.input.as_deref(), args.stdin, args.base_url.as_deref())?;
     let options = ReadabilityOptions {
         max_elems_to_parse: args.max_elems_to_parse,
         nb_top_candidates: args.nb_top_candidates,
@@ -100,7 +100,7 @@ fn run_extract(args: ExtractArgs, color: bool) -> Result<ExitCode> {
 }
 
 fn run_readable(args: ReadableArgs) -> Result<ExitCode> {
-    let input = fetch::InputDocument::read_source(args.input.as_deref(), args.stdin, args.base_url.as_deref())?;
+    let input = fetch::InputDocument::read_src(args.input.as_deref(), args.stdin, args.base_url.as_deref())?;
     let options = ReadableOptions { min_content_length: args.min_len, min_score: args.min_score };
     let readable = is_probably_readable(input.html(), &options)?;
     echo::readable(readable, args.json, args.pretty)?;
@@ -108,7 +108,7 @@ fn run_readable(args: ReadableArgs) -> Result<ExitCode> {
 }
 
 fn run_inspect(args: InspectArgs) -> Result<ExitCode> {
-    let input = fetch::InputDocument::read_source(args.input.as_deref(), args.stdin, args.base_url.as_deref())?;
+    let input = fetch::InputDocument::read_src(args.input.as_deref(), args.stdin, args.base_url.as_deref())?;
     let options = ReadabilityOptions {
         max_elems_to_parse: args.max_elems_to_parse,
         nb_top_candidates: args.nb_top_candidates,
@@ -134,14 +134,14 @@ fn run_inspect(args: InspectArgs) -> Result<ExitCode> {
 }
 
 fn extract_with_timeout(
-    html: &str, base_url: Option<&str>, options: ReadabilityOptions, timeout: u64,
+    html: &str, base_url: Option<&str>, opts: ReadabilityOptions, timeout: u64,
 ) -> Result<Option<ExtractionReport>> {
     let html = html.to_string();
     let base_url = base_url.map(str::to_string);
     let (sender, receiver) = mpsc::channel();
 
     thread::spawn(move || {
-        let result = extract_with_diagnostics(&html, base_url.as_deref(), &options);
+        let result = extract_with_diagnostics(&html, base_url.as_deref(), &opts);
         let _ = sender.send(result);
     });
 

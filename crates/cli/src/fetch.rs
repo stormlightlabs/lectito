@@ -70,7 +70,7 @@ impl InputDocument {
         self.content_type.as_deref()
     }
 
-    pub fn read_source(input: Option<&str>, read_stdin: bool, base_url: Option<&str>) -> anyhow::Result<InputDocument> {
+    pub fn read_src(input: Option<&str>, read_stdin: bool, base_url: Option<&str>) -> anyhow::Result<InputDocument> {
         if read_stdin && input.is_some_and(|value| value != "-") {
             anyhow::bail!("cannot combine --stdin with an input path or URL");
         }
@@ -235,15 +235,15 @@ impl InputDocument {
         };
         let (effective_url, content_type) = metadata
             .split_once("\nLECTITO_CONTENT_TYPE:")
-            .map(|(url, content_type)| (url.trim(), non_empty_string(content_type.trim())))
+            .map(|(url, content_type)| {
+                let val = content_type.trim();
+                let value = (!val.is_empty()).then(|| val.to_string());
+                (url.trim(), value)
+            })
             .unwrap_or((metadata.trim(), None));
 
         Ok(InputDocument { html: html.to_string(), base_url: Some(effective_url.to_string()), content_type })
     }
-}
-
-fn non_empty_string(value: &str) -> Option<String> {
-    (!value.is_empty()).then(|| value.to_string())
 }
 
 pub fn html_redirect_target(html: &str, current_url: &Url) -> Option<Url> {
@@ -296,6 +296,9 @@ pub fn html_redirect_target(html: &str, current_url: &Url) -> Option<Url> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
+    use std::net::TcpListener;
+    use std::thread;
 
     #[test]
     fn detects_small_meta_refresh_redirect_page() {
@@ -319,5 +322,28 @@ mod tests {
         let current_url = Url::parse("https://example.com/post").unwrap();
 
         assert!(html_redirect_target(html, &current_url).is_none());
+    }
+
+    #[test]
+    fn captures_http_content_type() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
+        let address = listener.local_addr().expect("test server address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept test request");
+            let body = "# Hello\n";
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/markdown; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream.write_all(response.as_bytes()).expect("write response");
+        });
+
+        let url = format!("http://{address}/doc.md");
+        let document = InputDocument::read_src(Some(&url), false, None).expect("read test URL");
+
+        server.join().expect("join test server");
+        assert_eq!(document.content_type(), Some("text/markdown; charset=utf-8"));
+        assert_eq!(document.html(), "# Hello\n");
     }
 }

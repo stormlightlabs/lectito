@@ -338,6 +338,20 @@ pub struct LlmsGenerateArgs {
     #[arg(long, default_value_t = 25)]
     pub max_pages: usize,
 
+    /// Only include candidate page URLs containing this text. May be repeated.
+    #[arg(long, value_name = "TEXT")]
+    pub include: Vec<String>,
+
+    /// Exclude candidate page URLs containing this text. May be repeated.
+    #[arg(long, value_name = "TEXT")]
+    pub exclude: Vec<String>,
+
+    /// Delay between page fetches while generating.
+    ///
+    /// TODO: alias as delay
+    #[arg(long, default_value_t = 0)]
+    pub delay_ms: u64,
+
     /// Maximum sitemap files to read when a sitemap index is used.
     #[arg(long, default_value_t = 25)]
     pub max_sitemaps: usize,
@@ -406,6 +420,35 @@ mod tests {
                     assert_eq!(args.input.as_deref(), Some("https://example.com/docs/"));
                     assert_eq!(args.max_pages, 5);
                     assert_eq!(args.max_depth, 1);
+                }
+                other => panic!("unexpected llms subcommand: {other:?}"),
+            },
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn llms_generate_filters_and_delay_parse() {
+        let cli = Cli::try_parse_from([
+            "lectito",
+            "llms",
+            "generate",
+            "https://example.com/docs/",
+            "--include",
+            "/docs/",
+            "--exclude",
+            "/tags/",
+            "--delay-ms",
+            "100",
+        ])
+        .expect("llms generate filters should parse");
+
+        match cli.command {
+            Some(Commands::Llms(args)) => match args.command {
+                LlmsCommands::Generate(args) => {
+                    assert_eq!(args.include, vec!["/docs/"]);
+                    assert_eq!(args.exclude, vec!["/tags/"]);
+                    assert_eq!(args.delay_ms, 100);
                 }
                 other => panic!("unexpected llms subcommand: {other:?}"),
             },

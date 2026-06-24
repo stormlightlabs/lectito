@@ -155,6 +155,21 @@ lectito llms generate https://example.com/docs/ \
   --max-depth 1
 ```
 
+Use `--include` and `--exclude` to filter candidate page URLs by substring:
+
+```sh
+lectito llms generate --sitemap https://example.com/sitemap.xml \
+  --include /docs/ \
+  --exclude /tags/ \
+  --exclude /archive/
+```
+
+Use `--delay-ms` to wait between page fetches:
+
+```sh
+lectito llms generate https://example.com/docs/ --delay-ms 250
+```
+
 Only pages that produce readable article content are included. Each accepted
 page becomes one link in the generated file. Lectito uses the extracted title as
 the link label and the extracted excerpt as the link note.

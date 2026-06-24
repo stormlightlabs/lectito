@@ -3,6 +3,7 @@ use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use lectito::ReadabilityOptions;
@@ -58,6 +59,32 @@ struct CrawledEntry {
     notes: Option<String>,
 }
 
+struct FetchThrottle {
+    delay: Duration,
+    last_fetch: Option<Instant>,
+}
+
+impl FetchThrottle {
+    fn new(delay_ms: u64) -> Self {
+        Self { delay: Duration::from_millis(delay_ms), last_fetch: None }
+    }
+
+    fn wait(&mut self) {
+        if self.delay.is_zero() {
+            self.last_fetch = Some(Instant::now());
+            return;
+        }
+
+        if let Some(last_fetch) = self.last_fetch {
+            let elapsed = last_fetch.elapsed();
+            if elapsed < self.delay {
+                std::thread::sleep(self.delay - elapsed);
+            }
+        }
+        self.last_fetch = Some(Instant::now());
+    }
+}
+
 pub fn run(args: LlmsArgs) -> Result<ExitCode> {
     match args.command {
         LlmsCommands::Fetch(args) => run_fetch(args),
@@ -65,6 +92,60 @@ pub fn run(args: LlmsArgs) -> Result<ExitCode> {
         LlmsCommands::Expand(args) => run_expand(args),
         LlmsCommands::Generate(args) => run_generate(args),
     }
+}
+
+pub fn parse_llms_txt(text: &str) -> Result<LlmsDocument> {
+    let normalized = normalize_llms_markdown(text);
+    let mut title = None;
+    let mut summary = Vec::new();
+    let mut details = Vec::new();
+    let mut sections = Vec::new();
+    let mut current: Option<LlmsSection> = None;
+    let mut before_sections = true;
+
+    for raw_line in normalized.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        if let Some(value) = line.strip_prefix("# ").filter(|_| title.is_none()) {
+            title = Some(value.trim().to_string());
+            continue;
+        }
+
+        if let Some(value) = line.strip_prefix("## ") {
+            if let Some(section) = current.take() {
+                sections.push(section);
+            }
+            let name = value.trim().to_string();
+            current = Some(LlmsSection { optional: name.eq_ignore_ascii_case("optional"), name, links: Vec::new() });
+            before_sections = false;
+            continue;
+        }
+
+        if let Some(section) = current.as_mut() {
+            if let Some(link) = parse_link_line(line) {
+                section.links.push(link);
+            }
+            continue;
+        }
+
+        if before_sections && line.starts_with('>') {
+            summary.push(line.trim_start_matches('>').trim().to_string());
+        } else if before_sections {
+            details.push(line.to_string());
+        }
+    }
+
+    if let Some(section) = current {
+        sections.push(section);
+    }
+
+    let title = title
+        .filter(|title| !title.is_empty())
+        .ok_or_else(|| anyhow::anyhow!("llms.txt is missing an H1 title"))?;
+    Ok(LlmsDocument { title, summary: non_empty_join(summary), details: non_empty_join(details), sections })
 }
 
 fn run_fetch(args: LlmsFetchArgs) -> Result<ExitCode> {
@@ -136,6 +217,8 @@ fn run_generate(args: LlmsGenerateArgs) -> Result<ExitCode> {
     if args.max_sitemaps == 0 {
         anyhow::bail!("--max-sitemaps must be greater than zero");
     }
+    validate_filters(&args.include, "include")?;
+    validate_filters(&args.exclude, "exclude")?;
 
     let entries = generate_entries(&args)?;
     let title = args
@@ -169,6 +252,7 @@ fn crawl_entries(args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
     let mut queue = VecDeque::from([CrawlItem { target: seed.clone(), depth: 0 }]);
     let mut seen = HashSet::new();
     let mut entries = Vec::new();
+    let mut throttle = FetchThrottle::new(args.delay_ms);
 
     while let Some(item) = queue.pop_front() {
         if seen.len() >= args.max_pages {
@@ -178,6 +262,7 @@ fn crawl_entries(args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
             continue;
         }
 
+        throttle.wait();
         let page = match read_crawl_page(&item.target) {
             Ok(page) => page,
             Err(error) => {
@@ -195,7 +280,7 @@ fn crawl_entries(args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
         }
 
         for link in discover_links(&page, &seed) {
-            if !seen.contains(&link) {
+            if !seen.contains(&link) && passes_filters(&link, &args.include, &args.exclude) {
                 queue.push_back(CrawlItem { target: link, depth: item.depth + 1 });
             }
         }
@@ -207,8 +292,12 @@ fn crawl_entries(args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
 fn sitemap_entries(input: &str, args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
     let urls = sitemap_urls(input, args.max_sitemaps, args.max_pages)?;
     let mut entries = Vec::new();
+    let mut throttle = FetchThrottle::new(args.delay_ms);
 
     for url in urls.into_iter().take(args.max_pages) {
+        if !passes_filters(&url, &args.include, &args.exclude) {
+            continue;
+        }
         if !Url::parse(&url)
             .ok()
             .is_none_or(|parsed| crawlable_url_path(parsed.path()))
@@ -216,6 +305,7 @@ fn sitemap_entries(input: &str, args: &LlmsGenerateArgs) -> Result<Vec<CrawledEn
             continue;
         }
 
+        throttle.wait();
         let page = match read_crawl_page(&url) {
             Ok(page) => page,
             Err(error) => {
@@ -230,6 +320,18 @@ fn sitemap_entries(input: &str, args: &LlmsGenerateArgs) -> Result<Vec<CrawledEn
     }
 
     Ok(entries)
+}
+
+fn validate_filters(values: &[String], name: &str) -> Result<()> {
+    if values.iter().any(|value| value.is_empty()) {
+        anyhow::bail!("--{name} values must not be empty");
+    }
+    Ok(())
+}
+
+fn passes_filters(url: &str, includes: &[String], excludes: &[String]) -> bool {
+    (includes.is_empty() || includes.iter().any(|include| url.contains(include)))
+        && !excludes.iter().any(|exclude| url.contains(exclude))
 }
 
 fn sitemap_urls(input: &str, max_sitemaps: usize, max_urls: usize) -> Result<Vec<String>> {
@@ -287,7 +389,7 @@ fn sitemap_urls(input: &str, max_sitemaps: usize, max_urls: usize) -> Result<Vec
 
 fn read_text_source(input: &str) -> Result<LlmsSource> {
     if input.starts_with("http://") || input.starts_with("https://") {
-        let document = fetch::InputDocument::read_source(Some(input), false, None)?;
+        let document = fetch::InputDocument::read_src(Some(input), false, None)?;
         return Ok(LlmsSource { text: document.html().to_string(), base: document.base_url().map(str::to_string) });
     }
 
@@ -317,7 +419,7 @@ fn normalize_seed(input: &str) -> Result<String> {
 
 fn read_crawl_page(input: &str) -> Result<CrawlPage> {
     if input.starts_with("http://") || input.starts_with("https://") {
-        let document = fetch::InputDocument::read_source(Some(input), false, None)?;
+        let document = fetch::InputDocument::read_src(Some(input), false, None)?;
         let base_url = document.base_url().map(str::to_string);
         let id = base_url.clone().unwrap_or_else(|| input.to_string());
         return Ok(CrawlPage { id, html: document.html().to_string(), base_url });
@@ -512,7 +614,7 @@ fn read_llms_source(input: &str) -> Result<LlmsSource> {
 
     if input.starts_with("http://") || input.starts_with("https://") {
         let url = llms_url(input)?;
-        let document = fetch::InputDocument::read_source(Some(url.as_str()), false, None)?;
+        let document = fetch::InputDocument::read_src(Some(url.as_str()), false, None)?;
         return Ok(LlmsSource { text: document.html().to_string(), base: Some(url.to_string()) });
     }
 
@@ -533,15 +635,15 @@ fn llms_url(input: &str) -> Result<Url> {
 
 fn read_resource_markdown(input: &str, timeout: u64) -> Result<String> {
     if input.starts_with("http://") || input.starts_with("https://") {
-        let document = fetch::InputDocument::read_source(Some(input), false, None)?;
-        if looks_like_markdown(input, document.content_type(), document.html()) {
+        let document = fetch::InputDocument::read_src(Some(input), false, None)?;
+        if looks_like_md(input, document.content_type(), document.html()) {
             return Ok(document.html().to_string());
         }
         return extract_resource_markdown(document.html(), document.base_url(), timeout);
     }
 
     let text = fs::read_to_string(input).with_context(|| format!("failed to read {input}"))?;
-    if looks_like_markdown(input, None, &text) {
+    if looks_like_md(input, None, &text) {
         return Ok(text);
     }
     extract_resource_markdown(&text, None, timeout)
@@ -574,7 +676,7 @@ fn default_readability_options() -> Result<ReadabilityOptions> {
     })
 }
 
-fn looks_like_markdown(input: &str, content_type: Option<&str>, text: &str) -> bool {
+fn looks_like_md(input: &str, content_type: Option<&str>, text: &str) -> bool {
     if let Some(content_type) = content_type.and_then(|value| value.split(';').next()) {
         let content_type = content_type.trim().to_ascii_lowercase();
         if matches!(content_type.as_str(), "text/markdown" | "text/plain") {
@@ -624,60 +726,6 @@ fn write_output(path: Option<&PathBuf>, output: &str) -> Result<()> {
             Ok(())
         }
     }
-}
-
-pub fn parse_llms_txt(text: &str) -> Result<LlmsDocument> {
-    let normalized = normalize_llms_markdown(text);
-    let mut title = None;
-    let mut summary = Vec::new();
-    let mut details = Vec::new();
-    let mut sections = Vec::new();
-    let mut current: Option<LlmsSection> = None;
-    let mut before_sections = true;
-
-    for raw_line in normalized.lines() {
-        let line = raw_line.trim();
-        if line.is_empty() {
-            continue;
-        }
-
-        if let Some(value) = line.strip_prefix("# ").filter(|_| title.is_none()) {
-            title = Some(value.trim().to_string());
-            continue;
-        }
-
-        if let Some(value) = line.strip_prefix("## ") {
-            if let Some(section) = current.take() {
-                sections.push(section);
-            }
-            let name = value.trim().to_string();
-            current = Some(LlmsSection { optional: name.eq_ignore_ascii_case("optional"), name, links: Vec::new() });
-            before_sections = false;
-            continue;
-        }
-
-        if let Some(section) = current.as_mut() {
-            if let Some(link) = parse_link_line(line) {
-                section.links.push(link);
-            }
-            continue;
-        }
-
-        if before_sections && line.starts_with('>') {
-            summary.push(line.trim_start_matches('>').trim().to_string());
-        } else if before_sections {
-            details.push(line.to_string());
-        }
-    }
-
-    if let Some(section) = current {
-        sections.push(section);
-    }
-
-    let title = title
-        .filter(|title| !title.is_empty())
-        .ok_or_else(|| anyhow::anyhow!("llms.txt is missing an H1 title"))?;
-    Ok(LlmsDocument { title, summary: non_empty_join(summary), details: non_empty_join(details), sections })
 }
 
 fn normalize_llms_markdown(text: &str) -> String {
@@ -868,15 +916,25 @@ Use Markdown outputs for agent context.
 
     #[test]
     fn content_type_controls_markdown_detection() {
-        assert!(looks_like_markdown(
+        assert!(looks_like_md(
             "https://example.com/page",
             Some("text/markdown; charset=utf-8"),
             "<p>No</p>"
         ));
-        assert!(!looks_like_markdown(
-            "https://example.com/page.md",
-            Some("text/html"),
-            "# No"
+        assert!(!looks_like_md("https://example.com/page.md", Some("text/html"), "# No"));
+    }
+
+    #[test]
+    fn include_and_exclude_filters_match_url_substrings() {
+        let includes = vec!["/docs/".to_string()];
+        let excludes = vec!["/tags/".to_string()];
+
+        assert!(passes_filters("https://example.com/docs/guide", &includes, &excludes));
+        assert!(!passes_filters("https://example.com/blog/post", &includes, &excludes));
+        assert!(!passes_filters(
+            "https://example.com/docs/tags/rust",
+            &includes,
+            &excludes
         ));
     }
 }
