@@ -13,7 +13,7 @@ use serde::Serialize;
 use sitemap::reader::{SiteMapEntity, SiteMapReader};
 
 use crate::cli::{LlmsArgs, LlmsCommands, LlmsExpandArgs, LlmsFetchArgs, LlmsGenerateArgs, LlmsParseArgs};
-use crate::{echo, fetch, read_site_profiles};
+use crate::{echo, fetch};
 
 #[derive(Debug, Serialize)]
 pub struct LlmsDocument {
@@ -65,26 +65,26 @@ struct CrawledEntry {
     notes: Option<String>,
 }
 
-struct GenerateFilters<'a> {
-    includes: &'a [String],
-    excludes: &'a [String],
-    include_paths: &'a [String],
-    exclude_paths: &'a [String],
-    include_globs: &'a [String],
-    exclude_globs: &'a [String],
+struct GenerateFilters {
+    rules: Vec<FilterRule>,
 }
 
-impl<'a> GenerateFilters<'a> {
-    fn new(args: &'a LlmsGenerateArgs) -> Self {
-        Self {
-            includes: &args.include,
-            excludes: &args.exclude,
-            include_paths: &args.include_paths,
-            exclude_paths: &args.exclude_paths,
-            include_globs: &args.include_globs,
-            exclude_globs: &args.exclude_globs,
-        }
+impl GenerateFilters {
+    fn new(args: &LlmsGenerateArgs) -> Result<Self> {
+        Ok(Self { rules: parse_filter_rules(&args.filters)? })
     }
+}
+
+struct FilterRule {
+    include: bool,
+    pattern: String,
+    kind: FilterRuleKind,
+}
+
+enum FilterRuleKind {
+    PathPrefix,
+    PathGlob,
+    TargetGlob,
 }
 
 struct FetchThrottle {
@@ -113,6 +113,117 @@ impl FetchThrottle {
     }
 }
 
+struct RobotsCache {
+    user_agent: String,
+    ignore: bool,
+    origins: HashMap<String, Option<RobotsRules>>,
+}
+
+impl RobotsCache {
+    fn new(user_agent: &str, ignore: bool) -> Self {
+        Self { user_agent: user_agent.to_string(), ignore, origins: HashMap::new() }
+    }
+
+    fn allowed(&mut self, target: &str) -> bool {
+        if self.ignore {
+            return true;
+        }
+        let Some(origin) = robots_origin(target) else {
+            return true;
+        };
+
+        if !self.origins.contains_key(&origin) {
+            let rules = read_robots_txt(&origin)
+                .ok()
+                .and_then(|text| RobotsRules::parse(&text, &self.user_agent));
+            self.origins.insert(origin.clone(), rules);
+        }
+
+        self.origins
+            .get(&origin)
+            .and_then(|rules| rules.as_ref())
+            .is_none_or(|rules| rules.allowed(target))
+    }
+}
+
+#[derive(Debug)]
+struct RobotsRules {
+    rules: Vec<RobotsRule>,
+}
+
+#[derive(Debug)]
+struct RobotsRule {
+    allow: bool,
+    pattern: String,
+}
+
+impl RobotsRules {
+    fn parse(text: &str, user_agent: &str) -> Option<Self> {
+        let groups = parse_robots_groups(text);
+        let user_agent = user_agent.to_ascii_lowercase();
+        let best_len = groups
+            .iter()
+            .filter(|group| group.matches(&user_agent))
+            .flat_map(|group| group.agents.iter())
+            .filter(|agent| agent_matches(agent, &user_agent))
+            .map(|agent| if agent == "*" { 0 } else { agent.len() })
+            .max()?;
+        let rules = groups
+            .into_iter()
+            .filter(|group| group.matches(&user_agent) && group.best_match_len(&user_agent) == Some(best_len))
+            .flat_map(|group| group.rules)
+            .collect::<Vec<_>>();
+        Some(Self { rules })
+    }
+
+    fn allowed(&self, target: &str) -> bool {
+        let path = match Url::parse(target) {
+            Ok(url) => {
+                let mut path = url.path().to_string();
+                if let Some(query) = url.query() {
+                    path.push('?');
+                    path.push_str(query);
+                }
+                path
+            }
+            Err(_) => target.to_string(),
+        };
+        let mut best: Option<(usize, bool)> = None;
+
+        for rule in &self.rules {
+            if rule.pattern.is_empty() || !robots_pattern_match(&rule.pattern, &path) {
+                continue;
+            }
+            let len: usize = rule.pattern.chars().filter(|ch| !matches!(ch, '*' | '$')).count();
+            match best {
+                Some((best_len, best_allow)) if best_len > len || (best_len == len && best_allow) => {}
+                _ => best = Some((len, rule.allow)),
+            }
+        }
+
+        best.map(|(_, allow)| allow).unwrap_or(true)
+    }
+}
+
+struct RobotsGroup {
+    agents: Vec<String>,
+    rules: Vec<RobotsRule>,
+}
+
+impl RobotsGroup {
+    fn matches(&self, user_agent: &str) -> bool {
+        self.agents.iter().any(|agent| agent_matches(agent, user_agent))
+    }
+
+    fn best_match_len(&self, user_agent: &str) -> Option<usize> {
+        self.agents
+            .iter()
+            .filter(|agent| agent_matches(agent, user_agent))
+            .map(|agent| if agent == "*" { 0 } else { agent.len() })
+            .max()
+    }
+}
+
 pub fn run(args: LlmsArgs) -> Result<ExitCode> {
     match args.command {
         LlmsCommands::Fetch(args) => run_fetch(args),
@@ -123,7 +234,12 @@ pub fn run(args: LlmsArgs) -> Result<ExitCode> {
 }
 
 pub fn parse_llms_txt(text: &str) -> Result<LlmsDocument> {
-    let normalized = normalize_llms_markdown(text);
+    let normalized = text
+        .trim_start_matches('\u{feff}')
+        .replace(" ## ", "\n## ")
+        .replace(" # ", "\n# ")
+        .replace(" > ", "\n> ")
+        .replace(" - [", "\n- [");
     let mut title = None;
     let mut summary = Vec::new();
     let mut details = Vec::new();
@@ -245,14 +361,9 @@ fn run_generate(args: LlmsGenerateArgs) -> Result<ExitCode> {
     if args.max_sitemaps == 0 {
         anyhow::bail!("--max-sitemaps must be greater than zero");
     }
-    validate_filters(&args.include, "include")?;
-    validate_filters(&args.exclude, "exclude")?;
-    validate_filters(&args.include_paths, "include-path")?;
-    validate_filters(&args.exclude_paths, "exclude-path")?;
-    validate_filters(&args.include_globs, "include-glob")?;
-    validate_filters(&args.exclude_globs, "exclude-glob")?;
+    validate_filters(&args.filters, "filter")?;
     if args.robots_user_agent.trim().is_empty() {
-        anyhow::bail!("--robots-user-agent must not be empty");
+        anyhow::bail!("--robots-agent must not be empty");
     }
 
     let entries = generate_entries(&args)?;
@@ -273,22 +384,31 @@ fn run_generate(args: LlmsGenerateArgs) -> Result<ExitCode> {
 }
 
 fn generate_entries(args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
-    match (args.input.as_deref(), args.sitemap.as_deref()) {
-        (Some(_), Some(_)) => anyhow::bail!("pass either a crawl seed or --sitemap, not both"),
-        (Some(_), None) => crawl_entries(args),
-        (None, Some(sitemap)) => sitemap_entries(sitemap, args),
-        (None, None) => anyhow::bail!("pass a seed URL/path or --sitemap"),
+    match (args.input.as_deref(), args.sitemap.as_deref(), args.discover_sitemap) {
+        (Some(_), Some(_), _) => anyhow::bail!("pass either a crawl seed or --sitemap, not both"),
+        (_, Some(_), true) => anyhow::bail!("cannot combine --sitemap with --discover"),
+        (Some(input), None, true) => discovered_sitemap_entries(input, args),
+        (Some(_), None, false) => crawl_entries(args),
+        (None, Some(sitemap), false) => sitemap_entries(sitemap, args),
+        (None, None, true) => anyhow::bail!("pass a seed URL when using --discover"),
+        (None, None, false) => anyhow::bail!("pass a seed URL/path or --sitemap"),
     }
 }
 
 fn crawl_entries(args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
     let input = args.input.as_deref().context("missing crawl seed")?;
-    let seed = normalize_seed(input)?;
+    let seed = if input.starts_with("http://") || input.starts_with("https://") {
+        let mut url = Url::parse(input).with_context(|| format!("invalid URL: {input}"))?;
+        url.set_fragment(None);
+        url.to_string()
+    } else {
+        PathBuf::from(input).to_string_lossy().to_string()
+    };
     let mut queue = VecDeque::from([CrawlItem::new(seed.clone(), 0)]);
     let mut seen = HashSet::new();
     let mut entries = Vec::new();
     let mut throttle = FetchThrottle::new(args.delay_ms);
-    let filters = GenerateFilters::new(args);
+    let filters = GenerateFilters::new(args)?;
     let mut robots = RobotsCache::new(&args.robots_user_agent, args.ignore_robots);
 
     while let Some(item) = queue.pop_front() {
@@ -333,9 +453,19 @@ fn crawl_entries(args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
 
 fn sitemap_entries(input: &str, args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
     let urls = sitemap_urls(input, args.max_sitemaps, args.max_pages)?;
+    entries_from_urls(urls, args)
+}
+
+fn discovered_sitemap_entries(input: &str, args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
+    let sitemaps = discover_sitemaps(input)?;
+    let urls = sitemap_urls_from_inputs(sitemaps, args.max_sitemaps, args.max_pages)?;
+    entries_from_urls(urls, args)
+}
+
+fn entries_from_urls(urls: Vec<String>, args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
     let mut entries = Vec::new();
     let mut throttle = FetchThrottle::new(args.delay_ms);
-    let filters = GenerateFilters::new(args);
+    let filters = GenerateFilters::new(args)?;
     let mut robots = RobotsCache::new(&args.robots_user_agent, args.ignore_robots);
 
     for url in urls.into_iter().take(args.max_pages) {
@@ -378,29 +508,54 @@ fn validate_filters(values: &[String], name: &str) -> Result<()> {
     Ok(())
 }
 
-fn passes_filters(url: &str, filters: &GenerateFilters<'_>) -> bool {
-    if !filters.includes.is_empty() && !filters.includes.iter().any(|include| url.contains(include)) {
+fn passes_filters(url: &str, filters: &GenerateFilters) -> bool {
+    if filters
+        .rules
+        .iter()
+        .any(|rule| !rule.include && filter_rule_matches(rule, url))
+    {
         return false;
     }
-    if filters.excludes.iter().any(|exclude| url.contains(exclude)) {
+    if filters.rules.iter().any(|rule| rule.include)
+        && !filters
+            .rules
+            .iter()
+            .any(|rule| rule.include && filter_rule_matches(rule, url))
+    {
         return false;
     }
-    if !filters.include_globs.is_empty() && !filters.include_globs.iter().any(|glob| wildcard_match(glob, url)) {
-        return false;
-    }
-    if filters.exclude_globs.iter().any(|glob| wildcard_match(glob, url)) {
-        return false;
-    }
-
-    let path = filter_path(url);
-    if !filters.include_paths.is_empty() && !filters.include_paths.iter().any(|include| path.starts_with(include)) {
-        return false;
-    }
-    if filters.exclude_paths.iter().any(|exclude| path.starts_with(exclude)) {
-        return false;
-    }
-
     true
+}
+
+fn parse_filter_rules(values: &[String]) -> Result<Vec<FilterRule>> {
+    values
+        .iter()
+        .map(|value| {
+            let (include, pattern) = value
+                .strip_prefix('!')
+                .map(|pattern| (false, pattern))
+                .unwrap_or((true, value.as_str()));
+            if pattern.is_empty() {
+                anyhow::bail!("--filter pattern must not be empty");
+            }
+            let kind = if pattern.starts_with('/') && (pattern.contains('*') || pattern.contains('?')) {
+                FilterRuleKind::PathGlob
+            } else if pattern.starts_with('/') {
+                FilterRuleKind::PathPrefix
+            } else {
+                FilterRuleKind::TargetGlob
+            };
+            Ok(FilterRule { include, pattern: pattern.to_string(), kind })
+        })
+        .collect()
+}
+
+fn filter_rule_matches(rule: &FilterRule, target: &str) -> bool {
+    match rule.kind {
+        FilterRuleKind::PathPrefix => filter_path(target).starts_with(&rule.pattern),
+        FilterRuleKind::PathGlob => wildcard_match(&rule.pattern, &filter_path(target)),
+        FilterRuleKind::TargetGlob => wildcard_match(&rule.pattern, target),
+    }
 }
 
 fn filter_path(value: &str) -> String {
@@ -411,107 +566,6 @@ fn filter_path(value: &str) -> String {
     }
 
     value.to_string()
-}
-
-struct RobotsCache {
-    user_agent: String,
-    ignore: bool,
-    origins: HashMap<String, Option<RobotsRules>>,
-}
-
-impl RobotsCache {
-    fn new(user_agent: &str, ignore: bool) -> Self {
-        Self { user_agent: user_agent.to_string(), ignore, origins: HashMap::new() }
-    }
-
-    fn allowed(&mut self, target: &str) -> bool {
-        if self.ignore {
-            return true;
-        }
-        let Some(origin) = robots_origin(target) else {
-            return true;
-        };
-
-        if !self.origins.contains_key(&origin) {
-            let rules = read_robots_txt(&origin)
-                .ok()
-                .and_then(|text| RobotsRules::parse(&text, &self.user_agent));
-            self.origins.insert(origin.clone(), rules);
-        }
-
-        self.origins
-            .get(&origin)
-            .and_then(|rules| rules.as_ref())
-            .is_none_or(|rules| rules.allowed(target))
-    }
-}
-
-#[derive(Debug)]
-struct RobotsRules {
-    rules: Vec<RobotsRule>,
-}
-
-#[derive(Debug)]
-struct RobotsRule {
-    allow: bool,
-    pattern: String,
-}
-
-impl RobotsRules {
-    fn parse(text: &str, user_agent: &str) -> Option<Self> {
-        let groups = parse_robots_groups(text);
-        let user_agent = user_agent.to_ascii_lowercase();
-        let best_len = groups
-            .iter()
-            .filter(|group| group.matches(&user_agent))
-            .flat_map(|group| group.agents.iter())
-            .filter(|agent| agent_matches(agent, &user_agent))
-            .map(|agent| if agent == "*" { 0 } else { agent.len() })
-            .max()?;
-        let rules = groups
-            .into_iter()
-            .filter(|group| group.matches(&user_agent) && group.best_match_len(&user_agent) == Some(best_len))
-            .flat_map(|group| group.rules)
-            .collect::<Vec<_>>();
-        Some(Self { rules })
-    }
-
-    fn allowed(&self, target: &str) -> bool {
-        let path = robots_path(target);
-        let mut best: Option<(usize, bool)> = None;
-
-        for rule in &self.rules {
-            if rule.pattern.is_empty() || !robots_pattern_match(&rule.pattern, &path) {
-                continue;
-            }
-            let len = robots_pattern_len(&rule.pattern);
-            match best {
-                Some((best_len, best_allow)) if best_len > len || (best_len == len && best_allow) => {}
-                _ => best = Some((len, rule.allow)),
-            }
-        }
-
-        best.map(|(_, allow)| allow).unwrap_or(true)
-    }
-}
-
-struct RobotsGroup {
-    agents: Vec<String>,
-    rules: Vec<RobotsRule>,
-}
-
-impl RobotsGroup {
-    fn matches(&self, user_agent: &str) -> bool {
-        self.agents.iter().any(|agent| agent_matches(agent, user_agent))
-    }
-
-    fn best_match_len(&self, user_agent: &str) -> Option<usize> {
-        self.agents
-            .iter()
-            .filter(|agent| agent_matches(agent, user_agent))
-            .map(|agent| if agent == "*" { 0 } else { agent.len() })
-            .max()
-    }
 }
 
 fn parse_robots_groups(text: &str) -> Vec<RobotsGroup> {
@@ -581,27 +635,11 @@ fn read_robots_txt(origin: &str) -> Result<String> {
     Ok(document.html().to_string())
 }
 
-fn robots_path(target: &str) -> String {
-    let Ok(url) = Url::parse(target) else {
-        return target.to_string();
-    };
-    let mut path = url.path().to_string();
-    if let Some(query) = url.query() {
-        path.push('?');
-        path.push_str(query);
-    }
-    path
-}
-
 fn robots_pattern_match(pattern: &str, path: &str) -> bool {
-    if let Some(prefix) = pattern.strip_suffix('$') {
-        return wildcard_match(prefix, path);
+    match pattern.strip_suffix('$') {
+        Some(prefix) => wildcard_match(prefix, path),
+        None => wildcard_prefix_match(pattern, path),
     }
-    wildcard_prefix_match(pattern, path)
-}
-
-fn robots_pattern_len(pattern: &str) -> usize {
-    pattern.chars().filter(|ch| !matches!(ch, '*' | '$')).count()
 }
 
 fn wildcard_prefix_match(pattern: &str, value: &str) -> bool {
@@ -641,13 +679,22 @@ fn wildcard_match(pattern: &str, value: &str) -> bool {
 }
 
 fn sitemap_urls(input: &str, max_sitemaps: usize, max_urls: usize) -> Result<Vec<String>> {
-    let origin = sitemap_origin(input);
-    let mut sitemap_queue = VecDeque::from([input.to_string()]);
+    sitemap_urls_from_inputs(vec![input.to_string()], max_sitemaps, max_urls)
+}
+
+fn sitemap_urls_from_inputs(inputs: Vec<String>, max_sitemaps: usize, max_urls: usize) -> Result<Vec<String>> {
+    let mut sitemap_queue = inputs
+        .into_iter()
+        .map(|input| {
+            let origin = sitemap_origin(&input);
+            (input, origin)
+        })
+        .collect::<VecDeque<_>>();
     let mut seen_sitemaps = HashSet::new();
     let mut seen_urls = HashSet::new();
     let mut urls = Vec::new();
 
-    while let Some(sitemap) = sitemap_queue.pop_front() {
+    while let Some((sitemap, origin)) = sitemap_queue.pop_front() {
         if seen_sitemaps.len() >= max_sitemaps || urls.len() >= max_urls {
             break;
         }
@@ -680,7 +727,7 @@ fn sitemap_urls(input: &str, max_sitemaps: usize, max_urls: usize) -> Result<Vec
                         continue;
                     }
                     if seen_sitemaps.len() + sitemap_queue.len() < max_sitemaps {
-                        sitemap_queue.push_back(url);
+                        sitemap_queue.push_back((url, origin.clone()));
                     }
                 }
                 SiteMapEntity::Err(error) => {
@@ -691,6 +738,45 @@ fn sitemap_urls(input: &str, max_sitemaps: usize, max_urls: usize) -> Result<Vec
     }
 
     Ok(urls)
+}
+
+fn discover_sitemaps(input: &str) -> Result<Vec<String>> {
+    let origin = robots_origin(input).ok_or_else(|| anyhow::anyhow!("--discover requires an HTTP URL seed"))?;
+    let discovered = read_robots_txt(&origin)
+        .map(|text| sitemap_locations_from_robots(&text, &origin))
+        .unwrap_or_default();
+    if !discovered.is_empty() {
+        return Ok(discovered);
+    }
+
+    Ok(vec![format!("{}/sitemap.xml", origin.trim_end_matches('/'))])
+}
+
+fn sitemap_locations_from_robots(text: &str, origin: &str) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut locations = Vec::new();
+    for raw_line in text.lines() {
+        let line = raw_line.split('#').next().unwrap_or("").trim();
+        let Some((name, value)) = line.split_once(':') else {
+            continue;
+        };
+        if !name.trim().eq_ignore_ascii_case("sitemap") {
+            continue;
+        }
+        let value = value.trim();
+        if value.is_empty() {
+            continue;
+        }
+        let location = Url::parse(value)
+            .or_else(|_| Url::parse(origin).and_then(|origin| origin.join(value)))
+            .map(|url| url.to_string());
+        if let Ok(location) = location
+            && seen.insert(location.clone())
+        {
+            locations.push(location);
+        }
+    }
+    locations
 }
 
 fn read_text_source(input: &str) -> Result<LlmsSource> {
@@ -713,14 +799,6 @@ fn sitemap_origin(input: &str) -> Option<String> {
         url.host_str()?,
         url.port().map(|port| format!(":{port}")).unwrap_or_default()
     ))
-}
-
-fn normalize_seed(input: &str) -> Result<String> {
-    if input.starts_with("http://") || input.starts_with("https://") {
-        return normalize_url(input);
-    }
-
-    Ok(PathBuf::from(input).to_string_lossy().to_string())
 }
 
 fn read_crawl_page(input: &str) -> Result<CrawlPage> {
@@ -746,7 +824,7 @@ fn read_crawl_page(input: &str) -> Result<CrawlPage> {
 }
 
 fn crawled_entry(page: &CrawlPage, timeout: u64) -> Result<Option<CrawledEntry>> {
-    let options = default_readability_options()?;
+    let options = ReadabilityOptions::default();
     let Some(report) = super::extract_with_timeout(&page.html, page.base_url.as_deref(), options, timeout)? else {
         eprintln!("lectito: extraction timed out for {}", page.id);
         return Ok(None);
@@ -865,12 +943,6 @@ fn crawlable_url_path(path: &str) -> bool {
     )
 }
 
-fn normalize_url(input: &str) -> Result<String> {
-    let mut url = Url::parse(input).with_context(|| format!("invalid URL: {input}"))?;
-    url.set_fragment(None);
-    Ok(url.to_string())
-}
-
 fn render_generated_llms_txt(title: &str, summary: &str, section: &str, entries: &[CrawledEntry]) -> String {
     let mut output = String::new();
     output.push_str("# ");
@@ -885,7 +957,7 @@ fn render_generated_llms_txt(title: &str, summary: &str, section: &str, entries:
         output.push_str("- [");
         output.push_str(&escape_link_label(&entry.title));
         output.push_str("](");
-        output.push_str(&escape_link_destination(&entry.url));
+        output.push_str(&entry.url.replace(' ', "%20").replace(')', "%29"));
         output.push(')');
         if let Some(notes) = entry.notes.as_deref() {
             output.push_str(": ");
@@ -956,7 +1028,7 @@ fn read_resource_markdown(input: &str, timeout: u64) -> Result<String> {
 }
 
 fn extract_resource_markdown(html: &str, base_url: Option<&str>, timeout: u64) -> Result<String> {
-    let options = default_readability_options()?;
+    let options = ReadabilityOptions::default();
     let Some(report) = super::extract_with_timeout(html, base_url, options, timeout)? else {
         anyhow::bail!("extraction timed out after {timeout}s");
     };
@@ -964,22 +1036,6 @@ fn extract_resource_markdown(html: &str, base_url: Option<&str>, timeout: u64) -
         report.article.as_ref(),
         echo::RenderOptions::new(crate::cli::OutputFormat::Markdown, false, base_url, false),
     )
-}
-
-fn default_readability_options() -> Result<ReadabilityOptions> {
-    Ok(ReadabilityOptions {
-        max_elems_to_parse: None,
-        nb_top_candidates: 5,
-        char_threshold: 500,
-        content_selector: None,
-        site_profiles: read_site_profiles(&[])?,
-        mobile_viewport_width: Some(480),
-        classes_to_preserve: Vec::new(),
-        keep_classes: false,
-        disable_json_ld: false,
-        link_density_modifier: 0.0,
-        media_retention: lectito::MediaRetention::Article,
-    })
 }
 
 fn looks_like_md(input: &str, content_type: Option<&str>, text: &str) -> bool {
@@ -1032,14 +1088,6 @@ fn write_output(path: Option<&PathBuf>, output: &str) -> Result<()> {
             Ok(())
         }
     }
-}
-
-fn normalize_llms_markdown(text: &str) -> String {
-    text.trim_start_matches('\u{feff}')
-        .replace(" ## ", "\n## ")
-        .replace(" # ", "\n# ")
-        .replace(" > ", "\n> ")
-        .replace(" - [", "\n- [")
 }
 
 fn parse_link_line(line: &str) -> Option<LlmsLink> {
@@ -1099,13 +1147,12 @@ fn escape_link_label(value: &str) -> String {
     value.replace('\\', "\\\\").replace('[', "\\[").replace(']', "\\]")
 }
 
-fn escape_link_destination(value: &str) -> String {
-    value.replace(' ', "%20").replace(')', "%29")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
+    use std::net::TcpListener;
+    use std::thread;
 
     #[test]
     fn parses_sections_and_optional_links() {
@@ -1232,26 +1279,59 @@ Use Markdown outputs for agent context.
 
     #[test]
     fn layered_filters_match_url_path_and_globs() {
-        let includes = vec!["/docs/".to_string()];
-        let excludes = vec!["/tags/".to_string()];
-        let include_paths = vec!["/docs/".to_string()];
-        let exclude_paths = vec!["/docs/archive/".to_string()];
-        let include_globs = vec!["https://example.com/docs/*".to_string()];
-        let exclude_globs = vec!["*/drafts/*".to_string()];
-        let filters = GenerateFilters {
-            includes: &includes,
-            excludes: &excludes,
-            include_paths: &include_paths,
-            exclude_paths: &exclude_paths,
-            include_globs: &include_globs,
-            exclude_globs: &exclude_globs,
-        };
+        let raw_filters = vec!["/docs/reference/".to_string(), "!/docs/reference/archive/".to_string()];
+        let filters = GenerateFilters { rules: parse_filter_rules(&raw_filters).expect("filter rules") };
 
-        assert!(passes_filters("https://example.com/docs/guide", &filters));
+        assert!(!passes_filters("https://example.com/docs/guide", &filters));
         assert!(!passes_filters("https://example.com/blog/post", &filters));
-        assert!(!passes_filters("https://example.com/docs/tags/rust", &filters));
-        assert!(!passes_filters("https://example.com/docs/archive/old", &filters));
-        assert!(!passes_filters("https://example.com/docs/drafts/post", &filters));
+        assert!(passes_filters("https://example.com/docs/reference/page", &filters));
+        assert!(!passes_filters(
+            "https://example.com/docs/reference/archive/page",
+            &filters
+        ));
+    }
+
+    #[test]
+    fn sitemap_locations_from_robots_resolves_absolute_and_relative_urls() {
+        let locations = sitemap_locations_from_robots(
+            r#"
+User-agent: *
+Disallow: /private/
+Sitemap: https://example.com/sitemap.xml
+Sitemap: /docs-sitemap.xml
+Sitemap: https://example.com/sitemap.xml
+"#,
+            "https://example.com",
+        );
+
+        assert_eq!(
+            locations,
+            vec![
+                "https://example.com/sitemap.xml",
+                "https://example.com/docs-sitemap.xml"
+            ]
+        );
+    }
+
+    #[test]
+    fn discovers_sitemaps_from_robots_txt() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
+        let address = listener.local_addr().expect("test server address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept test request");
+            let body = format!("User-agent: *\nSitemap: http://{address}/sitemap.xml\n");
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream.write_all(response.as_bytes()).expect("write response");
+        });
+
+        let sitemaps = discover_sitemaps(&format!("http://{address}/docs/")).expect("discover sitemaps");
+
+        server.join().expect("join test server");
+        assert_eq!(sitemaps, vec![format!("http://{address}/sitemap.xml")]);
     }
 
     #[test]

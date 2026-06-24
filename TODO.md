@@ -17,7 +17,7 @@
 
 ## LLMs
 
-- [ ] Add sitemap discovery for `lectito llms generate`.
+- [x] Add sitemap discovery for `lectito llms generate`.
 - [ ] Use canonical URLs when generating `llms.txt` entries.
 - [ ] Use HTTP `Last-Modified` and sitemap `lastmod` data during generation.
 - [ ] Add generated full-context output alongside generated `llms.txt`.

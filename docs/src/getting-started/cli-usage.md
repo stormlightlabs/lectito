@@ -125,6 +125,7 @@ lectito llms parse https://example.com/llms.txt --pretty
 lectito llms expand https://example.com/llms.txt --output llms-full.txt
 lectito llms generate https://example.com/docs/ --output llms.txt
 lectito llms generate --sitemap https://example.com/sitemap.xml --output llms.txt
+lectito llms generate https://example.com --discover --output llms.txt
 ```
 
 `fetch` resolves a bare site URL to `/llms.txt`. `parse` prints structured JSON.
@@ -146,22 +147,21 @@ lectito llms generate https://example.com/docs/ --max-depth 1 --max-pages 10
 lectito llms generate --sitemap https://example.com/sitemap.xml --max-pages 50
 ```
 
-Filter generated entries by URL substring and add a delay between page fetches:
+Filter generated entries and add a delay between page fetches:
 
 ```sh
 lectito llms generate --sitemap https://example.com/sitemap.xml \
-  --include /docs/ \
-  --include-path /docs/ \
-  --exclude-glob '*/drafts/*' \
-  --exclude /tags/ \
-  --delay-ms 250
+  --filter /docs/ \
+  --filter '!/docs/archive/' \
+  --filter '!*/drafts/*' \
+  --delay 250
 ```
 
 Remote generation checks `robots.txt` before fetching page URLs. It evaluates
 rules as `Lectito` by default:
 
 ```sh
-lectito llms generate https://example.com/docs/ --robots-user-agent Lectito
+lectito llms generate https://example.com/docs/ --robots-agent Lectito
 lectito llms generate https://example.com/docs/ --ignore-robots
 ```
 

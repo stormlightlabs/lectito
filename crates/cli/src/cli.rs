@@ -338,45 +338,25 @@ pub struct LlmsGenerateArgs {
     #[arg(long, default_value_t = 25)]
     pub max_pages: usize,
 
-    /// Only include candidate page URLs containing this text. May be repeated.
-    #[arg(long, value_name = "TEXT")]
-    pub include: Vec<String>,
+    /// Filter candidate URLs. Prefix with '!' to exclude. May be repeated.
+    #[arg(long = "filter", value_name = "PATTERN")]
+    pub filters: Vec<String>,
 
-    /// Exclude candidate page URLs containing this text. May be repeated.
-    #[arg(long, value_name = "TEXT")]
-    pub exclude: Vec<String>,
-
-    // TODO: these should be paths/globs with ! syntax for exclude
-    /// Only include candidate URL paths with this prefix. May be repeated.
-    #[arg(long = "include-path", value_name = "PATH")]
-    pub include_paths: Vec<String>,
-
-    /// Exclude candidate URL paths with this prefix. May be repeated.
-    #[arg(long = "exclude-path", value_name = "PATH")]
-    pub exclude_paths: Vec<String>,
-
-    /// Only include candidate URLs matching this glob. May be repeated.
-    #[arg(long = "include-glob", value_name = "GLOB")]
-    pub include_globs: Vec<String>,
-
-    /// Exclude candidate URLs matching this glob. May be repeated.
-    #[arg(long = "exclude-glob", value_name = "GLOB")]
-    pub exclude_globs: Vec<String>,
-
-    /// Delay between page fetches while generating.
-    ///
-    /// TODO: alias as delay
-    #[arg(long, default_value_t = 0)]
+    /// Delay between page fetches while generating, in milliseconds.
+    #[arg(long = "delay", default_value_t = 0)]
     pub delay_ms: u64,
 
-    // FIXME: This is clunky
     /// User-agent token used when evaluating robots.txt.
-    #[arg(long, default_value = "Lectito")]
+    #[arg(long = "robots-agent", default_value = "Lectito")]
     pub robots_user_agent: String,
 
     /// Ignore robots.txt checks during remote generation.
     #[arg(long)]
     pub ignore_robots: bool,
+
+    /// Discover sitemap URLs from robots.txt or /sitemap.xml.
+    #[arg(long = "discover")]
+    pub discover_sitemap: bool,
 
     /// Maximum sitemap files to read when a sitemap index is used.
     #[arg(long, default_value_t = 25)]
@@ -460,38 +440,27 @@ mod tests {
             "llms",
             "generate",
             "https://example.com/docs/",
-            "--include",
-            "/docs/",
-            "--exclude",
-            "/tags/",
-            "--include-path",
-            "/docs/",
-            "--exclude-path",
-            "/docs/archive/",
-            "--include-glob",
-            "https://example.com/docs/*",
-            "--exclude-glob",
-            "*/drafts/*",
-            "--delay-ms",
+            "--filter",
+            "/reference/",
+            "--filter",
+            "!/reference/archive/",
+            "--delay",
             "100",
-            "--robots-user-agent",
+            "--robots-agent",
             "LectitoBot",
             "--ignore-robots",
+            "--discover",
         ])
         .expect("llms generate filters should parse");
 
         match cli.command {
             Some(Commands::Llms(args)) => match args.command {
                 LlmsCommands::Generate(args) => {
-                    assert_eq!(args.include, vec!["/docs/"]);
-                    assert_eq!(args.exclude, vec!["/tags/"]);
-                    assert_eq!(args.include_paths, vec!["/docs/"]);
-                    assert_eq!(args.exclude_paths, vec!["/docs/archive/"]);
-                    assert_eq!(args.include_globs, vec!["https://example.com/docs/*"]);
-                    assert_eq!(args.exclude_globs, vec!["*/drafts/*"]);
+                    assert_eq!(args.filters, vec!["/reference/", "!/reference/archive/"]);
                     assert_eq!(args.delay_ms, 100);
                     assert_eq!(args.robots_user_agent, "LectitoBot");
                     assert!(args.ignore_robots);
+                    assert!(args.discover_sitemap);
                 }
                 other => panic!("unexpected llms subcommand: {other:?}"),
             },
@@ -518,6 +487,23 @@ mod tests {
                     assert_eq!(args.input, None);
                     assert_eq!(args.sitemap.as_deref(), Some("https://example.com/sitemap.xml"));
                     assert_eq!(args.max_sitemaps, 3);
+                }
+                other => panic!("unexpected llms subcommand: {other:?}"),
+            },
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn llms_generate_discover_sitemap_parses() {
+        let cli = Cli::try_parse_from(["lectito", "llms", "generate", "https://example.com", "--discover"])
+            .expect("llms generate --discover command should parse");
+
+        match cli.command {
+            Some(Commands::Llms(args)) => match args.command {
+                LlmsCommands::Generate(args) => {
+                    assert_eq!(args.input.as_deref(), Some("https://example.com"));
+                    assert!(args.discover_sitemap);
                 }
                 other => panic!("unexpected llms subcommand: {other:?}"),
             },

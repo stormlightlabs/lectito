@@ -134,6 +134,16 @@ lectito llms generate --sitemap https://example.com/sitemap.xml \
   --output llms.txt
 ```
 
+Or discover sitemaps from a URL seed:
+
+```sh
+lectito llms generate https://example.com --discover \
+  --output llms.txt
+```
+
+Discovery reads `Sitemap:` lines from `robots.txt`. When no sitemap is listed
+there, Lectito tries `/sitemap.xml`.
+
 Sitemap indexes are supported. Lectito reads child sitemaps up to
 `--max-sitemaps`, then fetches page URLs up to `--max-pages`:
 
@@ -155,35 +165,23 @@ lectito llms generate https://example.com/docs/ \
   --max-depth 1
 ```
 
-Use `--include` and `--exclude` to filter candidate page URLs by substring:
+Use `--filter` for the common path and glob cases. Prefix a pattern with `!` to
+exclude it:
 
 ```sh
 lectito llms generate --sitemap https://example.com/sitemap.xml \
-  --include /docs/ \
-  --exclude /tags/ \
-  --exclude /archive/
+  --filter /docs/ \
+  --filter '!/docs/archive/' \
+  --filter '!*/drafts/*'
 ```
 
-Use path-prefix filters when you want to match only the URL path:
+Patterns that start with `/` match URL paths. Plain path values are prefixes.
+Path patterns with `*` or `?` are globs. Other glob patterns match the full URL.
+
+Use `--delay` to wait between page fetches:
 
 ```sh
-lectito llms generate --sitemap https://example.com/sitemap.xml \
-  --include-path /docs/ \
-  --exclude-path /docs/archive/
-```
-
-Use glob filters when a simple wildcard is easier than repeated substrings:
-
-```sh
-lectito llms generate --sitemap https://example.com/sitemap.xml \
-  --include-glob 'https://example.com/docs/*' \
-  --exclude-glob '*/drafts/*'
-```
-
-Use `--delay-ms` to wait between page fetches:
-
-```sh
-lectito llms generate https://example.com/docs/ --delay-ms 250
+lectito llms generate https://example.com/docs/ --delay 250
 ```
 
 Remote generation checks `robots.txt` before fetching page URLs. Lectito keeps
@@ -192,7 +190,7 @@ rules as `Lectito` unless you pass another token:
 
 ```sh
 lectito llms generate https://example.com/docs/ \
-  --robots-user-agent LectitoDocsBot
+  --robots-agent LectitoDocsBot
 ```
 
 Use `--ignore-robots` only when you explicitly want to bypass those checks:
