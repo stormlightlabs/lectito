@@ -5,6 +5,8 @@ use reqwest::blocking::Client;
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::utils;
+
 pub const DEFAULT_HANDLE_RESOLVER: &str = "https://public.api.bsky.app";
 pub const SITE_STANDARD_DOCUMENT: &str = "site.standard.document";
 pub const SITE_STANDARD_PUBLICATION: &str = "site.standard.publication";
@@ -15,6 +17,92 @@ pub struct AtprotoClient {
     handle_resolver: String,
 }
 
+impl AtprotoClient {
+    pub fn new(client: Client) -> Self {
+        Self::with_handle_resolver(client, DEFAULT_HANDLE_RESOLVER)
+    }
+
+    pub fn with_handle_resolver(client: Client, handle_resolver: impl Into<String>) -> Self {
+        Self { client, handle_resolver: handle_resolver.into().trim_end_matches('/').to_string() }
+    }
+
+    pub fn resolve_handle(&self, handle: &str) -> Result<String> {
+        let mut url = Url::parse(&self.handle_resolver).context("invalid ATProto handle resolver URL")?;
+        url.set_path("/xrpc/com.atproto.identity.resolveHandle");
+        url.query_pairs_mut().clear().append_pair("handle", handle);
+
+        let body: ResolveHandleResponse = self.get_json(url.as_str())?;
+        if !is_valid_did(&body.did) {
+            anyhow::bail!("handle {handle} resolved to invalid DID {:?}", body.did);
+        }
+        Ok(body.did)
+    }
+
+    pub fn resolve_did_pds(&self, did: &str) -> Result<String> {
+        let did_url = did_document_url(did)?;
+        let doc = self.get_json::<DidDocument>(&did_url)?;
+        for service in doc.service {
+            if service.id != "#atproto_pds" || service.service_type != "AtprotoPersonalDataServer" {
+                continue;
+            }
+            let endpoint =
+                Url::parse(&service.service_endpoint).with_context(|| format!("invalid PDS endpoint for {did}"))?;
+            if endpoint.scheme() == "https" {
+                return Ok(service.service_endpoint.trim_end_matches('/').to_string());
+            }
+        }
+        anyhow::bail!("DID document has no HTTPS ATProto PDS service: {did}");
+    }
+
+    pub fn get_record(&self, at_uri: &str) -> Result<ResolvedRecord> {
+        let parsed = AtUri::parse(at_uri)?;
+        let did = if is_valid_did(&parsed.authority) {
+            parsed.authority.clone()
+        } else {
+            self.resolve_handle(&parsed.authority)?
+        };
+        let pds = self.resolve_did_pds(&did)?;
+        let url = get_record_url(&pds, &did, &parsed.collection, &parsed.rkey)?;
+        let record: RepoRecord = self.get_json(url.as_str())?;
+
+        Ok(ResolvedRecord { repo: did, pds, collection: parsed.collection, value: record.value })
+    }
+
+    pub fn standard_site_render_metadata(
+        &self, record: &ResolvedRecord, source_url: Option<&str>,
+    ) -> Result<StandardSiteRenderMetadata> {
+        let Some(document) = standard_site_document(record)? else {
+            return Ok(StandardSiteRenderMetadata::default());
+        };
+
+        let site_name = self
+            .get_record(&document.site)
+            .ok()
+            .filter(|publication| publication.collection == SITE_STANDARD_PUBLICATION)
+            .and_then(|publication| serde_json::from_value::<SiteStandardPublication>(publication.value).ok())
+            .map(|publication| publication.name)
+            .filter(|name| !name.trim().is_empty());
+        let byline = document_byline(&document)
+            .or_else(|| source_url.and_then(|url| source_url_author(url, site_name.as_deref())));
+
+        Ok(StandardSiteRenderMetadata { site_name, byline })
+    }
+
+    fn get_json<T: for<'de> Deserialize<'de>>(&self, url: &str) -> Result<T> {
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .with_context(|| format!("GET {url} failed"))?
+            .error_for_status()
+            .with_context(|| format!("GET {url} failed"))?;
+        let text = response
+            .text()
+            .with_context(|| format!("failed to read response body from {url}"))?;
+        serde_json::from_str(&text).with_context(|| format!("failed to decode JSON from {url}"))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AtUri {
     pub authority: String,
@@ -22,8 +110,27 @@ pub struct AtUri {
     pub rkey: String,
 }
 
+impl AtUri {
+    pub fn parse(raw: &str) -> Result<Self> {
+        let Some(rest) = raw.strip_prefix("at://") else {
+            anyhow::bail!("invalid AT URI {raw:?}");
+        };
+        let mut parts = rest.split('/');
+        let authority = parts.next().unwrap_or_default();
+        let collection = parts.next().unwrap_or_default();
+        let rkey = parts.next().unwrap_or_default();
+        if authority.is_empty() || collection.is_empty() || rkey.is_empty() || parts.next().is_some() {
+            anyhow::bail!("invalid AT URI {raw:?}");
+        }
+
+        Ok(Self { authority: authority.to_string(), collection: collection.to_string(), rkey: rkey.to_string() })
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ResolvedRecord {
+    pub repo: String,
+    pub pds: String,
     pub collection: String,
     pub value: Value,
 }
@@ -88,106 +195,335 @@ struct DidService {
     service_endpoint: String,
 }
 
-impl AtprotoClient {
-    pub fn new(client: Client) -> Self {
-        Self::with_handle_resolver(client, DEFAULT_HANDLE_RESOLVER)
+struct RenderedFootnote {
+    id: String,
+    html: String,
+}
+
+struct StandardSiteRenderer<'a> {
+    record: &'a ResolvedRecord,
+    footnotes: Vec<RenderedFootnote>,
+}
+
+impl<'a> StandardSiteRenderer<'a> {
+    fn new(record: &'a ResolvedRecord) -> Self {
+        Self { record, footnotes: Vec::new() }
     }
 
-    pub fn with_handle_resolver(client: Client, handle_resolver: impl Into<String>) -> Self {
-        Self { client, handle_resolver: handle_resolver.into().trim_end_matches('/').to_string() }
-    }
-
-    pub fn resolve_handle(&self, handle: &str) -> Result<String> {
-        let mut url = Url::parse(&self.handle_resolver).context("invalid ATProto handle resolver URL")?;
-        url.set_path("/xrpc/com.atproto.identity.resolveHandle");
-        url.query_pairs_mut().clear().append_pair("handle", handle);
-
-        let body: ResolveHandleResponse = self.get_json(url.as_str())?;
-        if !is_valid_did(&body.did) {
-            anyhow::bail!("handle {handle} resolved to invalid DID {:?}", body.did);
+    fn render_content_value(&mut self, value: &Value) -> String {
+        match value {
+            Value::Array(items) => items
+                .iter()
+                .map(|item| self.render_content_value(item))
+                .collect::<String>(),
+            Value::Object(fields) => self.render_content_object(fields),
+            Value::String(text) => text_content_html(text),
+            _ => String::new(),
         }
-        Ok(body.did)
     }
 
-    pub fn resolve_did_pds(&self, did: &str) -> Result<String> {
-        let did_url = did_document_url(did)?;
-        let doc = self.get_json::<DidDocument>(&did_url)?;
-        for service in doc.service {
-            if service.id != "#atproto_pds" || service.service_type != "AtprotoPersonalDataServer" {
+    fn render_content_object(&mut self, fields: &serde_json::Map<String, Value>) -> String {
+        let block_type = string_field(fields, &["$type", "type"]).to_ascii_lowercase();
+
+        if let Some(block) = fields.get("block") {
+            return self.render_content_value(block);
+        }
+        if block_type.contains("content") {
+            return self.render_first_nested(fields, &["pages", "items", "blocks", "children", "content"]);
+        }
+        if block_type.contains("lineardocument") {
+            return self.render_first_nested(fields, &["blocks", "children", "content"]);
+        }
+        if block_type.contains("unorderedlist")
+            || block_type.contains("bulletlist")
+            || block_type.contains("unordered-list")
+        {
+            return self.render_list(fields, false);
+        }
+        if block_type.contains("orderedlist") || block_type.contains("ordered-list") {
+            return self.render_list(fields, true);
+        }
+        if block_type.contains("heading") || block_type.contains("header") {
+            return self.render_heading(fields);
+        }
+        if block_type.contains("code") {
+            return render_code(fields);
+        }
+        if block_type.contains("blockquote") || block_type.contains("quote") {
+            let inner = if has_text(fields) {
+                self.text_html(&text_field(fields), fields.get("facets"), true)
+            } else {
+                self.render_first_nested(fields, &["content", "children", "blocks", "items"])
+            };
+            return if !inner.trim().is_empty() {
+                format!("<blockquote>{inner}</blockquote>")
+            } else {
+                Default::default()
+            };
+        }
+        if block_type.contains("horizontalrule") || block_type.contains("horizontal-rule") || block_type == "hr" {
+            return "<hr>".to_string();
+        }
+        if block_type.contains("image") {
+            return self.render_image(fields);
+        }
+        if has_text(fields) {
+            return self.text_html(&text_field(fields), fields.get("facets"), true);
+        }
+
+        self.render_first_nested(fields, &["content", "children", "pages", "blocks", "items"])
+    }
+
+    fn render_first_nested(&mut self, fields: &serde_json::Map<String, Value>, names: &[&str]) -> String {
+        names
+            .iter()
+            .find_map(|name| fields.get(*name))
+            .map(|value| self.render_content_value(value))
+            .unwrap_or_default()
+    }
+
+    fn render_list(&mut self, fields: &serde_json::Map<String, Value>, ordered: bool) -> String {
+        let Some(items) = first_value(fields, &["children", "items", "content"]).and_then(Value::as_array) else {
+            return String::new();
+        };
+
+        let tag = if ordered { "ol" } else { "ul" };
+        let mut html = format!("<{tag}>");
+        for item in items {
+            let body = self.render_list_item(item);
+            if !body.trim().is_empty() {
+                html.push_str(&format!("<li>{body}</li>"));
+            }
+        }
+        html.push_str(&format!("</{tag}>"));
+        html
+    }
+
+    fn render_list_item(&mut self, value: &Value) -> String {
+        let Some(fields) = value.as_object() else {
+            return text_content_html(&value.to_string());
+        };
+
+        let mut html = String::new();
+        if let Some(content) = fields.get("content") {
+            html.push_str(&self.render_content_value(content));
+        } else if has_text(fields) {
+            html.push_str(&self.text_html(&text_field(fields), fields.get("facets"), false));
+        }
+        for key in ["children", "orderedListChildren", "unorderedListChildren"] {
+            if let Some(value) = fields.get(key) {
+                html.push_str(&self.render_content_value(value));
+            }
+        }
+        html
+    }
+
+    fn render_heading(&mut self, fields: &serde_json::Map<String, Value>) -> String {
+        let text = text_field(fields);
+        if text.is_empty() {
+            return String::new();
+        }
+        let level = first_value(fields, &["level"])
+            .and_then(Value::as_i64)
+            .unwrap_or(2)
+            .clamp(1, 6);
+        let inner = self.text_html(&text, fields.get("facets"), false);
+        format!("<h{level}>{inner}</h{level}>")
+    }
+
+    fn render_image(&self, fields: &serde_json::Map<String, Value>) -> String {
+        let attrs = fields.get("attrs").and_then(Value::as_object).unwrap_or(fields);
+        let src = string_field(attrs, &["src", "url"]);
+        let src = if src.is_empty() {
+            first_value(attrs, &["image", "blob"]).and_then(|value| self.blob_url(value))
+        } else {
+            Some(src)
+        };
+        let Some(src) = src.filter(|src| !src.is_empty()) else {
+            return String::new();
+        };
+        let alt = string_field(attrs, &["alt", "caption"]);
+        format!(
+            "<figure><img src=\"{}\" alt=\"{}\"></figure>",
+            escape_html(&src),
+            escape_html(&alt)
+        )
+    }
+
+    fn blob_url(&self, value: &Value) -> Option<String> {
+        let cid = blob_cid(value)?;
+        let mut url = Url::parse(&self.record.pds).ok()?;
+        url.set_path("/xrpc/com.atproto.sync.getBlob");
+        url.query_pairs_mut()
+            .clear()
+            .append_pair("did", &self.record.repo)
+            .append_pair("cid", &cid);
+        Some(url.to_string())
+    }
+
+    fn text_html(&mut self, text: &str, facets: Option<&Value>, paragraph: bool) -> String {
+        let inner = self.rich_text_html(text, facets);
+        if inner.trim().is_empty() {
+            return String::new();
+        }
+        if paragraph { format!("<p>{inner}</p>") } else { inner }
+    }
+
+    fn rich_text_html(&mut self, text: &str, facets: Option<&Value>) -> String {
+        let mut ranges = facets
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|facet| RichTextRange::from_value(facet))
+            .collect::<Vec<_>>();
+        ranges.sort_by_key(|range| (range.start, range.end));
+
+        let bytes = text.as_bytes();
+        let mut cursor = 0;
+        let mut html = String::new();
+        for range in ranges {
+            if range.start < cursor
+                || range.end > bytes.len()
+                || !text.is_char_boundary(range.start)
+                || !text.is_char_boundary(range.end)
+            {
                 continue;
             }
-            let endpoint =
-                Url::parse(&service.service_endpoint).with_context(|| format!("invalid PDS endpoint for {did}"))?;
-            if endpoint.scheme() == "https" {
-                return Ok(service.service_endpoint.trim_end_matches('/').to_string());
-            }
+            html.push_str(&escape_html_with_breaks(&text[cursor..range.start]));
+            html.push_str(&self.render_facet_text(&text[range.start..range.end], &range.features));
+            cursor = range.end;
         }
-        anyhow::bail!("DID document has no HTTPS ATProto PDS service: {did}");
+        html.push_str(&escape_html_with_breaks(&text[cursor..]));
+        html
     }
 
-    pub fn get_record(&self, at_uri: &str) -> Result<ResolvedRecord> {
-        let parsed = AtUri::parse(at_uri)?;
-        let did = if is_valid_did(&parsed.authority) {
-            parsed.authority.clone()
-        } else {
-            self.resolve_handle(&parsed.authority)?
-        };
-        let pds = self.resolve_did_pds(&did)?;
-        let url = get_record_url(&pds, &did, &parsed.collection, &parsed.rkey)?;
-        let record: RepoRecord = self.get_json(url.as_str())?;
-
-        Ok(ResolvedRecord { collection: parsed.collection, value: record.value })
+    fn render_facet_text(&mut self, text: &str, features: &[RichTextFeature]) -> String {
+        let mut html = escape_html_with_breaks(text);
+        for feature in features.iter().rev() {
+            html = match feature {
+                RichTextFeature::Link(uri) => {
+                    format!("<a href=\"{}\">{html}</a>", escape_html(uri))
+                }
+                RichTextFeature::Bold => format!("<strong>{html}</strong>"),
+                RichTextFeature::Italic => format!("<em>{html}</em>"),
+                RichTextFeature::Code => format!("<code>{html}</code>"),
+                RichTextFeature::Underline => format!("<u>{html}</u>"),
+                RichTextFeature::Strikethrough => format!("<s>{html}</s>"),
+                RichTextFeature::Id(id) => format!("<span id=\"{}\">{html}</span>", escape_html(id)),
+                RichTextFeature::Footnote { id, text, facets } => {
+                    let content = self.rich_text_html(text, Some(facets));
+                    self.push_footnote(id, content);
+                    format!(
+                        "{html}<sup id=\"fnref-{0}\"><a href=\"#fn-{0}\">{0}</a></sup>",
+                        escape_html(id)
+                    )
+                }
+            };
+        }
+        html
     }
 
-    pub fn standard_site_render_metadata(
-        &self, record: &ResolvedRecord, source_url: Option<&str>,
-    ) -> Result<StandardSiteRenderMetadata> {
-        let Some(document) = standard_site_document(record)? else {
-            return Ok(StandardSiteRenderMetadata::default());
-        };
-
-        let site_name = self
-            .get_record(&document.site)
-            .ok()
-            .filter(|publication| publication.collection == SITE_STANDARD_PUBLICATION)
-            .and_then(|publication| serde_json::from_value::<SiteStandardPublication>(publication.value).ok())
-            .map(|publication| publication.name)
-            .filter(|name| !name.trim().is_empty());
-        let byline = document_byline(&document)
-            .or_else(|| source_url.and_then(|url| source_url_author(url, site_name.as_deref())));
-
-        Ok(StandardSiteRenderMetadata { site_name, byline })
+    fn push_footnote(&mut self, id: &str, html: String) {
+        if id.trim().is_empty() || html.trim().is_empty() || self.footnotes.iter().any(|footnote| footnote.id == id) {
+            return;
+        }
+        self.footnotes.push(RenderedFootnote { id: id.to_string(), html });
     }
 
-    fn get_json<T: for<'de> Deserialize<'de>>(&self, url: &str) -> Result<T> {
-        let response = self
-            .client
-            .get(url)
-            .send()
-            .with_context(|| format!("GET {url} failed"))?
-            .error_for_status()
-            .with_context(|| format!("GET {url} failed"))?;
-        let text = response
-            .text()
-            .with_context(|| format!("failed to read response body from {url}"))?;
-        serde_json::from_str(&text).with_context(|| format!("failed to decode JSON from {url}"))
+    fn render_footnotes(&self) -> String {
+        if self.footnotes.is_empty() {
+            return String::new();
+        }
+        let mut html = String::from("<section class=\"footnotes\"><ol>");
+        for footnote in &self.footnotes {
+            html.push_str(&format!(
+                "<li id=\"fn-{}\">{} <a href=\"#fnref-{}\">Back</a></li>",
+                escape_html(&footnote.id),
+                footnote.html,
+                escape_html(&footnote.id)
+            ));
+        }
+        html.push_str("</ol></section>");
+        html
     }
 }
 
-impl AtUri {
-    pub fn parse(raw: &str) -> Result<Self> {
-        let Some(rest) = raw.strip_prefix("at://") else {
-            anyhow::bail!("invalid AT URI {raw:?}");
-        };
-        let mut parts = rest.split('/');
-        let authority = parts.next().unwrap_or_default();
-        let collection = parts.next().unwrap_or_default();
-        let rkey = parts.next().unwrap_or_default();
-        if authority.is_empty() || collection.is_empty() || rkey.is_empty() || parts.next().is_some() {
-            anyhow::bail!("invalid AT URI {raw:?}");
-        }
+#[derive(Clone, Debug)]
+enum RichTextFeature {
+    Link(String),
+    Bold,
+    Italic,
+    Code,
+    Underline,
+    Strikethrough,
+    Id(String),
+    Footnote { id: String, text: String, facets: Value },
+}
 
-        Ok(Self { authority: authority.to_string(), collection: collection.to_string(), rkey: rkey.to_string() })
+impl RichTextFeature {
+    // TODO: could this be from/into &/or a de/serialize implementation?
+    fn from_value(value: &Value) -> Option<Self> {
+        let fields = value.as_object()?;
+        let feature_type = string_field(fields, &["$type", "type"]).to_ascii_lowercase();
+        if feature_type.contains("link") || feature_type.contains("mention") {
+            let uri = string_field(fields, &["uri", "href", "atURI"]);
+            return (!uri.is_empty()).then_some(Self::Link(uri));
+        }
+        if feature_type.contains("bold") {
+            return Some(Self::Bold);
+        }
+        if feature_type.contains("italic") {
+            return Some(Self::Italic);
+        }
+        if feature_type.contains("code") {
+            return Some(Self::Code);
+        }
+        if feature_type.contains("underline") {
+            return Some(Self::Underline);
+        }
+        if feature_type.contains("strikethrough") {
+            return Some(Self::Strikethrough);
+        }
+        if feature_type.ends_with("#id") || feature_type.contains(".id") {
+            let id = string_field(fields, &["id"]);
+            return (!id.is_empty()).then_some(Self::Id(id));
+        }
+        if feature_type.contains("footnote") {
+            let id = string_field(fields, &["footnoteId"]);
+            let text = string_field(fields, &["contentPlaintext"]);
+            let facets = fields
+                .get("contentFacets")
+                .cloned()
+                .unwrap_or_else(|| Value::Array(Vec::new()));
+            return (!id.is_empty() && !text.is_empty()).then_some(Self::Footnote { id, text, facets });
+        }
+        None
+    }
+}
+
+#[derive(Clone, Debug)]
+struct RichTextRange {
+    start: usize,
+    end: usize,
+    features: Vec<RichTextFeature>,
+}
+
+impl RichTextRange {
+    fn from_value(value: &Value) -> Option<Self> {
+        let fields = value.as_object()?;
+        let index = fields.get("index")?.as_object()?;
+        let start = first_value(index, &["byteStart"])?.as_u64()? as usize;
+        let end = first_value(index, &["byteEnd"])?.as_u64()? as usize;
+        if start >= end {
+            return None;
+        }
+        let features = fields
+            .get("features")?
+            .as_array()?
+            .iter()
+            .filter_map(RichTextFeature::from_value)
+            .collect::<Vec<_>>();
+        (!features.is_empty()).then_some(Self { start, end, features })
     }
 }
 
@@ -217,10 +553,11 @@ pub fn standard_site_document_html(
     let Some(document) = standard_site_document(record)? else {
         return Ok(None);
     };
+    let mut renderer = StandardSiteRenderer::new(record);
     let body = document
         .content
         .as_ref()
-        .map(render_content_value)
+        .map(|value| renderer.render_content_value(value))
         .filter(|html| !html.trim().is_empty())
         .or_else(|| document.text_content.as_deref().map(text_content_html))
         .filter(|html| !html.trim().is_empty());
@@ -275,6 +612,7 @@ pub fn standard_site_document_html(
         ));
     }
     html.push_str(&body);
+    html.push_str(&renderer.render_footnotes());
     html.push_str("</article></body></html>");
     Ok(Some(html))
 }
@@ -286,15 +624,6 @@ pub fn standard_site_document(record: &ResolvedRecord) -> Result<Option<SiteStan
     serde_json::from_value(record.value.clone())
         .map(Some)
         .context("invalid site.standard.document record")
-}
-
-fn render_content_value(value: &Value) -> String {
-    match value {
-        Value::Array(items) => items.iter().map(render_content_value).collect::<String>(),
-        Value::Object(fields) => render_content_object(fields),
-        Value::String(text) => text_content_html(text),
-        _ => String::new(),
-    }
 }
 
 fn document_byline(document: &SiteStandardDocument) -> Option<String> {
@@ -341,112 +670,14 @@ fn source_url_author(source_url: &str, site_name: Option<&str>) -> Option<String
     }
 }
 
-fn render_content_object(fields: &serde_json::Map<String, Value>) -> String {
-    let block_type = string_field(fields, &["$type", "type"]).to_ascii_lowercase();
-
-    if let Some(block) = fields.get("block") {
-        return render_content_value(block);
-    }
-    if block_type.contains("content") {
-        return render_first_nested(fields, &["pages", "items", "blocks", "children", "content"]);
-    }
-    if block_type.contains("lineardocument") {
-        return render_first_nested(fields, &["blocks", "children", "content"]);
-    }
-    if block_type.contains("unorderedlist")
-        || block_type.contains("bulletlist")
-        || block_type.contains("unordered-list")
-    {
-        return render_list(fields, false);
-    }
-    if block_type.contains("orderedlist") || block_type.contains("ordered-list") {
-        return render_list(fields, true);
-    }
-    if block_type.contains("heading") || block_type.contains("header") {
-        return render_heading(fields);
-    }
-    if block_type.contains("code") {
-        return render_code(fields);
-    }
-    if block_type.contains("blockquote") || block_type.contains("quote") {
-        let inner = if has_text(fields) {
-            text_content_html(&text_field(fields))
-        } else {
-            render_first_nested(fields, &["content", "children", "blocks", "items"])
-        };
-        return if !inner.trim().is_empty() {
-            format!("<blockquote>{inner}</blockquote>")
-        } else {
-            Default::default()
-        };
-    }
-    if block_type.contains("horizontalrule") || block_type.contains("horizontal-rule") || block_type == "hr" {
-        return "<hr>".to_string();
-    }
-    if block_type.contains("image") {
-        return render_image(fields);
-    }
-    if has_text(fields) {
-        return text_content_html(&text_field(fields));
-    }
-
-    render_first_nested(fields, &["content", "children", "pages", "blocks", "items"])
-}
-
-fn render_first_nested(fields: &serde_json::Map<String, Value>, names: &[&str]) -> String {
-    names
-        .iter()
-        .find_map(|name| fields.get(*name))
-        .map(render_content_value)
-        .unwrap_or_default()
-}
-
-fn render_list(fields: &serde_json::Map<String, Value>, ordered: bool) -> String {
-    let Some(items) = first_value(fields, &["children", "items", "content"]).and_then(Value::as_array) else {
-        return String::new();
-    };
-
-    let tag = if ordered { "ol" } else { "ul" };
-    let mut html = format!("<{tag}>");
-    for item in items {
-        let body = render_list_item(item);
-        if !body.trim().is_empty() {
-            html.push_str(&format!("<li>{body}</li>"));
-        }
-    }
-    html.push_str(&format!("</{tag}>"));
-    html
-}
-
-fn render_list_item(value: &Value) -> String {
-    let Some(fields) = value.as_object() else {
-        return text_content_html(&value.to_string());
-    };
-
-    let mut html = String::new();
-    if let Some(content) = fields.get("content") {
-        html.push_str(&render_content_value(content));
-    } else if has_text(fields) {
-        html.push_str(&escape_html(&text_field(fields)));
-    }
-    for key in ["children", "orderedListChildren", "unorderedListChildren"] {
-        if let Some(value) = fields.get(key) {
-            html.push_str(&render_content_value(value));
-        }
-    }
-    html
-}
-
-fn render_heading(fields: &serde_json::Map<String, Value>) -> String {
-    let text = text_field(fields);
-    if text.is_empty() {
-        return String::new();
-    }
-    let level = first_value(fields, &["level"])
-        .and_then(Value::as_i64)
-        .unwrap_or(2)
-        .clamp(1, 6);
-    format!("<h{level}>{}</h{level}>", escape_html(&text))
+fn text_content_html(text: &str) -> String {
+    text.replace("\r\n", "\n")
+        .split("\n\n")
+        .filter_map(|part| {
+            let part = part.trim();
+            (!part.is_empty()).then(|| format!("<p>{}</p>", escape_html(part)))
+        })
+        .collect::<String>()
 }
 
 fn render_code(fields: &serde_json::Map<String, Value>) -> String {
@@ -466,28 +697,23 @@ fn render_code(fields: &serde_json::Map<String, Value>) -> String {
     }
 }
 
-fn render_image(fields: &serde_json::Map<String, Value>) -> String {
-    let attrs = fields.get("attrs").and_then(Value::as_object).unwrap_or(fields);
-    let src = string_field(attrs, &["src", "url"]);
-    if src.is_empty() {
-        return String::new();
-    }
-    let alt = string_field(attrs, &["alt", "caption"]);
-    format!(
-        "<figure><img src=\"{}\" alt=\"{}\"></figure>",
-        escape_html(&src),
-        escape_html(&alt)
-    )
+fn escape_html_with_breaks(text: &str) -> String {
+    escape_html(text).replace('\n', "<br>")
 }
 
-fn text_content_html(text: &str) -> String {
-    text.replace("\r\n", "\n")
-        .split("\n\n")
-        .filter_map(|part| {
-            let part = part.trim();
-            (!part.is_empty()).then(|| format!("<p>{}</p>", escape_html(part)))
-        })
-        .collect::<String>()
+fn blob_cid(value: &Value) -> Option<String> {
+    if let Some(text) = value.as_str() {
+        return (!text.trim().is_empty()).then(|| text.trim().to_string());
+    }
+    let fields = value.as_object()?;
+    let cid = string_field(fields, &["cid", "$link"]);
+    if !cid.is_empty() {
+        return Some(cid);
+    }
+    fields
+        .get("ref")
+        .and_then(|ref_value| ref_value.as_object())
+        .and_then(|ref_fields| blob_cid(&Value::Object(ref_fields.clone())))
 }
 
 fn has_text(fields: &serde_json::Map<String, Value>) -> bool {
@@ -495,14 +721,17 @@ fn has_text(fields: &serde_json::Map<String, Value>) -> bool {
 }
 
 fn text_field(fields: &serde_json::Map<String, Value>) -> String {
-    string_field(fields, &["plaintext", "text", "body", "title"])
+    raw_string_field(fields, &["plaintext", "text", "body", "title"])
 }
 
 fn string_field(fields: &serde_json::Map<String, Value>, names: &[&str]) -> String {
+    raw_string_field(fields, names).trim().to_string()
+}
+
+fn raw_string_field(fields: &serde_json::Map<String, Value>, names: &[&str]) -> String {
     first_value(fields, names)
         .and_then(Value::as_str)
         .unwrap_or_default()
-        .trim()
         .to_string()
 }
 
@@ -521,7 +750,7 @@ fn did_document_url(did: &str) -> Result<String> {
     if let Some(id) = did.strip_prefix("did:web:") {
         let mut parts = id
             .split(':')
-            .map(decode_percentage)
+            .map(utils::decode_percentage)
             .collect::<Result<Vec<_>>>()
             .with_context(|| format!("invalid did:web {did:?}"))?;
         if parts.first().is_none_or(|host| host.is_empty()) {
@@ -560,39 +789,10 @@ fn is_valid_did(value: &str) -> bool {
             .all(|char| char.is_ascii_alphanumeric() || matches!(char, '.' | '_' | ':' | '%' | '-'))
 }
 
-fn decode_percentage(value: &str) -> Result<String> {
-    let bytes = value.as_bytes();
-    let mut output = Vec::with_capacity(bytes.len());
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'%' {
-            if index + 2 >= bytes.len() {
-                anyhow::bail!("incomplete percent escape");
-            }
-            let high = hex_value(bytes[index + 1])?;
-            let low = hex_value(bytes[index + 2])?;
-            output.push((high << 4) | low);
-            index += 3;
-        } else {
-            output.push(bytes[index]);
-            index += 1;
-        }
-    }
-    String::from_utf8(output).context("percent-decoded value is not UTF-8")
-}
-
-fn hex_value(byte: u8) -> Result<u8> {
-    match byte {
-        b'0'..=b'9' => Ok(byte - b'0'),
-        b'a'..=b'f' => Ok(byte - b'a' + 10),
-        b'A'..=b'F' => Ok(byte - b'A' + 10),
-        _ => anyhow::bail!("invalid percent escape"),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn parses_at_uri() {
@@ -655,5 +855,132 @@ mod tests {
             standard_site_link(html).as_deref(),
             Some("at://did:plc:abc/site.standard.document/rkey")
         );
+    }
+
+    #[test]
+    fn renders_rich_text_facets_in_standard_site_content() {
+        let record = resolved_document(json!({
+            "site": "at://did:plc:abc/site.standard.publication/main",
+            "title": "Facets",
+            "publishedAt": "2026-06-24T00:00:00Z",
+            "content": {
+                "$type": "pub.leaflet.pages.linearDocument",
+                "blocks": [
+                    {
+                        "block": {
+                            "$type": "pub.leaflet.blocks.text",
+                            "plaintext": "Read this now",
+                            "facets": [
+                                {
+                                    "index": { "byteStart": 0, "byteEnd": 4 },
+                                    "features": [{ "$type": "pub.leaflet.richtext.facet#bold" }]
+                                },
+                                {
+                                    "index": { "byteStart": 5, "byteEnd": 9 },
+                                    "features": [{
+                                        "$type": "pub.leaflet.richtext.facet#link",
+                                        "uri": "https://example.com"
+                                    }]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }));
+
+        let html = standard_site_document_html(&record, None, &StandardSiteRenderMetadata::default())
+            .unwrap()
+            .unwrap();
+
+        assert!(html.contains("<p><strong>Read</strong> <a href=\"https://example.com\">this</a> now</p>"));
+    }
+
+    #[test]
+    fn resolves_blob_images_to_pds_blob_urls() {
+        let record = resolved_document(json!({
+            "site": "at://did:plc:abc/site.standard.publication/main",
+            "title": "Image",
+            "publishedAt": "2026-06-24T00:00:00Z",
+            "content": {
+                "$type": "pub.leaflet.pages.linearDocument",
+                "blocks": [
+                    {
+                        "block": {
+                            "$type": "pub.leaflet.blocks.image",
+                            "alt": "A diagram",
+                            "image": {
+                                "$type": "blob",
+                                "ref": { "$link": "bafkreidemo" },
+                                "mimeType": "image/png",
+                                "size": 123
+                            },
+                            "aspectRatio": { "width": 4, "height": 3 }
+                        }
+                    }
+                ]
+            }
+        }));
+
+        let html = standard_site_document_html(&record, None, &StandardSiteRenderMetadata::default())
+            .unwrap()
+            .unwrap();
+
+        assert!(html.contains(
+            "<img src=\"https://pds.example/xrpc/com.atproto.sync.getBlob?did=did%3Aplc%3Aabc&amp;cid=bafkreidemo\" alt=\"A diagram\">"
+        ));
+    }
+
+    #[test]
+    fn renders_footnotes_from_rich_text_facets() {
+        let record = resolved_document(json!({
+            "site": "at://did:plc:abc/site.standard.publication/main",
+            "title": "Footnotes",
+            "publishedAt": "2026-06-24T00:00:00Z",
+            "content": {
+                "$type": "pub.leaflet.pages.linearDocument",
+                "blocks": [
+                    {
+                        "block": {
+                            "$type": "pub.leaflet.blocks.text",
+                            "plaintext": "Claim",
+                            "facets": [{
+                                "index": { "byteStart": 0, "byteEnd": 5 },
+                                "features": [{
+                                    "$type": "pub.leaflet.richtext.facet#footnote",
+                                    "footnoteId": "1",
+                                    "contentPlaintext": "Source link",
+                                    "contentFacets": [{
+                                        "index": { "byteStart": 7, "byteEnd": 11 },
+                                        "features": [{
+                                            "$type": "pub.leaflet.richtext.facet#link",
+                                            "uri": "https://example.com/source"
+                                        }]
+                                    }]
+                                }]
+                            }]
+                        }
+                    }
+                ]
+            }
+        }));
+
+        let html = standard_site_document_html(&record, None, &StandardSiteRenderMetadata::default())
+            .unwrap()
+            .unwrap();
+
+        assert!(html.contains("<p>Claim<sup id=\"fnref-1\"><a href=\"#fn-1\">1</a></sup></p>"));
+        assert!(html.contains(
+            "<section class=\"footnotes\"><ol><li id=\"fn-1\">Source <a href=\"https://example.com/source\">link</a> <a href=\"#fnref-1\">Back</a></li></ol></section>"
+        ));
+    }
+
+    fn resolved_document(value: Value) -> ResolvedRecord {
+        ResolvedRecord {
+            repo: "did:plc:abc".to_string(),
+            pds: "https://pds.example".to_string(),
+            collection: SITE_STANDARD_DOCUMENT.to_string(),
+            value,
+        }
     }
 }

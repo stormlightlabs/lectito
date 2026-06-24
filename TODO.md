@@ -21,9 +21,9 @@
   - https://standard.site/
   - https://atproto.com/blog/standard-site-bluesky-timeline
   - https://jola.dev/posts/publishing-your-blog
-- [ ] Preserve rich-text facets when rendering Standard.site content records.
-- [ ] Resolve blob images into usable image URLs.
-- [ ] Render footnotes from publisher block records.
+- [x] Preserve rich-text facets when rendering Standard.site content records.
+- [x] Resolve blob images into usable image URLs.
+- [x] Render footnotes from publisher block records.
 - [ ] Render embedded Standard.site posts.
 - [ ] Render Bluesky post embeds.
 - [ ] Render web bookmark and web embed blocks.

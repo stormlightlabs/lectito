@@ -21,6 +21,7 @@ mod cli;
 mod echo;
 mod fetch;
 mod llms;
+mod utils;
 
 fn main() -> ExitCode {
     match run(Cli::parse(), color_enabled()) {
