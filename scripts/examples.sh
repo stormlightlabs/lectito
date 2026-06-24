@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-examples_file="${LECTITO_EXAMPLES_FILE:-doc/examples.txt}"
+examples_file="${LECTITO_EXAMPLES_FILE:-scripts/doc/examples.txt}"
 out_dir="${LECTITO_EXAMPLES_OUT_DIR:-target/examples}"
 bin="${LECTITO_BIN:-target/debug/lectito}"
 

@@ -27,22 +27,22 @@ pub struct Article {
 
 Fields:
 
-| Field | Meaning |
-| --- | --- |
-| `title` | Best title from metadata or document content. |
-| `byline` | Author/byline when detected. |
-| `dir` | Text direction, such as `ltr` or `rtl`. |
-| `lang` | Document language when detected. |
-| `content` | Cleaned article HTML. |
-| `markdown` | Markdown generated from `content`. |
-| `text_content` | Plain text generated from `content`. |
-| `length` | Character length of extracted text. |
-| `excerpt` | Short summary or first useful paragraph. |
-| `site_name` | Publisher or site name. |
-| `published_time` | Publication timestamp when detected. |
-| `image` | Lead image URL when detected. |
-| `domain` | Source domain when available. |
-| `favicon` | Favicon URL when detected. |
+| Field            | Meaning                                                        |
+| ---------------- | -------------------------------------------------------------- |
+| `title`          | Best title from metadata or document content.                  |
+| `byline`         | Author/byline when detected.                                   |
+| `dir`            | Text direction, such as `ltr` or `rtl`.                        |
+| `lang`           | Document language when detected.                               |
+| `content`        | Cleaned article HTML.                                          |
+| `markdown`       | Markdown generated from `content`.                             |
+| `text_content`   | Plain text generated from `content`.                           |
+| `length`         | UTF-16 length of extracted text, matching Mozilla Readability. |
+| `excerpt`        | Short summary or first useful paragraph.                       |
+| `site_name`      | Publisher or site name.                                        |
+| `published_time` | Publication timestamp when detected.                           |
+| `image`          | Lead image URL when detected.                                  |
+| `domain`         | Source domain when available.                                  |
+| `favicon`        | Favicon URL when detected.                                     |
 
 `content`, `markdown`, and `text_content` are different views of the same
 extracted article. Prefer `content` when structure matters, `markdown` when the

@@ -16,7 +16,7 @@ run_case() {
   local output="$out_dir/$name.$format"
 
   echo "Writing $output"
-  cargo run -p lectito-cli -- "$input" "--$format" > "$output"
+  cargo run -p lectito-cli -- "$input" --format "$format" > "$output"
 }
 
 run_case "article-quanta" \
