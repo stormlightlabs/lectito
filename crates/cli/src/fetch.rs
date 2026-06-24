@@ -1,5 +1,7 @@
 use anyhow::Context;
-use reqwest::header::{ACCEPT, ACCEPT_LANGUAGE, CACHE_CONTROL, HeaderMap, HeaderValue, LOCATION, REFERER};
+use reqwest::header::{
+    ACCEPT, ACCEPT_LANGUAGE, CACHE_CONTROL, CONTENT_TYPE, HeaderMap, HeaderValue, LOCATION, REFERER,
+};
 use reqwest::redirect::Policy;
 use reqwest::{StatusCode, Url, blocking::Client};
 use scraper::{Html, Selector};
@@ -52,6 +54,7 @@ impl FetchProfile {
 pub struct InputDocument {
     html: String,
     base_url: Option<String>,
+    content_type: Option<String>,
 }
 
 impl InputDocument {
@@ -63,6 +66,10 @@ impl InputDocument {
         self.base_url.as_deref()
     }
 
+    pub fn content_type(&self) -> Option<&str> {
+        self.content_type.as_deref()
+    }
+
     pub fn read_source(input: Option<&str>, read_stdin: bool, base_url: Option<&str>) -> anyhow::Result<InputDocument> {
         if read_stdin && input.is_some_and(|value| value != "-") {
             anyhow::bail!("cannot combine --stdin with an input path or URL");
@@ -71,7 +78,7 @@ impl InputDocument {
         if read_stdin || input == Some("-") {
             let mut html = String::new();
             io::stdin().read_to_string(&mut html).context("failed to read stdin")?;
-            return Ok(InputDocument { html, base_url: base_url.map(str::to_string) });
+            return Ok(InputDocument { html, base_url: base_url.map(str::to_string), content_type: None });
         }
 
         let Some(input) = input else {
@@ -87,7 +94,7 @@ impl InputDocument {
 
         let path = Path::new(input);
         let html = std::fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
-        Ok(InputDocument { html, base_url: base_url.map(str::to_string) })
+        Ok(InputDocument { html, base_url: base_url.map(str::to_string), content_type: None })
     }
 
     pub fn read(path: Option<&Path>, read_stdin: bool, url: Option<&str>) -> anyhow::Result<InputDocument> {
@@ -98,12 +105,12 @@ impl InputDocument {
         if read_stdin {
             let mut html = String::new();
             io::stdin().read_to_string(&mut html).context("failed to read stdin")?;
-            return Ok(InputDocument { html, base_url: url.map(str::to_string) });
+            return Ok(InputDocument { html, base_url: url.map(str::to_string), content_type: None });
         }
 
         if let Some(path) = path {
             let html = std::fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
-            return Ok(InputDocument { html, base_url: url.map(str::to_string) });
+            return Ok(InputDocument { html, base_url: url.map(str::to_string), content_type: None });
         }
 
         if let Some(url) = url {
@@ -175,6 +182,11 @@ impl InputDocument {
             let response = response
                 .error_for_status()
                 .with_context(|| format!("HTTP request failed for {current_url}"))?;
+            let content_type = response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_string);
             let html = response
                 .text()
                 .with_context(|| format!("failed to read response body for {current_url}"))?;
@@ -188,7 +200,7 @@ impl InputDocument {
                 continue;
             }
 
-            return Ok(InputDocument { html, base_url: Some(current_url.to_string()) });
+            return Ok(InputDocument { html, base_url: Some(current_url.to_string()), content_type });
         }
 
         unreachable!("redirect loop exits by returning a response or bailing at the redirect limit")
@@ -207,7 +219,7 @@ impl InputDocument {
                 "-A",
                 CURL_USER_AGENT,
                 "-w",
-                &format!("{marker}%{{url_effective}}"),
+                &format!("{marker}%{{url_effective}}\nLECTITO_CONTENT_TYPE:%{{content_type}}"),
                 url,
             ])
             .output()
@@ -218,12 +230,20 @@ impl InputDocument {
         }
 
         let output = String::from_utf8(output.stdout).context("curl fallback returned non-UTF-8 body")?;
-        let Some((html, effective_url)) = output.rsplit_once(marker) else {
+        let Some((html, metadata)) = output.rsplit_once(marker) else {
             anyhow::bail!("curl fallback output did not include final URL for {url}");
         };
+        let (effective_url, content_type) = metadata
+            .split_once("\nLECTITO_CONTENT_TYPE:")
+            .map(|(url, content_type)| (url.trim(), non_empty_string(content_type.trim())))
+            .unwrap_or((metadata.trim(), None));
 
-        Ok(InputDocument { html: html.to_string(), base_url: Some(effective_url.trim().to_string()) })
+        Ok(InputDocument { html: html.to_string(), base_url: Some(effective_url.to_string()), content_type })
     }
+}
+
+fn non_empty_string(value: &str) -> Option<String> {
+    (!value.is_empty()).then(|| value.to_string())
 }
 
 pub fn html_redirect_target(html: &str, current_url: &Url) -> Option<Url> {

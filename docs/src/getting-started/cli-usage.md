@@ -124,6 +124,7 @@ lectito llms fetch https://example.com
 lectito llms parse https://example.com/llms.txt --pretty
 lectito llms expand https://example.com/llms.txt --output llms-full.txt
 lectito llms generate https://example.com/docs/ --output llms.txt
+lectito llms generate --sitemap https://example.com/sitemap.xml --output llms.txt
 ```
 
 `fetch` resolves a bare site URL to `/llms.txt`. `parse` prints structured JSON.
@@ -142,6 +143,7 @@ Keep generated files small by limiting crawl depth and page count:
 
 ```sh
 lectito llms generate https://example.com/docs/ --max-depth 1 --max-pages 10
+lectito llms generate --sitemap https://example.com/sitemap.xml --max-pages 50
 ```
 
 See the [llms.txt guide](./llms-txt.md) for the expected file shape and the

@@ -316,7 +316,11 @@ pub struct LlmsExpandArgs {
 #[derive(Debug, Args)]
 pub struct LlmsGenerateArgs {
     /// Seed URL or local HTML file to crawl.
-    pub input: String,
+    pub input: Option<String>,
+
+    /// Sitemap URL or local sitemap XML file to read instead of crawling links.
+    #[arg(long, value_name = "URL_OR_PATH")]
+    pub sitemap: Option<String>,
 
     /// Title to use for the generated llms.txt file.
     #[arg(long)]
@@ -333,6 +337,10 @@ pub struct LlmsGenerateArgs {
     /// Maximum pages to fetch while crawling.
     #[arg(long, default_value_t = 25)]
     pub max_pages: usize,
+
+    /// Maximum sitemap files to read when a sitemap index is used.
+    #[arg(long, default_value_t = 25)]
+    pub max_sitemaps: usize,
 
     /// Maximum link depth from the seed page.
     #[arg(long, default_value_t = 2)]
@@ -395,9 +403,35 @@ mod tests {
         match cli.command {
             Some(Commands::Llms(args)) => match args.command {
                 LlmsCommands::Generate(args) => {
-                    assert_eq!(args.input, "https://example.com/docs/");
+                    assert_eq!(args.input.as_deref(), Some("https://example.com/docs/"));
                     assert_eq!(args.max_pages, 5);
                     assert_eq!(args.max_depth, 1);
+                }
+                other => panic!("unexpected llms subcommand: {other:?}"),
+            },
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn llms_generate_sitemap_subcommand_parses() {
+        let cli = Cli::try_parse_from([
+            "lectito",
+            "llms",
+            "generate",
+            "--sitemap",
+            "https://example.com/sitemap.xml",
+            "--max-sitemaps",
+            "3",
+        ])
+        .expect("llms generate --sitemap command should parse");
+
+        match cli.command {
+            Some(Commands::Llms(args)) => match args.command {
+                LlmsCommands::Generate(args) => {
+                    assert_eq!(args.input, None);
+                    assert_eq!(args.sitemap.as_deref(), Some("https://example.com/sitemap.xml"));
+                    assert_eq!(args.max_sitemaps, 3);
                 }
                 other => panic!("unexpected llms subcommand: {other:?}"),
             },

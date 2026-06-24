@@ -89,6 +89,8 @@ lectito llms expand llms.txt --output llms-full.txt
 
 Lectito keeps Markdown resources unchanged. When a linked resource looks like
 HTML, Lectito extracts the readable article and inserts the extracted Markdown.
+For remote links, Lectito checks the HTTP `Content-Type` header before falling
+back to URL suffixes and simple Markdown markers.
 
 Each resource is separated and labeled:
 
@@ -124,6 +126,26 @@ The crawler is intentionally bounded. For URL seeds, Lectito follows
 same-origin links only. For local HTML files, it follows relative local links.
 Assets such as images, stylesheets, scripts, PDFs, archives, and feeds are
 skipped.
+
+You can also generate from a sitemap:
+
+```sh
+lectito llms generate --sitemap https://example.com/sitemap.xml \
+  --output llms.txt
+```
+
+Sitemap indexes are supported. Lectito reads child sitemaps up to
+`--max-sitemaps`, then fetches page URLs up to `--max-pages`:
+
+```sh
+lectito llms generate --sitemap https://example.com/sitemap.xml \
+  --max-sitemaps 10 \
+  --max-pages 100 \
+  --output llms.txt
+```
+
+Remote sitemap generation keeps sitemap and page URLs on the same origin as the
+sitemap input. Local sitemap files may list any absolute page URL.
 
 By default, generation fetches up to 25 pages and follows links up to depth 2:
 
