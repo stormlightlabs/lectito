@@ -15,7 +15,7 @@ fn main() {
         .and_then(Path::parent)
         .expect("crate lives under workspace/crates")
         .to_path_buf();
-    let docs_path = workspace.join("doc").join("cli.txt");
+    let docs_path = workspace.join("scripts").join("doc").join("cli.txt");
     let manual = render_manual(cli::Cli::command()).expect("render CLI manual");
     write_if_changed(&docs_path, manual).expect("write CLI manual");
 

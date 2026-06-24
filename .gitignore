@@ -27,4 +27,4 @@ rustc-ice-*.txt
 .zed/
 
 # clap mangen generated
-doc/cli.txt
+scripts/doc/cli.txt

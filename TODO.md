@@ -15,126 +15,102 @@
 - Include `wasm-pack test --node` and `wasm-pack build` checks for the
   `bundler`, `web`, and `nodejs` WASM targets.
 
-## API (`crates/api`)
-
-- Add raw HTML extraction endpoints later only if external API users need them.
-- Add rate limiting.
-- Add a small benchmark command and fixture set for API latency checks.
-
-## Web
-
-The web app has two primary flows:
-
-- Convert pasted HTML markup in the browser through WASM.
-- Use the API docs for server-side URL extraction.
-
-### Pages
-
-- `/`: landing page with a direct workbench CTA, before/after extraction
-  diagram, capability summary, and links to the API and samples.
-- `/workbench`: the main extraction workspace.
-- `/workbench/runs`: saved local runs, with source, status, elapsed time,
-  length, title, timestamp, and options.
-- `/workbench/runs/:id`: one saved extraction result, with output, metadata,
-  diagnostics, and options.
-- `/workbench/samples`: a browsable gallery of curated fixtures and known edge
-  cases.
-- `/api`: Markdown-rendered API docs and reference examples.
-- `/workbench/settings`: output preferences and history settings.
-
-### Controls
-
-- Add a searchable sample picker for pasted HTML fixtures.
-- Add true resizable split panes.
-- Keep failed input intact and show field-level recovery messages.
-
-### Implementation Order
-
-- [ ] Back run history with Dexie.js.
-- [ ] Add the sample gallery.
-- [ ] Add `/workbench/settings` persistence.
-
-## WASM And Browser Safety
-
-- Keep `sanitize_html` out of core unless the project adopts a real sanitizer
-  policy.
-- Browser integrations should use DOMPurify or similar before rendering
-  arbitrary HTML.
-- Add WASM smoke tests for extraction, HTML-to-Markdown, and Markdown-to-HTML.
-- Measure release package size after adding real exports.
-- Add package metadata and a copied license file to the generated WASM package
-  before treating it as publishable.
-
 ## Extraction Quality
 
 ### `examples.txt` Audit
 
-- Fix MDN-style code block rendering. The HTML extractor keeps usable
-  `<pre><code>` nodes, but Markdown output can emit broken fences like
-  `js```js notranslate`. Normalize language IDs such as `js notranslate`,
-  remove sibling language labels, and add a focused MDN fixture.
-- Clean app-doc controls from Mintlify-style pages. Current output can include
-  duplicated `Copy page` SVG/button text and tab labels without their code
-  panels. Extend button/control cleanup and add a fixture for tabbed code docs.
-- Improve modern docs root scoring. Mintlify first selects `body.antialiased`
-  and cleans it to empty before accepting `main#content-container`. Prefer
-  focused `main`/article roots over body-level app shells when both are
-  available.
-- Tighten web.dev title cleanup. Remove UI suffixes like `Stay organized with
-collections Save and categorize content based on your preferences.` from
-  metadata titles.
-- Decide whether site-profile extraction should still absolutize URLs when
-  cleanup is disabled. Wikipedia profile output keeps links such as
-  `/wiki/Hermitian_matrix` even when the CLI input is a URL.
-- Improve Rustdoc output polish. Remove `Expand description`, strip section
-  permalink glyphs such as `§`, and render item definition lists with spacing
-  instead of concatenating adjacent entries.
-- Add a site rule for `unthread.at` post pages:
-  - These are ATProtocol records: `unthread.at/@{handle}/rkey` so we should
-    implement a fetcher for these
-  - Look into implementing standard.site parsing
+- [ ] Fix MDN-style code block rendering.
+      URL:
+  - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy
+  - Keep usable `<pre><code>` nodes, normalize language IDs such as
+    `js notranslate`, remove sibling language labels, and add a focused fixture.
+- [ ] Clean app-doc controls from Mintlify-style pages.
+  - URL: https://www.mintlify.com/docs/create/code
+  - Remove duplicated `Copy page` SVG/button text and tab labels without their
+    code panels. Extend button/control cleanup and add a fixture for tabbed code
+    docs.
+- [ ] Improve modern docs root scoring.
+  - URL: https://mintlify.com/docs/code
+  - Prefer focused `main`/article roots over body-level app shells when both are
+    available. Mintlify can select `body.antialiased` and clean it to empty
+    before accepting `main#content-container`.
+- [ ] Tighten web.dev title cleanup.
+  - URL: https://web.dev/articles/responsive-images
+  - Remove UI suffixes such as `Stay organized with collections Save and
+categorize content based on your preferences.` from metadata titles.
+- [ ] Decide whether site-profile extraction should still absolutize URLs when
+      cleanup is disabled.
+      URL: https://en.wikipedia.org/wiki/Hermitian_matrix
+      Wikipedia profile output can keep links such as `/wiki/Hermitian_matrix` even
+      when the CLI input is a URL.
+- [ ] Improve Rustdoc output polish.
+  - URL: https://docs.rs/serde/latest/serde/
+  - Remove `Expand description`, strip section permalink glyphs such as `§`, and
+    render item definition lists with spacing instead of concatenating adjacent
+    entries.
+- [ ] Add a site rule for `unthread.at` post pages.
+  - URL: https://unthread.at/@desertthunder.dev/3mlgpk65xzw23
+  - These are ATProtocol records: `unthread.at/@{handle}/rkey`.
+  - Implement a fetcher for them and check whether standard.site parsing applies:
     - https://standard.site/
     - https://atproto.com/blog/standard-site-bluesky-timeline
 
 ### Retry Short Or Suspicious Extractions
 
-- If extracted text is far below the page's best content signals, retry with
-  relaxed removal settings.
-- Retry without unlikely-candidate stripping when the first result is under a
-  useful word threshold.
-- Retry with hidden-element removal disabled when the first result is extremely
-  short.
-- Prefer a larger focused subtree when the current result is only notes,
-  metadata, or a single step.
+- [ ] Retry with relaxed removal settings when extracted text is far below the
+      page's best content signals.
+  - URL: https://www.royalroad.com/fiction/63759/super-supportive/chapter/1449598/one-hundred-two-what-kind-of-wordchain
+- [ ] Retry without unlikely-candidate stripping when the first result is under
+      a useful word threshold.
+  - URL: http://www.ehow.com/how_2042752_build-terrarium.html
+- [ ] Retry with hidden-element removal disabled when the first result is
+      extremely short.
+  - URL: https://www.aclu.org/blog/privacy-technology/internet-privacy/facebook-tracking-me-even-though-im-not-facebook
+- [ ] Prefer a larger focused subtree when the current result is only notes,
+      metadata, or a single step.
+  - URL: https://sport.aktualne.cz/fotbal/zahranici/west-ham-hrozi-gigantum-okouzlil-i-linekera-souckovu-praci-j/r~8fa032ba3add11ec8a900cc47ab5f122/
 
 ## Markdown Conversion
 
 ### Clean Reference Site Chrome
 
-- Remove skip links, "from Wikipedia" boilerplate, edit links,
-  table-of-contents blocks, and infoboxes when extracting reference pages.
-- Preserve equations, tables, footnotes, and citation references while removing
-  navigation chrome.
-- Remove heading permalink/edit anchors but keep the heading text.
+- [ ] Remove reference-page chrome from Wikipedia extraction.
+  - URL: https://en.wikipedia.org/wiki/Mozilla
+  - Remove skip links, "from Wikipedia" boilerplate, edit links, table-of-contents blocks, and infoboxes.
+- [ ] Preserve equations, tables, footnotes, and citation references while removing navigation chrome.
+  - URL: https://en.wikipedia.org/wiki/Hermitian_matrix
+- [ ] Remove heading permalink/edit anchors but keep the heading text.
+  - URL: https://sre.google/sre-book/table-of-contents/
 
 ### Markdown Cleanup Edge Cases
 
-- Strip `<wbr>` without introducing spaces.
-- Remove empty links like `[](url)` while preserving images.
-- Add a space between sentence exclamation marks and image markdown so
-  `Yey!![img]` does not become ambiguous markdown.
-- Continue removing duplicate leading title headings before markdown output.
+- [ ] Strip `<wbr>` without introducing spaces.
+  - URL:
+    https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/HTML_images
+- [ ] Remove empty links like `[](url)` while preserving images.
+  - URL: https://web.dev/articles/responsive-images
+- [ ] Add a space between sentence exclamation marks and image markdown so
+      `Yey!![img]` does not become ambiguous markdown.
+  - URL: https://web.dev/articles/responsive-images
+- [ ] Continue removing duplicate leading title headings before markdown output.
+  - URL: https://www.paulgraham.com/makersschedule.html
 
 ### Expand Test Coverage
 
-- Add focused Rust tests in `crates/core/src/markdown.rs` for each feature class
-  above.
-- Add representative fixtures before broad implementation:
-  - `elements--data-table`
-  - `elements--complex-tables`
-  - `elements--srcset-normalization`
-  - `elements--embedded-videos`
-  - `math--katex`
-  - `math--mathjax-svg`
-  - `footnotes--numeric-anchor-id`
-  - `footnotes--google-docs-ftnt`
+- [ ] Add focused Rust tests in `crates/core/src/markdown.rs` for each feature class above.
+- [ ] Add an `elements--data-table` fixture.
+  - URL: https://en.wikipedia.org/wiki/Hermitian_matrix
+- [ ] Add an `elements--complex-tables` fixture.
+  - URL: https://www.rfc-editor.org/rfc/rfc7540
+- [ ] Add an `elements--srcset-normalization` fixture.
+  - URL: https://web.dev/articles/responsive-images
+- [ ] Add an `elements--embedded-videos` fixture.
+  - URL: https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/HTML_images
+- [ ] Add a `math--katex` fixture.
+  - URL: https://www.intmath.com/cg5/katex-mathjax-comparison.php
+- [ ] Add a `math--mathjax-svg` fixture.
+  - URL: https://mathjax.github.io/MathJax-demos-web/input/tex-mml2chtml.html
+- [ ] Add a `footnotes--numeric-anchor-id` fixture.
+  - URL: https://math.meta.stackexchange.com/questions/5020/mathjax-basic-tutorial-and-quick-reference
+- [ ] Add a `footnotes--google-docs-ftnt` fixture.
+  - URL: https://stackprinter.appspot.com/export?question=5020&service=math.meta.stackexchange&language=en&hideAnswers=false&width=640
