@@ -24,9 +24,9 @@
 - [x] Preserve rich-text facets when rendering Standard.site content records.
 - [x] Resolve blob images into usable image URLs.
 - [x] Render footnotes from publisher block records.
-- [ ] Render embedded Standard.site posts.
-- [ ] Render Bluesky post embeds.
-- [ ] Render web bookmark and web embed blocks.
+- [x] Render embedded Standard.site posts.
+- [x] Render Bluesky post embeds.
+- [x] Render web bookmark and web embed blocks.
 - [ ] Render tables from publisher block records.
 - [ ] Render math blocks.
 - [ ] Keep image captions and alt text when the publisher supplies both.

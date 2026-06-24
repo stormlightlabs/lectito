@@ -1,3 +1,5 @@
+mod embeds;
+
 use anyhow::{Context, Result};
 use lectito::escape_html;
 use reqwest::Url;
@@ -267,6 +269,21 @@ impl<'a> StandardSiteRenderer<'a> {
         if block_type.contains("image") {
             return self.render_image(fields);
         }
+        if embeds::is_standard_site_post(&block_type) {
+            return embeds::render_standard_site_post(fields);
+        }
+        if embeds::is_bsky_post(&block_type) {
+            return embeds::render_bsky_post(fields);
+        }
+        if embeds::is_website(&block_type) {
+            return embeds::render_website(fields, |value| self.blob_url(value));
+        }
+        if embeds::is_iframe(&block_type) {
+            return embeds::render_iframe(fields);
+        }
+        if embeds::is_button(&block_type) {
+            return embeds::render_button(fields);
+        }
         if has_text(fields) {
             return self.text_html(&text_field(fields), fields.get("facets"), true);
         }
@@ -350,6 +367,56 @@ impl<'a> StandardSiteRenderer<'a> {
         )
     }
 
+    fn render_footnotes(&self) -> String {
+        if self.footnotes.is_empty() {
+            return String::new();
+        }
+        let mut html = String::from("<section class=\"footnotes\"><ol>");
+        for footnote in &self.footnotes {
+            html.push_str(&format!(
+                "<li id=\"fn-{}\">{} <a href=\"#fnref-{}\">Back</a></li>",
+                escape_html(&footnote.id),
+                footnote.html,
+                escape_html(&footnote.id)
+            ));
+        }
+        html.push_str("</ol></section>");
+        html
+    }
+
+    fn render_facet_text(&mut self, text: &str, features: &[RichTextFeature]) -> String {
+        let mut html = escape_html_with_breaks(text);
+        for feature in features.iter().rev() {
+            html = match feature {
+                RichTextFeature::Link(uri) => {
+                    format!("<a href=\"{}\">{html}</a>", escape_html(uri))
+                }
+                RichTextFeature::Bold => format!("<strong>{html}</strong>"),
+                RichTextFeature::Italic => format!("<em>{html}</em>"),
+                RichTextFeature::Code => format!("<code>{html}</code>"),
+                RichTextFeature::Underline => format!("<u>{html}</u>"),
+                RichTextFeature::Strikethrough => format!("<s>{html}</s>"),
+                RichTextFeature::Id(id) => format!("<span id=\"{}\">{html}</span>", escape_html(id)),
+                RichTextFeature::Footnote { id, text, facets } => {
+                    let content = self.rich_text_html(text, Some(facets));
+                    self.push_footnote(id, content);
+                    format!(
+                        "{html}<sup id=\"fnref-{0}\"><a href=\"#fn-{0}\">{0}</a></sup>",
+                        escape_html(id)
+                    )
+                }
+            };
+        }
+        html
+    }
+
+    fn push_footnote(&mut self, id: &str, html: String) {
+        if id.trim().is_empty() || html.trim().is_empty() || self.footnotes.iter().any(|footnote| footnote.id == id) {
+            return;
+        }
+        self.footnotes.push(RenderedFootnote { id: id.to_string(), html });
+    }
+
     fn blob_url(&self, value: &Value) -> Option<String> {
         let cid = blob_cid(value)?;
         let mut url = Url::parse(&self.record.pds).ok()?;
@@ -394,56 +461,6 @@ impl<'a> StandardSiteRenderer<'a> {
             cursor = range.end;
         }
         html.push_str(&escape_html_with_breaks(&text[cursor..]));
-        html
-    }
-
-    fn render_facet_text(&mut self, text: &str, features: &[RichTextFeature]) -> String {
-        let mut html = escape_html_with_breaks(text);
-        for feature in features.iter().rev() {
-            html = match feature {
-                RichTextFeature::Link(uri) => {
-                    format!("<a href=\"{}\">{html}</a>", escape_html(uri))
-                }
-                RichTextFeature::Bold => format!("<strong>{html}</strong>"),
-                RichTextFeature::Italic => format!("<em>{html}</em>"),
-                RichTextFeature::Code => format!("<code>{html}</code>"),
-                RichTextFeature::Underline => format!("<u>{html}</u>"),
-                RichTextFeature::Strikethrough => format!("<s>{html}</s>"),
-                RichTextFeature::Id(id) => format!("<span id=\"{}\">{html}</span>", escape_html(id)),
-                RichTextFeature::Footnote { id, text, facets } => {
-                    let content = self.rich_text_html(text, Some(facets));
-                    self.push_footnote(id, content);
-                    format!(
-                        "{html}<sup id=\"fnref-{0}\"><a href=\"#fn-{0}\">{0}</a></sup>",
-                        escape_html(id)
-                    )
-                }
-            };
-        }
-        html
-    }
-
-    fn push_footnote(&mut self, id: &str, html: String) {
-        if id.trim().is_empty() || html.trim().is_empty() || self.footnotes.iter().any(|footnote| footnote.id == id) {
-            return;
-        }
-        self.footnotes.push(RenderedFootnote { id: id.to_string(), html });
-    }
-
-    fn render_footnotes(&self) -> String {
-        if self.footnotes.is_empty() {
-            return String::new();
-        }
-        let mut html = String::from("<section class=\"footnotes\"><ol>");
-        for footnote in &self.footnotes {
-            html.push_str(&format!(
-                "<li id=\"fn-{}\">{} <a href=\"#fnref-{}\">Back</a></li>",
-                escape_html(&footnote.id),
-                footnote.html,
-                escape_html(&footnote.id)
-            ));
-        }
-        html.push_str("</ol></section>");
         html
     }
 }
@@ -626,6 +643,23 @@ pub fn standard_site_document(record: &ResolvedRecord) -> Result<Option<SiteStan
         .context("invalid site.standard.document record")
 }
 
+fn render_code(fields: &serde_json::Map<String, Value>) -> String {
+    let code = string_field(fields, &["code", "plaintext", "text"]);
+    if code.is_empty() {
+        return String::new();
+    }
+    let language = string_field(fields, &["language", "lang"]);
+    if language.is_empty() {
+        format!("<pre><code>{}</code></pre>", escape_html(&code))
+    } else {
+        format!(
+            "<pre><code class=\"language-{}\">{}</code></pre>",
+            escape_html(&language),
+            escape_html(&code)
+        )
+    }
+}
+
 fn document_byline(document: &SiteStandardDocument) -> Option<String> {
     let contributors = document
         .contributors
@@ -678,23 +712,6 @@ fn text_content_html(text: &str) -> String {
             (!part.is_empty()).then(|| format!("<p>{}</p>", escape_html(part)))
         })
         .collect::<String>()
-}
-
-fn render_code(fields: &serde_json::Map<String, Value>) -> String {
-    let code = string_field(fields, &["code", "plaintext", "text"]);
-    if code.is_empty() {
-        return String::new();
-    }
-    let language = string_field(fields, &["language", "lang"]);
-    if language.is_empty() {
-        format!("<pre><code>{}</code></pre>", escape_html(&code))
-    } else {
-        format!(
-            "<pre><code class=\"language-{}\">{}</code></pre>",
-            escape_html(&language),
-            escape_html(&code)
-        )
-    }
 }
 
 fn escape_html_with_breaks(text: &str) -> String {
@@ -973,6 +990,116 @@ mod tests {
         assert!(html.contains(
             "<section class=\"footnotes\"><ol><li id=\"fn-1\">Source <a href=\"https://example.com/source\">link</a> <a href=\"#fnref-1\">Back</a></li></ol></section>"
         ));
+    }
+
+    #[test]
+    fn renders_embedded_standard_site_posts() {
+        let record = resolved_document(json!({
+            "site": "at://did:plc:abc/site.standard.publication/main",
+            "title": "Collection",
+            "publishedAt": "2026-06-24T00:00:00Z",
+            "content": {
+                "$type": "pub.leaflet.pages.linearDocument",
+                "blocks": [{
+                    "block": {
+                        "$type": "pub.leaflet.blocks.standardSitePost",
+                        "uri": "at://did:plc:def/site.standard.document/3moxvif7ejk2i",
+                        "cid": "bafyreidemo"
+                    }
+                }]
+            }
+        }));
+
+        let html = standard_site_document_html(&record, None, &StandardSiteRenderMetadata::default())
+            .unwrap()
+            .unwrap();
+
+        assert!(html.contains(
+            "<blockquote><p>Embedded Standard.site post: <a href=\"at://did:plc:def/site.standard.document/3moxvif7ejk2i\">at://did:plc:def/site.standard.document/3moxvif7ejk2i</a></p></blockquote>"
+        ));
+    }
+
+    #[test]
+    fn renders_bluesky_post_embeds_as_links() {
+        let record = resolved_document(json!({
+            "site": "at://did:plc:abc/site.standard.publication/main",
+            "title": "Bluesky",
+            "publishedAt": "2026-06-24T00:00:00Z",
+            "content": {
+                "$type": "pub.leaflet.pages.linearDocument",
+                "blocks": [{
+                    "block": {
+                        "$type": "pub.leaflet.blocks.bskyPost",
+                        "postRef": {
+                            "cid": "bafyreih2gyc6dcqmuimiihfvlkesedwkgcpa7n62wu4mamdl23kh7vheqi",
+                            "uri": "at://did:plc:f4os2wz5fjl56xpwcvtnqu7m/app.bsky.feed.post/3moluu6nxfs2q"
+                        },
+                        "clientHost": "bsky.app"
+                    }
+                }]
+            }
+        }));
+
+        let html = standard_site_document_html(&record, None, &StandardSiteRenderMetadata::default())
+            .unwrap()
+            .unwrap();
+
+        assert!(html.contains(
+            "<blockquote><p>Embedded Bluesky post: <a href=\"https://bsky.app/profile/did:plc:f4os2wz5fjl56xpwcvtnqu7m/post/3moluu6nxfs2q\">https://bsky.app/profile/did:plc:f4os2wz5fjl56xpwcvtnqu7m/post/3moluu6nxfs2q</a></p></blockquote>"
+        ));
+    }
+
+    #[test]
+    fn renders_web_bookmarks_embeds_and_buttons() {
+        let record = resolved_document(json!({
+            "site": "at://did:plc:abc/site.standard.publication/main",
+            "title": "Web",
+            "publishedAt": "2026-06-24T00:00:00Z",
+            "content": {
+                "$type": "pub.leaflet.pages.linearDocument",
+                "blocks": [
+                    {
+                        "block": {
+                            "$type": "pub.leaflet.blocks.website",
+                            "src": "https://standard.site/docs/lexicons/document/",
+                            "title": "Document Lexicon",
+                            "description": "Schema reference",
+                            "previewImage": {
+                                "$type": "blob",
+                                "ref": { "$link": "bafkreiwebsite" },
+                                "mimeType": "image/png",
+                                "size": 123
+                            }
+                        }
+                    },
+                    {
+                        "block": {
+                            "$type": "pub.leaflet.blocks.iframe",
+                            "url": "https://example.com/embed"
+                        }
+                    },
+                    {
+                        "block": {
+                            "$type": "pub.leaflet.blocks.button",
+                            "url": "https://leaflet.pub/checkout/pro",
+                            "text": "Get Leaflet Pro"
+                        }
+                    }
+                ]
+            }
+        }));
+
+        let html = standard_site_document_html(&record, None, &StandardSiteRenderMetadata::default())
+            .unwrap()
+            .unwrap();
+
+        assert!(html.contains(
+            "<p><a href=\"https://standard.site/docs/lexicons/document/\">Document Lexicon</a></p><p>Schema reference</p><figure><img src=\"https://pds.example/xrpc/com.atproto.sync.getBlob?did=did%3Aplc%3Aabc&amp;cid=bafkreiwebsite\" alt=\"\"></figure>"
+        ));
+        assert!(html.contains(
+            "<iframe src=\"https://example.com/embed\" loading=\"lazy\" referrerpolicy=\"no-referrer-when-downgrade\"></iframe>"
+        ));
+        assert!(html.contains("<p><a href=\"https://leaflet.pub/checkout/pro\">Get Leaflet Pro</a></p>"));
     }
 
     fn resolved_document(value: Value) -> ResolvedRecord {
