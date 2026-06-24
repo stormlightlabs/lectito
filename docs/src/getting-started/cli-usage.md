@@ -101,6 +101,7 @@ lectito readable article.html
 lectito readable --stdin < article.html
 lectito readable https://example.com/article
 lectito readable article.html --json --pretty
+lectito readable article.html --timeout 10
 ```
 
 Thresholds:
@@ -184,4 +185,4 @@ tradeoffs.
 - `0`: article extracted, or readability check returned true
 - `1`: no article was extracted, or readability check returned false
 - `2`: input, file, or network error
-- `3`: extraction, configuration, or extraction timeout error
+- `3`: extraction, readability, configuration, or timeout error

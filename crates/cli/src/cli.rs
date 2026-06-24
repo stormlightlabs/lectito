@@ -164,6 +164,10 @@ pub struct ReadableArgs {
     #[arg(long)]
     pub pretty: bool,
 
+    /// Maximum seconds to spend on readability checking before exit code 3.
+    #[arg(long, default_value_t = 30)]
+    pub timeout: u64,
+
     /// Minimum text length for a block to count toward readability.
     #[arg(long = "min-content-length", default_value_t = 140)]
     pub min_len: usize,
@@ -405,6 +409,17 @@ mod tests {
         let cli = Cli::try_parse_from(["lectito", "article.html", "--frontmatter=false"])
             .expect("frontmatter option should accept false");
         assert!(!cli.extract.frontmatter);
+    }
+
+    #[test]
+    fn readable_accepts_timeout() {
+        match Cli::try_parse_from(["lectito", "readable", "article.html", "--timeout", "7"])
+            .expect("readable timeout should parse")
+            .command
+        {
+            Some(Commands::Readable(args)) => assert_eq!(args.timeout, 7),
+            other => panic!("unexpected command: {other:?}"),
+        }
     }
 
     #[test]

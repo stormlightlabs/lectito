@@ -48,3 +48,6 @@ Fields:
 extracted article. Prefer `content` when structure matters, `markdown` when the
 article will be displayed or edited as text, and `text_content` when indexing or
 summarizing.
+
+`length` follows Mozilla Readability's UTF-16 convention. It can differ from a
+Rust `chars().count()` value for text outside the Basic Multilingual Plane.

@@ -69,3 +69,14 @@ lectito article.html --format json --pretty
 
 JSON is the best CLI format when another program needs metadata and content
 together.
+
+## Quality Expectations
+
+| Output     | Best use                                        | Expect                                                                                                           | Do not expect                                                                   |
+| ---------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Markdown   | Reader views, notes, archives, editing          | Good preservation of headings, paragraphs, links, images, lists, blockquotes, code, tables, math, and footnotes. | Byte-for-byte source fidelity or every custom widget.                           |
+| HTML       | Rendering or post-processing extracted articles | The closest structural view of the cleaned article root, with links and media kept according to options.         | A complete sanitizer policy or the original page layout.                        |
+| Text       | Search, previews, indexing, basic summaries     | Normalized article text with block boundaries for headings, paragraphs, lists, code, and definition lists.       | A rich rendering format with links, images, or full table structure.            |
+| JSON       | Programmatic CLI integrations                   | Metadata plus HTML, Markdown, text, length, and source-related fields in one object.                             | Stable values for publisher metadata when source pages disagree or omit fields. |
+| `inspect`  | Debugging extraction choices                    | Selected root, candidate scores, cleanup counts, recovery data, and site-rule information.                       | A user-facing article format.                                                   |
+| `readable` | Cheap filtering before full extraction          | A boolean estimate using text length, visibility, class/id hints, and link density.                              | The same answer full extraction would produce on every borderline page.         |

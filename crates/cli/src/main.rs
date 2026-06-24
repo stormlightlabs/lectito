@@ -99,7 +99,10 @@ fn run_extract(args: ExtractArgs, color: bool) -> Result<ExitCode> {
 fn run_readable(args: ReadableArgs) -> Result<ExitCode> {
     let input = fetch::InputDocument::read_src(args.input.as_deref(), args.stdin, args.base_url.as_deref())?;
     let options = ReadableOptions { min_content_length: args.min_len, min_score: args.min_score };
-    let readable = is_probably_readable(input.html(), &options)?;
+    let Some(readable) = readable_with_timeout(input.html(), options, args.timeout)? else {
+        eprintln!("lectito: readability check timed out after {}s", args.timeout);
+        return Ok(ExitCode::from(3));
+    };
     echo::readable(readable, args.json, args.pretty)?;
     Ok(if readable { ExitCode::SUCCESS } else { ExitCode::from(1) })
 }
@@ -150,6 +153,22 @@ fn extract_with_timeout(
         Ok(result) => result.map(Some).map_err(Into::into),
         Err(mpsc::RecvTimeoutError::Timeout) => Ok(None),
         Err(mpsc::RecvTimeoutError::Disconnected) => anyhow::bail!("extraction worker disconnected"),
+    }
+}
+
+fn readable_with_timeout(html: &str, opts: ReadableOptions, timeout: u64) -> Result<Option<bool>> {
+    let html = html.to_string();
+    let (sender, receiver) = mpsc::channel();
+
+    thread::spawn(move || {
+        let result = is_probably_readable(&html, &opts);
+        let _ = sender.send(result);
+    });
+
+    match receiver.recv_timeout(Duration::from_secs(timeout)) {
+        Ok(result) => result.map(Some).map_err(Into::into),
+        Err(mpsc::RecvTimeoutError::Timeout) => Ok(None),
+        Err(mpsc::RecvTimeoutError::Disconnected) => anyhow::bail!("readability worker disconnected"),
     }
 }
 

@@ -22,6 +22,18 @@ match article {
 The base URL is optional. Pass it when the document contains relative links,
 images, or metadata URLs.
 
+## Raw HTML Limits
+
+Lectito parses the HTML string you pass in. It does not run JavaScript, keep a
+browser session, submit forms, attach cookies, or fetch authenticated resources.
+For pages that build their article body on the client, capture rendered HTML in
+your crawler or browser automation layer before calling `extract`.
+
+The CLI fetches URLs as a convenience, but it has the same raw-HTML boundary.
+If a site needs login state, consent flows, or browser-specific state, fetch
+that page in your own application (or a browser) and pass the resulting HTML
+through stdin or the Rust API.
+
 When extraction succeeds, Lectito returns `Some(Article)`. When the page parses
 but does not contain a useful article, it returns `None`. Reserve error handling
 for invalid base URLs, configured size limits, and serialization failures.
