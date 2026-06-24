@@ -1,6 +1,6 @@
-import { createSignal, For, lazy, Show, Suspense } from "solid-js";
-import type { AppMode, PipelineOptions } from "../lib/types";
-import type { SampleHtml, SampleUrl } from "../lib/types";
+import { createMemo, createSignal, For, lazy, Show, Suspense } from "solid-js";
+import type { PipelineOptions } from "../lib/types";
+import type { SampleHtml } from "../lib/types";
 import type { CodeEditorProps } from "./CodeEditor";
 import { OptionsPanel } from "./Options";
 import { MotionButton, MotionReveal, MotionSwap } from "./shared/Motion";
@@ -22,50 +22,68 @@ function HtmlEditor(props: { html: string; onHtml: (html: string) => void }) {
   );
 }
 
-function UrlInput(props: { url: string; samples: SampleUrl[]; onUrl: (url: string) => void }) {
+function HtmlSampleSelect(props: { html: string; samples: SampleHtml[]; onHtml: (html: string) => void }) {
+  const size = createMemo(() => new Blob([props.html]).size);
+  const sizeLabel = createMemo(() => {
+    const bytes = size();
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  });
+
+  const importFile = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.addEventListener("load", () => props.onHtml(String(reader.result ?? "")));
+    reader.readAsText(file);
+  };
+
+  const pasteHtml = async () => {
+    const value = await navigator.clipboard?.readText();
+    if (value) props.onHtml(value);
+  };
+
   return (
-    <div class="url-panel">
-      <label for="article-url">URL</label>
-      <div class="url-panel__row">
-        <input
-          id="article-url"
-          type="url"
-          value={props.url}
-          placeholder="https://example.com/article"
-          onInput={(event) => props.onUrl(event.currentTarget.value)} />
+    <div class="sample-row sample-row--html">
+      <div class="sample-row__control">
+        <label for="sample-html">Sample HTML</label>
+        <select
+          id="sample-html"
+          onChange={(event) => props.onHtml(props.samples[Number(event.currentTarget.value)]?.html ?? "")}>
+          <For each={props.samples}>{(sample, index) => <option value={index()}>{sample.label}</option>}</For>
+        </select>
       </div>
-      <label for="sample-url">Sample URL</label>
-      <select id="sample-url" onChange={(event) => props.onUrl(event.currentTarget.value)}>
-        <For each={props.samples}>{(sample) => <option value={sample.url}>{sample.label}</option>}</For>
-      </select>
+      <div class="sample-row__meta">
+        <span>Document size {sizeLabel()}</span>
+        <Show when={size() > 500_000}>
+          <strong>Large input may take longer to parse.</strong>
+        </Show>
+      </div>
+      <div class="sample-row__actions">
+        <MotionButton type="button" class="button button--secondary" onClick={() => void pasteHtml()}>
+          Paste
+        </MotionButton>
+        <label class="button button--secondary">
+          Import
+          <input type="file" accept=".html,.htm,text/html,text/plain" onChange={(event) => importFile(event.currentTarget.files?.[0])} />
+        </label>
+        <MotionButton type="button" class="button button--secondary" onClick={() => props.onHtml("")}>
+          Clear
+        </MotionButton>
+      </div>
     </div>
   );
 }
 
-function HtmlSampleSelect(props: { samples: SampleHtml[]; onHtml: (html: string) => void }) {
-  return (
-    <div class="sample-row">
-      <label for="sample-html">Sample HTML</label>
-      <select
-        id="sample-html"
-        onChange={(event) => props.onHtml(props.samples[Number(event.currentTarget.value)]?.html ?? "")}>
-        <For each={props.samples}>{(sample, index) => <option value={index()}>{sample.label}</option>}</For>
-      </select>
-    </div>
-  );
-}
-
-function PaneTitle(props: { mode: AppMode; running: boolean; onReset: () => void; onRun: () => void }) {
+function PaneTitle(props: { running: boolean; onReset: () => void; onRun: () => void }) {
   return (
     <div class="pane__header">
       <div>
         <p class="eyebrow">Input</p>
-        <h2>{props.mode === "html" ? "Source HTML" : "Article URL"}</h2>
+        <h2>Source HTML</h2>
       </div>
       <div class="pane__actions">
-        <Show when={props.mode === "html"}>
-          <MotionButton type="button" class="button button--secondary" onClick={props.onReset}>Reset</MotionButton>
-        </Show>
+        <MotionButton type="button" class="button button--secondary" onClick={props.onReset}>Reset</MotionButton>
         <MotionButton type="button" class="button button--primary" disabled={props.running} onClick={props.onRun}>
           {props.running ? "Converting" : "Convert"}
         </MotionButton>
@@ -75,14 +93,10 @@ function PaneTitle(props: { mode: AppMode; running: boolean; onReset: () => void
 }
 
 type InputPaneProps = {
-  mode: AppMode;
   html: string;
-  url: string;
   sampleHtml: SampleHtml[];
-  sampleUrls: SampleUrl[];
   options: PipelineOptions;
   onHtml: (html: string) => void;
-  onUrl: (url: string) => void;
   onOptions: (options: PipelineOptions) => void;
   onReset: () => void;
   onRun: () => void;
@@ -90,23 +104,22 @@ type InputPaneProps = {
 };
 
 function InputMode(
-  props: Pick<InputPaneProps, "html" | "url" | "mode" | "sampleHtml" | "sampleUrls" | "onHtml" | "onUrl">,
+  props: Pick<
+    InputPaneProps,
+    "html" | "sampleHtml" | "onHtml"
+  >,
 ) {
   return (
-    <MotionSwap viewKey={props.mode} class="input-mode">
-      <Show
-        when={props.mode === "html"}
-        fallback={<UrlInput url={props.url} samples={props.sampleUrls} onUrl={props.onUrl} />}>
-        <div class="html-input">
-          <HtmlSampleSelect samples={props.sampleHtml} onHtml={props.onHtml} />
-          <HtmlEditor html={props.html} onHtml={props.onHtml} />
-        </div>
-      </Show>
+    <MotionSwap viewKey="html" class="input-mode">
+      <div class="html-input">
+        <HtmlSampleSelect html={props.html} samples={props.sampleHtml} onHtml={props.onHtml} />
+        <HtmlEditor html={props.html} onHtml={props.onHtml} />
+      </div>
     </MotionSwap>
   );
 }
 
-function AdvancedOptions(props: Pick<InputPaneProps, "mode" | "options" | "onOptions">) {
+function AdvancedOptions(props: Pick<InputPaneProps, "options" | "onOptions">) {
   const [advancedOpen, setAdvancedOpen] = createSignal(false);
 
   return (
@@ -120,7 +133,7 @@ function AdvancedOptions(props: Pick<InputPaneProps, "mode" | "options" | "onOpt
         <span aria-hidden="true">{advancedOpen() ? "Hide" : "Show"}</span>
       </MotionButton>
       <MotionReveal show={advancedOpen()} class="advanced-control__panel">
-        <OptionsPanel options={props.options} mode={props.mode} onChangeOpts={props.onOptions} />
+        <OptionsPanel options={props.options} onChangeOpts={props.onOptions} />
       </MotionReveal>
     </div>
   );
@@ -129,17 +142,13 @@ function AdvancedOptions(props: Pick<InputPaneProps, "mode" | "options" | "onOpt
 export function InputPane(props: InputPaneProps) {
   return (
     <section class="pane pane--input">
-      <PaneTitle mode={props.mode} running={props.running} onReset={props.onReset} onRun={props.onRun} />
+      <PaneTitle running={props.running} onReset={props.onReset} onRun={props.onRun} />
       <div class="input-stack">
         <InputMode
-          mode={props.mode}
           html={props.html}
-          url={props.url}
           sampleHtml={props.sampleHtml}
-          sampleUrls={props.sampleUrls}
-          onHtml={props.onHtml}
-          onUrl={props.onUrl} />
-        <AdvancedOptions mode={props.mode} options={props.options} onOptions={props.onOptions} />
+          onHtml={props.onHtml} />
+        <AdvancedOptions options={props.options} onOptions={props.onOptions} />
       </div>
     </section>
   );

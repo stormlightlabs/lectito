@@ -101,6 +101,7 @@ export function CodeEditor(props: CodeEditorProps) {
   });
 
   createEffect(() => {
+    wordWrap();
     if (!view || !wordWrapCompartment) return;
     view.dispatch({ effects: wordWrapCompartment.reconfigure(wordWrapExtension()) });
   });

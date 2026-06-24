@@ -1,5 +1,5 @@
 import { createMemo } from "solid-js";
-import type { AppMode, PipelineFailure, PipelineResult } from "../lib/types";
+import type { PipelineFailure, PipelineResult } from "../lib/types";
 
 function statusText(running: boolean, result?: PipelineResult | PipelineFailure): string {
   if (running) return "Converting";
@@ -32,14 +32,14 @@ export function StatusItem(props: { label: string; value: string }) {
   );
 }
 
-type StatusStripProps = { mode: AppMode; running: boolean; result?: PipelineResult | PipelineFailure };
+type StatusStripProps = { running: boolean; result?: PipelineResult | PipelineFailure };
 
 export function StatusStrip(props: StatusStripProps) {
   const result = () => props.result;
   const status = () => statusText(props.running, result());
   const details = createMemo(() =>
     [
-      props.mode === "html" ? "Pasted HTML" : "URL / API",
+      "Pasted HTML",
       result() ? resultKind(result()) : "",
       textLength(result()) === "-" ? "" : `${textLength(result())} chars`,
       elapsedText(result()) === "-" ? "" : elapsedText(result()),

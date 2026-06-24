@@ -25,8 +25,8 @@
 
 The web app has two primary flows:
 
-- Convert a URL through the Render API.
 - Convert pasted HTML markup in the browser through WASM.
+- Use the API docs for server-side URL extraction.
 
 ### Pages
 
@@ -38,46 +38,20 @@ The web app has two primary flows:
 - `/runs/:id`: one saved extraction result, with output, metadata, diagnostics,
   and options.
 - `/samples`: a browsable gallery of curated fixtures and known edge cases.
-- `/api`: API playground and reference examples.
-- `/settings`: API base URL, default mode, output preferences, and history
-  settings.
+- `/api`: Markdown-rendered API docs and reference examples.
+- `/settings`: output preferences and history settings.
 
 ### Controls
 
-- Add a command bar with convert, cancel, reset, copy, download, save run,
-  share view link, and open result actions.
-- Add output actions for copying Markdown, copying HTML, copying metadata JSON,
-  downloading files, opening preview in a new tab, toggling line wrap, and
-  fullscreen output.
-- Improve input controls with URL validation, optional paste-from-clipboard,
-  HTML file import, clear input, recent URLs, searchable samples, document size,
-  and large-input warnings.
-- Group advanced options by extraction, media, metadata, styling, site rules,
-  and debug settings.
-- Add presets for default, strict article, keep media, debug, and preserve
-  styling.
-- Make diagnostics readable with a summary, fallback reason, warnings, timing,
-  candidate details, and sanitized-vs-cleaned comparison.
-- Add a compact metadata summary above the output tabs.
-- Add a compare view for source HTML, sanitized HTML, cleaned article HTML, and
-  Markdown.
-- Add a resizable layout with collapsible input, fullscreen preview/output, and
-  persistent layout preference.
-- Finish accessible tab behavior with `role="tab"`, `aria-selected`,
-  `aria-controls`, tab panels, and keyboard navigation.
+- Add a searchable sample picker for pasted HTML fixtures.
+- Add true resizable split panes.
 - Keep failed input intact and show field-level recovery messages.
 
 ### Implementation Order
 
-- [ ] URL-back lightweight workbench state with `useSearchParams`.
-- [ ] Add output copy, download, and fullscreen actions.
-- [ ] Add reader-style preview controls for the extracted article.
-- [ ] Add run history and `/runs/:id`.
-  - [ ] Back with Dexie.js
-- [ ] Add grouped presets and better advanced options.
+- [ ] Back run history with Dexie.js.
 - [ ] Add the sample gallery.
-- [ ] Improve tab and command accessibility.
-- [ ] Add `/api` behavior and `/settings` persistence.
+- [ ] Add `/settings` persistence.
 
 ## WASM And Browser Safety
 

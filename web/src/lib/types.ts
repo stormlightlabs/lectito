@@ -38,6 +38,16 @@ export type PipelineResult = {
 
 export type PipelineFailure = { sanitizedHtml: string; message: string; source: AppMode; elapsedMs: number };
 
+export type SavedRun = {
+  id: string;
+  createdAt: string;
+  title: string;
+  sourceLabel: string;
+  input: string;
+  options: PipelineOptions;
+  result: PipelineResult;
+};
+
 export type UrlExtractionRequest = { url: string; options: PipelineOptions };
 
 export type ExtractUrlResponse = { article?: Article | null; diagnostics?: unknown; elapsedMs: number };
@@ -78,7 +88,7 @@ export type Article = {
   favicon?: string | null;
 };
 
-export type OutputTab = "markdown" | "preview" | "cleaned";
+export type OutputTab = "markdown" | "preview" | "cleaned" | "compare";
 
 export type InspectTab = "metadata" | "diagnostics" | "sanitized";
 

@@ -8,6 +8,10 @@
   box-shadow: var(--shadow-thin);
 }
 
+.pane--output {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+
 .pane__header {
   min-height: 4rem;
   display: flex;
