@@ -98,6 +98,18 @@ Use the corpus helper as the default review tool:
 cargo run -p lectito-fixtures --bin corpus -- <case>
 ```
 
+For a corpus-wide quality audit:
+
+```sh
+cargo run -p lectito-fixtures --bin corpus -- --all
+```
+
+The aggregate audit reports readability, metadata, normalized text, and tag
+sequence pass counts.
+
+It also prints a metadata-field mismatch histogram so publisher metadata drift
+can be reviewed without inspecting every fixture by hand.
+
 For a diffable review, write expected and actual output files:
 
 ```sh

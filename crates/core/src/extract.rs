@@ -1904,6 +1904,69 @@ mod tests {
     }
 
     #[test]
+    fn removes_live_doc_site_chrome() {
+        let article = extract(
+            r#"
+            <html><head><title>serde - Rust</title></head><body>
+                <main>
+                    <section id="main-content">
+                        <details open>
+                            <summary><span>Expand description</span></summary>
+                            <div>
+                                <p>Serde is a framework for serializing and deserializing Rust data structures efficiently.</p>
+                                <p>The description continues with enough prose to remain readable after summary chrome is removed.</p>
+                            </div>
+                        </details>
+                        <dl>
+                            <dt>Serialize</dt>
+                            <dd>A data structure that can be serialized into any data format supported by Serde.</dd>
+                        </dl>
+                    </section>
+                </main>
+            </body></html>
+            "#,
+            Some("https://docs.rs/serde/latest/serde/"),
+            &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert!(article.text_content.contains("Serde is a framework"));
+        assert!(article.text_content.contains("Serialize"));
+        assert!(!article.text_content.contains("Expand description"));
+
+        let mdn = extract(
+            r##"
+            <html><head><title>&lt;article&gt;: The Article Contents element</title></head><body>
+                <main>
+                    <article>
+                        <section class="baseline-card">
+                            <p>Baseline Widely available</p>
+                            <p>This feature is well established and works across many devices.</p>
+                            <a href="#browser_compatibility">See full compatibility</a>
+                        </section>
+                        <p>The article HTML element represents a self-contained composition in a document, page, application, or site.</p>
+                        <p>Usage notes explain how nested article elements and publication dates should be represented.</p>
+                        <section>
+                            <h2>Help improve MDN</h2>
+                            <p>This feedback panel belongs to the page shell.</p>
+                        </section>
+                    </article>
+                </main>
+            </body></html>
+            "##,
+            Some("https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/article"),
+            &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert!(mdn.text_content.contains("self-contained composition"));
+        assert!(!mdn.text_content.contains("Baseline Widely available"));
+        assert!(!mdn.text_content.contains("Help improve MDN"));
+    }
+
+    #[test]
     fn matches_representative_fixture_metadata() {
         for name in [
             "wikipedia",

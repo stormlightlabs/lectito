@@ -23,6 +23,7 @@ pub fn cleanup_article(
         clean_embeds(node, opts.media_retention);
         remove_app_doc_controls(node);
         remove_rustdoc_controls(node);
+        remove_mdn_chrome(node);
         remove_share_nodes(node);
         remove_trailing_page_chrome(node);
         clean_headers(node, metadata.title.as_deref(), flags);
@@ -210,8 +211,35 @@ fn is_orphan_doc_tablist(node: &NodeRef) -> bool {
 }
 
 fn remove_rustdoc_controls(root: &NodeRef) {
-    for node in dom::select_nodes(root, "a, button") {
+    for node in dom::select_nodes(root, "summary, a, button, span") {
         if dom::inner_text(&node).trim().eq_ignore_ascii_case("Expand description") {
+            if dom::node_name(&node) == "span"
+                && node.parent().is_some_and(|parent| dom::node_name(&parent) == "summary")
+            {
+                if let Some(parent) = node.parent() {
+                    parent.detach();
+                }
+            } else {
+                node.detach();
+            }
+        }
+    }
+}
+
+fn remove_mdn_chrome(root: &NodeRef) {
+    for node in dom::select_nodes(root, "*") {
+        let text = dom::inner_text(&node);
+        let text_len = text.chars().count();
+        if text_len == 0 || text_len > 700 {
+            continue;
+        }
+        let lower = text.to_ascii_lowercase();
+        if lower.contains("baseline") && lower.contains("widely available") && lower.contains("see full compatibility")
+        {
+            node.detach();
+            continue;
+        }
+        if lower.contains("help improve mdn") {
             node.detach();
         }
     }
@@ -264,6 +292,9 @@ fn is_trailing_page_chrome(node: &NodeRef) -> bool {
         return false;
     }
     if text_len < 500 && text.to_ascii_lowercase().contains("explore press release") {
+        return true;
+    }
+    if text_len < 500 && text.to_ascii_lowercase().contains("help improve mdn") {
         return true;
     }
     if text_len < 800 && RegexPattern::TrailingChromeText.to_regex().is_match(&text) {
