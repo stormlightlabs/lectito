@@ -1124,6 +1124,7 @@ dependencies = [
  "owo-colors",
  "reqwest",
  "scraper",
+ "serde",
  "serde_json",
  "shell-escape",
 ]

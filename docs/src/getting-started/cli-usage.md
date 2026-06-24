@@ -3,10 +3,11 @@
 The CLI is designed for inspecting extraction behavior and converting documents
 from the terminal.
 
-The root command extracts article content. The CLI also has two subcommands:
+The root command extracts article content. The CLI also has these subcommands:
 
 - `readable`: check whether a document looks readable
 - `inspect`: print extraction metadata and scoring details
+- `llms`: fetch, parse, and expand `llms.txt` files
 
 ## Extract
 
@@ -112,6 +113,31 @@ lectito inspect article.html
 lectito inspect https://example.com/article
 lectito inspect article.html --json --pretty
 ```
+
+## llms.txt
+
+Use the `llms` subcommands when a site publishes an `llms.txt` file or when
+you want to bundle its linked resources into one Markdown context file.
+
+```sh
+lectito llms fetch https://example.com
+lectito llms parse https://example.com/llms.txt --pretty
+lectito llms expand https://example.com/llms.txt --output llms-full.txt
+```
+
+`fetch` resolves a bare site URL to `/llms.txt`. `parse` prints structured JSON.
+`expand` reads the linked resources, keeps Markdown resources as-is, and runs
+HTML resources through Lectito before adding them to the bundle.
+
+Links in the special `Optional` section are skipped unless you pass
+`--include-optional`:
+
+```sh
+lectito llms expand https://example.com/llms.txt --include-optional
+```
+
+See the [llms.txt guide](./llms-txt.md) for the expected file shape and the
+tradeoffs.
 
 ## Exit Codes
 

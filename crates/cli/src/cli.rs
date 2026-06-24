@@ -24,6 +24,8 @@ pub enum Commands {
     Readable(ReadableArgs),
     /// Print metadata, selected root, cleanup counts, and scoring details.
     Inspect(InspectArgs),
+    /// Work with llms.txt files and LLM context bundles.
+    Llms(LlmsArgs),
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -250,6 +252,65 @@ pub struct InspectArgs {
     pub preserve: Vec<String>,
 }
 
+/// Work with llms.txt files and LLM context bundles.
+#[derive(Debug, Args)]
+pub struct LlmsArgs {
+    #[command(subcommand)]
+    pub command: LlmsCommands,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum LlmsCommands {
+    /// Fetch a site's llms.txt file.
+    Fetch(LlmsFetchArgs),
+    /// Parse an llms.txt file into structured JSON.
+    Parse(LlmsParseArgs),
+    /// Expand linked resources into one Markdown context file.
+    Expand(LlmsExpandArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct LlmsFetchArgs {
+    /// Site URL, llms.txt URL, local file path, or '-' for stdin.
+    pub input: String,
+
+    /// Write output to a file instead of stdout.
+    #[arg(short, long, value_name = "PATH")]
+    pub output: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+pub struct LlmsParseArgs {
+    /// llms.txt URL, local file path, or '-' for stdin.
+    pub input: String,
+
+    /// Pretty-print JSON output.
+    #[arg(long)]
+    pub pretty: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct LlmsExpandArgs {
+    /// llms.txt URL, local file path, or '-' for stdin.
+    pub input: String,
+
+    /// Include links from the special Optional section.
+    #[arg(long)]
+    pub include_optional: bool,
+
+    /// Maximum linked resources to include.
+    #[arg(long, default_value_t = 50)]
+    pub max_links: usize,
+
+    /// Maximum seconds to spend extracting each HTML resource.
+    #[arg(long, default_value_t = 30)]
+    pub timeout: u64,
+
+    /// Write output to a file instead of stdout.
+    #[arg(short, long, value_name = "PATH")]
+    pub output: Option<PathBuf>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -262,5 +323,22 @@ mod tests {
         assert_eq!(cli.extract.input.as_deref(), Some("article.html"));
         assert!(cli.extract.html);
         assert!(cli.command.is_none());
+    }
+
+    #[test]
+    fn llms_subcommand_parses() {
+        let cli = Cli::try_parse_from(["lectito", "llms", "expand", "https://example.com", "--include-optional"])
+            .expect("llms command should parse");
+
+        match cli.command {
+            Some(Commands::Llms(args)) => match args.command {
+                LlmsCommands::Expand(args) => {
+                    assert_eq!(args.input, "https://example.com");
+                    assert!(args.include_optional);
+                }
+                other => panic!("unexpected llms subcommand: {other:?}"),
+            },
+            other => panic!("unexpected command: {other:?}"),
+        }
     }
 }

@@ -19,6 +19,7 @@ use crate::echo::InspectOptions;
 mod cli;
 mod echo;
 mod fetch;
+mod llms;
 
 fn main() -> ExitCode {
     match run(Cli::parse(), color_enabled()) {
@@ -34,6 +35,7 @@ fn run(cli: Cli, color: bool) -> Result<ExitCode> {
     match cli.command {
         Some(Commands::Readable(args)) => run_readable(args),
         Some(Commands::Inspect(args)) => run_inspect(args),
+        Some(Commands::Llms(args)) => llms::run(args),
         None => run_extract(cli.extract, color),
     }
 }
