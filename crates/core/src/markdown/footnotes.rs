@@ -133,7 +133,11 @@ fn remove_backlinks(node: &NodeRef) {
 
 fn is_backlink_anchor(node: &NodeRef) -> bool {
     let href = dom::attr(node, "href").unwrap_or_default();
-    let href = href.trim_start_matches('#').to_ascii_lowercase();
+    let href = href
+        .strip_prefix('#')
+        .or_else(|| href.split_once('#').map(|(_, fragment)| fragment))
+        .unwrap_or(&href)
+        .to_ascii_lowercase();
     let text = dom::inner_text(node).to_ascii_lowercase();
     let class_id = dom::class_id_string(node).to_ascii_lowercase();
 

@@ -664,6 +664,86 @@ mod tests {
     }
 
     #[test]
+    fn expanded_markdown_fixtures_cover_tables_media_math_and_footnotes() {
+        let cases = [
+            (
+                "elements--data-table",
+                "https://en.wikipedia.org/wiki/Hermitian_matrix",
+                &[
+                    "| Entry | Value | Conjugate |",
+                    "![{\\\\displaystyle A\\_",
+                    "https://wikimedia.org/api/rest_v1/media/math/render/svg/example",
+                ][..],
+            ),
+            (
+                "elements--complex-tables",
+                "https://www.rfc-editor.org/rfc/rfc7540",
+                &["<table>", "colspan=\"3\"", "Frame Type Registry"][..],
+            ),
+            (
+                "elements--srcset-normalization",
+                "https://web.dev/articles/responsive-images",
+                &[
+                    "![Art direction example](https://web.dev/static/articles/responsive-images/image/art-direction-example_2880.png)",
+                ][..],
+            ),
+            (
+                "elements--embedded-videos",
+                "https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Structuring_content/HTML_images",
+                &[
+                    "[Video](https://www.youtube.com/watch?v=dQw4w9WgXcQ)",
+                    "Embedded lesson video",
+                ][..],
+            ),
+            (
+                "math--katex",
+                "https://www.intmath.com/cg5/katex-mathjax-comparison.php",
+                &["$E=mc^2$", "$$\n\\int_0^1 x\\,dx\n$$"][..],
+            ),
+            (
+                "math--mathjax-svg",
+                "https://mathjax.github.io/MathJax-demos-web/input/tex-mml2chtml.html",
+                &["$$\n\\frac{a + b}{c}\n$$"][..],
+            ),
+            (
+                "footnotes--numeric-anchor-id",
+                "https://math.meta.stackexchange.com/questions/5020/mathjax-basic-tutorial-and-quick-reference",
+                &[
+                    "references to later notes.[^1]",
+                    "[^1]:\n    Use dollar signs around short TeX fragments.",
+                ][..],
+            ),
+            (
+                "footnotes--google-docs-ftnt",
+                "https://stackprinter.appspot.com/export?question=5020&service=math.meta.stackexchange&language=en&hideAnswers=false&width=640",
+                &[
+                    "ids for footnotes.[^1]",
+                    "[^1]:\n    This note came from a Google Docs-style footnote block.",
+                ][..],
+            ),
+        ];
+
+        for (fixture_name, url, expected_snippets) in cases {
+            let fixture = lectito_fixtures::load_fixture(fixture_name).unwrap();
+            let article = extract(
+                &fixture.source,
+                Some(url),
+                &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+            )
+            .unwrap()
+            .unwrap();
+
+            for snippet in expected_snippets {
+                assert!(
+                    article.markdown.contains(snippet),
+                    "{fixture_name} markdown should contain {snippet:?}:\n{}",
+                    article.markdown
+                );
+            }
+        }
+    }
+
+    #[test]
     fn prefers_largest_srcset_candidate_and_preserves_image_title() {
         let markdown = html_to_markdown(
             r#"<p><img src="small.jpg" srcset="https://cdn.example.com/image,w_400.jpg 400w, https://cdn.example.com/image,w_1600.jpg 1600w" alt="Hero" title="Launch view"></p>"#,

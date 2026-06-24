@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Numeric anchor footnotes fixture</title>
+  <meta name="description" content="Representative Stack Exchange numeric footnote anchors.">
+</head>
+<body>
+  <main>
+    <article>
+      <h1>Numeric anchor footnotes fixture</h1>
+      <p>
+        Math Stack Exchange answers often include tutorial prose with inline
+        references to later notes.<sup class="reference"><a href="#fn1">1</a></sup>
+      </p>
+      <p>
+        The footnote label is stored in the numeric anchor id, not only in the
+        visible link text, so the renderer should emit a stable definition.
+      </p>
+      <section class="footnotes">
+        <ol>
+          <li id="fn1">
+            <p>
+              Use dollar signs around short TeX fragments.
+              <a href="#fnref1" class="backlink">↩</a>
+            </p>
+          </li>
+        </ol>
+      </section>
+    </article>
+  </main>
+</body>
+</html>

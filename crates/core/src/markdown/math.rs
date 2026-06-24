@@ -131,7 +131,7 @@ fn render_mathml(node: &NodeRef) -> String {
         "msup" => scripted(node, "^", 0, 1),
         "msub" => scripted(node, "_", 0, 1),
         "msubsup" => {
-            let children: Vec<_> = node.children().collect();
+            let children = meaningful_children(node);
             if children.len() >= 3 {
                 format!(
                     "{}_{{{}}}^{{{}}}",
@@ -144,7 +144,7 @@ fn render_mathml(node: &NodeRef) -> String {
             }
         }
         "mfrac" => {
-            let children: Vec<_> = node.children().collect();
+            let children = meaningful_children(node);
             if children.len() >= 2 {
                 format!(
                     "\\frac{{{}}}{{{}}}",
@@ -157,7 +157,7 @@ fn render_mathml(node: &NodeRef) -> String {
         }
         "msqrt" => format!("\\sqrt{{{}}}", render_mathml_children(node)),
         "mroot" => {
-            let children: Vec<_> = node.children().collect();
+            let children = meaningful_children(node);
             if children.len() >= 2 {
                 format!(
                     "\\sqrt[{}]{{{}}}",
@@ -194,7 +194,7 @@ fn render_mathml(node: &NodeRef) -> String {
 }
 
 fn scripted(node: &NodeRef, marker: &str, base_index: usize, script_index: usize) -> String {
-    let children: Vec<_> = node.children().collect();
+    let children = meaningful_children(node);
     if children.len() > script_index {
         format!(
             "{}{}{{{}}}",
@@ -208,7 +208,7 @@ fn scripted(node: &NodeRef, marker: &str, base_index: usize, script_index: usize
 }
 
 fn mover(node: &NodeRef) -> String {
-    let children: Vec<_> = node.children().collect();
+    let children = meaningful_children(node);
     if children.len() < 2 {
         return render_mathml_children(node);
     }
@@ -223,7 +223,7 @@ fn mover(node: &NodeRef) -> String {
 }
 
 fn underscript(node: &NodeRef) -> String {
-    let children: Vec<_> = node.children().collect();
+    let children = meaningful_children(node);
     if children.len() >= 2 {
         format!(
             "\\underset{{{}}}{{{}}}",
@@ -236,7 +236,7 @@ fn underscript(node: &NodeRef) -> String {
 }
 
 fn undersuperscript(node: &NodeRef) -> String {
-    let children: Vec<_> = node.children().collect();
+    let children = meaningful_children(node);
     if children.len() >= 3 {
         format!(
             "\\overset{{{}}}{{\\underset{{{}}}{{{}}}}}",
@@ -263,6 +263,14 @@ fn render_table_mathml(node: &NodeRef) -> String {
         .filter(|row| !row.trim().is_empty())
         .collect::<Vec<_>>()
         .join(" \\\\ ")
+}
+
+fn meaningful_children(node: &NodeRef) -> Vec<NodeRef> {
+    node.children()
+        .filter(|child| {
+            child.as_element().is_some() || child.as_text().is_some_and(|text| !text.borrow().trim().is_empty())
+        })
+        .collect()
 }
 
 fn join_latex(parts: Vec<String>) -> String {

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Responsive images srcset fixture</title>
+  <meta name="description" content="Representative web.dev responsive image markup.">
+</head>
+<body>
+  <main>
+    <article>
+      <h1>Responsive images srcset fixture</h1>
+      <p>
+        Responsive image documentation commonly presents screenshots with many
+        width candidates. Markdown should select a useful concrete image URL.
+      </p>
+      <figure>
+        <img
+          src="/static/articles/responsive-images/image/art-direction-example.png"
+          alt="Art direction example"
+          srcset="https://web.dev/static/articles/responsive-images/image/art-direction-example_480.png 480w,https://web.dev/static/articles/responsive-images/image/art-direction-example_960.png 960w,https://web.dev/static/articles/responsive-images/image/art-direction-example_2880.png 2880w"
+          sizes="(max-width: 840px) 100vw, 856px">
+        <figcaption>Art direction example</figcaption>
+      </figure>
+      <p>
+        The smallest source image is only a fallback. The largest srcset
+        candidate gives markdown readers the clearest available asset.
+      </p>
+    </article>
+  </main>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<div id="readability-page-1" class="page">
+  <article>
+    <h1>RFC 7540 complex tables fixture</h1>
+    <p>
+      RFC documents mix prose, diagrams, and IANA registry tables. The frame
+      type registry includes grouped headers that cannot safely become a
+      simple pipe table.
+    </p>
+    <table>
+      <thead>
+        <tr><th colspan="3">Frame Type Registry</th></tr>
+        <tr><th>Frame Type</th><th>Code</th><th>Reference</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>DATA</td><td>0x0</td><td>RFC 7540, Section 6.1</td></tr>
+        <tr><td>HEADERS</td><td>0x1</td><td>RFC 7540, Section 6.2</td></tr>
+      </tbody>
+    </table>
+    <p>
+      Keeping the raw table is preferable to flattening a header that spans
+      several columns and changes the table structure.
+    </p>
+  </article>
+</div>
