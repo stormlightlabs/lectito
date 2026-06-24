@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum, builder::BoolishValueParser};
+
 use lectito::MediaRetention;
 
 /// Extract readable article content from URLs, AT URIs, files, or stdin.
@@ -62,21 +63,9 @@ pub struct ExtractArgs {
     #[arg(long)]
     pub base_url: Option<String>,
 
-    /// Print Markdown output. This is the default.
-    #[arg(long)]
-    pub markdown: bool,
-
-    /// Print cleaned article HTML.
-    #[arg(long)]
-    pub html: bool,
-
-    /// Print extracted plain text.
-    #[arg(long)]
-    pub text: bool,
-
-    /// Print the article structure as JSON.
-    #[arg(long)]
-    pub json: bool,
+    /// Output format: markdown, html, text, or json.
+    #[arg(long, value_enum, default_value = "markdown")]
+    pub format: OutputFormat,
 
     /// Pretty-print JSON output.
     #[arg(long)]
@@ -86,17 +75,16 @@ pub struct ExtractArgs {
     #[arg(short, long, value_name = "PATH")]
     pub output: Option<PathBuf>,
 
-    /// Include TOML frontmatter in Markdown output. Enabled by default.
-    #[arg(long)]
+    /// Include TOML frontmatter in Markdown output.
+    #[arg(
+        long,
+        default_value_t = true,
+        default_missing_value = "true",
+        num_args = 0..=1,
+        require_equals = true,
+        value_parser = BoolishValueParser::new()
+    )]
     pub frontmatter: bool,
-
-    /// Omit TOML frontmatter from Markdown output.
-    #[arg(long)]
-    pub no_frontmatter: bool,
-
-    /// Check readability and exit without extracting.
-    #[arg(long)]
-    pub readable: bool,
 
     /// Print extraction summary to stderr after article output.
     #[arg(long)]
@@ -385,20 +373,46 @@ mod tests {
 
     #[test]
     fn root_accepts_input_path() {
-        let cli =
-            Cli::try_parse_from(["lectito", "article.html", "--html"]).expect("root args should accept an input path");
+        let cli = Cli::try_parse_from(["lectito", "article.html", "--format", "html"])
+            .expect("root args should accept an input path");
 
         assert_eq!(cli.extract.input.as_deref(), Some("article.html"));
-        assert!(cli.extract.html);
+        assert!(matches!(cli.extract.format, OutputFormat::Html));
         assert!(cli.command.is_none());
     }
 
     #[test]
-    fn llms_subcommand_parses() {
-        let cli = Cli::try_parse_from(["lectito", "llms", "expand", "https://example.com", "--include-optional"])
-            .expect("llms command should parse");
+    fn format_defaults_to_markdown() {
+        let cli = Cli::try_parse_from(["lectito", "article.html"]).expect("root args should parse");
+        assert!(matches!(cli.extract.format, OutputFormat::Markdown));
+    }
 
-        match cli.command {
+    #[test]
+    fn frontmatter_defaults_to_enabled() {
+        let cli = Cli::try_parse_from(["lectito", "article.html"]).expect("root args should parse");
+        assert!(cli.extract.frontmatter);
+    }
+
+    #[test]
+    fn frontmatter_flag_enables_frontmatter() {
+        let cli =
+            Cli::try_parse_from(["lectito", "--frontmatter", "article.html"]).expect("frontmatter flag should parse");
+        assert!(cli.extract.frontmatter);
+    }
+
+    #[test]
+    fn frontmatter_can_be_disabled() {
+        let cli = Cli::try_parse_from(["lectito", "article.html", "--frontmatter=false"])
+            .expect("frontmatter option should accept false");
+        assert!(!cli.extract.frontmatter);
+    }
+
+    #[test]
+    fn llms_subcommand_parses() {
+        match Cli::try_parse_from(["lectito", "llms", "expand", "https://example.com", "--include-optional"])
+            .expect("llms command should parse")
+            .command
+        {
             Some(Commands::Llms(args)) => match args.command {
                 LlmsCommands::Expand(args) => {
                     assert_eq!(args.input, "https://example.com");
@@ -412,7 +426,7 @@ mod tests {
 
     #[test]
     fn llms_generate_subcommand_parses() {
-        let cli = Cli::try_parse_from([
+        match Cli::try_parse_from([
             "lectito",
             "llms",
             "generate",
@@ -424,9 +438,9 @@ mod tests {
             "--full-output",
             "llms-full.txt",
         ])
-        .expect("llms generate command should parse");
-
-        match cli.command {
+        .expect("llms generate command should parse")
+        .command
+        {
             Some(Commands::Llms(args)) => match args.command {
                 LlmsCommands::Generate(args) => {
                     assert_eq!(args.input.as_deref(), Some("https://example.com/docs/"));
@@ -442,7 +456,7 @@ mod tests {
 
     #[test]
     fn llms_generate_full_alias_parses() {
-        let cli = Cli::try_parse_from([
+        match Cli::try_parse_from([
             "lectito",
             "llms",
             "generate",
@@ -450,9 +464,9 @@ mod tests {
             "--full",
             "full.md",
         ])
-        .expect("llms generate --full alias should parse");
-
-        match cli.command {
+        .expect("llms generate --full alias should parse")
+        .command
+        {
             Some(Commands::Llms(args)) => match args.command {
                 LlmsCommands::Generate(args) => {
                     assert_eq!(args.full_output, Some(PathBuf::from("full.md")));
@@ -465,7 +479,7 @@ mod tests {
 
     #[test]
     fn llms_generate_filters_and_delay_parse() {
-        let cli = Cli::try_parse_from([
+        match Cli::try_parse_from([
             "lectito",
             "llms",
             "generate",
@@ -481,9 +495,9 @@ mod tests {
             "--ignore-robots",
             "--discover",
         ])
-        .expect("llms generate filters should parse");
-
-        match cli.command {
+        .expect("llms generate filters should parse")
+        .command
+        {
             Some(Commands::Llms(args)) => match args.command {
                 LlmsCommands::Generate(args) => {
                     assert_eq!(args.filters, vec!["/reference/", "!/reference/archive/"]);
@@ -500,7 +514,7 @@ mod tests {
 
     #[test]
     fn llms_generate_sitemap_subcommand_parses() {
-        let cli = Cli::try_parse_from([
+        match Cli::try_parse_from([
             "lectito",
             "llms",
             "generate",
@@ -509,9 +523,9 @@ mod tests {
             "--max-sitemaps",
             "3",
         ])
-        .expect("llms generate --sitemap command should parse");
-
-        match cli.command {
+        .expect("llms generate --sitemap command should parse")
+        .command
+        {
             Some(Commands::Llms(args)) => match args.command {
                 LlmsCommands::Generate(args) => {
                     assert_eq!(args.input, None);
@@ -526,10 +540,10 @@ mod tests {
 
     #[test]
     fn llms_generate_discover_sitemap_parses() {
-        let cli = Cli::try_parse_from(["lectito", "llms", "generate", "https://example.com", "--discover"])
-            .expect("llms generate --discover command should parse");
-
-        match cli.command {
+        match Cli::try_parse_from(["lectito", "llms", "generate", "https://example.com", "--discover"])
+            .expect("llms generate --discover command should parse")
+            .command
+        {
             Some(Commands::Llms(args)) => match args.command {
                 LlmsCommands::Generate(args) => {
                     assert_eq!(args.input.as_deref(), Some("https://example.com"));

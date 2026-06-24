@@ -56,6 +56,6 @@ performs the quick readability check.
 
 ```sh
 lectito article.html
-lectito https://example.com/article --json --pretty
+lectito https://example.com/article --format json --pretty
 lectito readable article.html
 ```

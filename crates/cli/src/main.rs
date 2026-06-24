@@ -1,4 +1,3 @@
-use anyhow::Context;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -7,9 +6,10 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
-use cli::{Cli, Commands, ExtractArgs, InspectArgs, OutputFormat, ReadableArgs};
+use cli::{Cli, Commands, ExtractArgs, InspectArgs, ReadableArgs};
+
 use lectito::ExtractionReport;
 use lectito::{ReadabilityOptions, ReadableOptions};
 use lectito::{extract_with_diagnostics, is_probably_readable};
@@ -44,15 +44,6 @@ fn main() -> ExitCode {
 }
 
 fn run_extract(args: ExtractArgs, color: bool) -> Result<ExitCode> {
-    if args.readable {
-        let input = fetch::InputDocument::read_src(args.input.as_deref(), args.stdin, args.base_url.as_deref())?;
-        let readable = is_probably_readable(input.html(), &ReadableOptions::default())?;
-        echo::readable(readable, args.json, args.pretty)?;
-        return Ok(if readable { ExitCode::SUCCESS } else { ExitCode::from(1) });
-    }
-
-    let format = output_format(args.markdown, args.html, args.text, args.json)?;
-    let frontmatter = markdown_frontmatter(args.frontmatter, args.no_frontmatter)?;
     let input = fetch::InputDocument::read_src(args.input.as_deref(), args.stdin, args.base_url.as_deref())?;
     let options = ReadabilityOptions {
         max_elems_to_parse: args.max_elems_to_parse,
@@ -73,7 +64,7 @@ fn run_extract(args: ExtractArgs, color: bool) -> Result<ExitCode> {
     };
     let output = echo::render_article(
         report.article.as_ref(),
-        echo::RenderOptions::new(format, args.pretty, input.base_url(), frontmatter),
+        echo::RenderOptions::new(args.format, args.pretty, input.base_url(), args.frontmatter),
     )?;
 
     match args.output {
@@ -169,33 +160,6 @@ fn read_site_profiles(paths: &[PathBuf]) -> Result<Vec<String>> {
         .collect()
 }
 
-fn output_format(markdown: bool, html: bool, text: bool, json: bool) -> Result<OutputFormat> {
-    let selected = [markdown, html, text, json]
-        .into_iter()
-        .filter(|selected| *selected)
-        .count();
-    if selected > 1 {
-        anyhow::bail!("choose only one output format");
-    }
-
-    if html {
-        Ok(OutputFormat::Html)
-    } else if text {
-        Ok(OutputFormat::Text)
-    } else if json {
-        Ok(OutputFormat::Json)
-    } else {
-        Ok(OutputFormat::Markdown)
-    }
-}
-
-fn markdown_frontmatter(frontmatter: bool, no_frontmatter: bool) -> Result<bool> {
-    if frontmatter && no_frontmatter {
-        anyhow::bail!("cannot combine --frontmatter and --no-frontmatter");
-    }
-    Ok(!no_frontmatter)
-}
-
 fn color_enabled() -> bool {
     std::env::var_os("NO_COLOR").is_none()
 }
@@ -203,13 +167,6 @@ fn color_enabled() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn output_format_rejects_multiple_formats() {
-        let error = output_format(false, true, true, false).expect_err("two formats should be rejected");
-
-        assert!(error.to_string().contains("choose only one"));
-    }
 
     #[test]
     fn no_color_env_disables_color() {

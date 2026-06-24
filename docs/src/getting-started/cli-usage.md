@@ -33,10 +33,10 @@ Use HTML, text, or JSON when Markdown is not the right output for the next
 tool.
 
 ```sh
-lectito article.html --html
-lectito article.html --text
-lectito article.html --json --pretty
-lectito article.html --no-frontmatter
+lectito article.html --format html
+lectito article.html --format text
+lectito article.html --format json --pretty
+lectito article.html --frontmatter=false
 lectito article.html --output article.md
 ```
 
@@ -101,7 +101,6 @@ lectito readable article.html
 lectito readable --stdin < article.html
 lectito readable https://example.com/article
 lectito readable article.html --json --pretty
-lectito article.html --readable
 ```
 
 Thresholds:

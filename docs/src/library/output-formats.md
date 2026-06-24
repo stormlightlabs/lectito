@@ -64,7 +64,7 @@ images, and most document structure.
 The CLI can serialize the article:
 
 ```sh
-lectito article.html --json --pretty
+lectito article.html --format json --pretty
 ```
 
 JSON is the best CLI format when another program needs metadata and content

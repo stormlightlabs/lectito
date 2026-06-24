@@ -13,9 +13,9 @@ Example commands:
 
 ```sh
 lectito article.html
-lectito https://example.com/article --json --pretty
+lectito https://example.com/article --format json --pretty
 lectito at://did:plc:abc123/site.standard.document/xyz
-lectito article.html --html
+lectito article.html --format html
 lectito readable article.html
 lectito inspect article.html
 lectito article.html --timeout 10
@@ -31,5 +31,6 @@ HTML.
 
 Markdown with TOML frontmatter is the default output.
 
-Use `--html`, `--text`, or `--json` when another format fits better.
+Use `--format html`, `--format text`, or `--format json` when another format fits better.
+Use `--frontmatter=false` to omit Markdown frontmatter.
 Use `--inspect` or `--diagnostic-format pretty` when tuning extraction for a page.
