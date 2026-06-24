@@ -1,4 +1,4 @@
-pub(crate) mod code;
+pub mod code;
 mod footnotes;
 mod frontmatter;
 mod math;
@@ -35,7 +35,7 @@ pub fn html_to_markdown(html: &str) -> String {
         .unwrap_or(document);
     let footnotes = footnotes::FootnoteContext::extract(&body);
     let mut output = render_children(&body, RenderContext { in_pre: false, list_depth: 0 });
-    output.push_str(&footnotes.render_definitions());
+    output.push_str(&footnotes.render_defs());
     output = normalize_markdown(&output);
     fmt_with_comrak(&output)
 }
@@ -108,6 +108,14 @@ fn render_node(node: &NodeRef, ctx: RenderContext) -> String {
                 "em" | "i" => format!("*{}*", inline_children(node, ctx)),
                 "mark" => wrap_inline("==", inline_children(node, ctx)),
                 "del" | "s" | "strike" => wrap_inline("~~", inline_children(node, ctx)),
+                "sup"
+                    if dom::class_id_string(node)
+                        .to_ascii_lowercase()
+                        .split_whitespace()
+                        .any(|token| token == "reference") =>
+                {
+                    inline_children(node, ctx)
+                }
                 "sup" | "sub" | "svg" => serialize::serialize_node(node).unwrap_or_else(|_| render_children(node, ctx)),
                 "code" if !ctx.in_pre => format!("`{}`", inline_children(node, ctx).replace('`', "\\`")),
                 "pre" => code::render_code_block(node, ctx),
@@ -119,7 +127,9 @@ fn render_node(node: &NodeRef, ctx: RenderContext) -> String {
                 "iframe" | "video" | "audio" | "object" | "embed" => media::render_embed(node).unwrap_or_default(),
                 "a" => {
                     let label = inline_children(node, ctx);
-                    if label.is_empty() {
+                    if is_heading_permalink(node, &label) {
+                        String::new()
+                    } else if label.is_empty() {
                         preserved_empty_inline(node)
                     } else if let Some(href) = dom::attr(node, "href") {
                         format!("[{}]({})", label, escape_commonmark_link_destination(&href))
@@ -156,6 +166,7 @@ fn render_node(node: &NodeRef, ctx: RenderContext) -> String {
     }
 }
 
+// TODO: instance method on RenderContext
 fn render_definition_list(node: &NodeRef, ctx: RenderContext) -> String {
     let mut output = String::new();
     for child in node.children().filter(|child| child.as_element().is_some()) {
@@ -237,6 +248,18 @@ fn preserved_empty_inline(node: &NodeRef) -> String {
     } else {
         String::new()
     }
+}
+
+fn is_heading_permalink(node: &NodeRef, label: &str) -> bool {
+    let label = label.trim();
+    if !(label.is_empty() || matches!(label, "#" | "¶" | "§" | "Permalink")) {
+        return false;
+    }
+
+    let attrs = dom::class_id_string(node).to_ascii_lowercase();
+    attrs.contains("anchor")
+        || attrs.contains("permalink")
+        || dom::attr(node, "href").is_some_and(|href| href.starts_with('#'))
 }
 
 fn fmt_with_comrak(markdown: &str) -> String {
@@ -413,6 +436,18 @@ mod tests {
     }
 
     #[test]
+    fn converts_absolute_mediawiki_citation_fragments() {
+        let markdown = html_to_markdown(
+            r##"<p>Claim<sup class="reference"><a href="https://en.wikipedia.org/wiki/Mozilla#cite_note-smith-2">[2]</a></sup>.</p><ol class="references"><li id="cite_note-smith-2"><span class="mw-cite-backlink"><a href="#cite_ref-smith-2">^</a></span>Smith source</li></ol>"##,
+        );
+
+        assert!(markdown.contains("Claim[^2]."), "{markdown}");
+        assert!(markdown.contains("[^2]:\n    Smith source"), "{markdown}");
+        assert!(!markdown.contains("<sup"), "{markdown}");
+        assert!(!markdown.contains("\\^"), "{markdown}");
+    }
+
+    #[test]
     fn converts_google_docs_footnotes() {
         let markdown = html_to_markdown(
             r##"<p>Word<a id="ftnt_ref1" href="#ftnt1">[1]</a></p><div id="ftnt1"><p><a href="#ftnt_ref1">[1]</a> Google Docs note.</p></div>"##,
@@ -477,6 +512,14 @@ mod tests {
     }
 
     #[test]
+    fn unwraps_unlinked_mediawiki_reference_markers() {
+        let markdown = html_to_markdown(r#"<p>Book<sup class="reference nowrap"><span>: 227</span></sup>.</p>"#);
+
+        assert!(markdown.contains("Book: 227."), "{markdown}");
+        assert!(!markdown.contains("<sup"), "{markdown}");
+    }
+
+    #[test]
     fn preserves_inline_svg_semantics() {
         let markdown = html_to_markdown(
             r#"<p>Status <svg viewBox="0 0 10 10" role="img" aria-label="circle"><circle cx="5" cy="5" r="4"></circle></svg> active.</p>"#,
@@ -491,6 +534,15 @@ mod tests {
             "{markdown}"
         );
         assert!(markdown.contains("active."), "{markdown}");
+    }
+
+    #[test]
+    fn removes_heading_permalink_anchors() {
+        let markdown =
+            html_to_markdown(r##"<h2><a class="heading-anchor" href="#overview">#</a> Overview</h2><p>Body.</p>"##);
+
+        assert!(markdown.contains("## Overview"), "{markdown}");
+        assert!(!markdown.contains("[#](#overview)"), "{markdown}");
     }
 
     #[test]

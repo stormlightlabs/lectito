@@ -6,14 +6,22 @@ use super::{RenderContext, normalize_markdown, render_children};
 use crate::regexes::RegexPattern;
 use crate::{dom, patterns};
 
+struct FootnoteDef {
+    label: String,
+    body: String,
+}
+
 #[derive(Default)]
 pub struct FootnoteContext {
-    definitions: Vec<FootnoteDefinition>,
+    definitions: Vec<FootnoteDef>,
 }
 
 impl FootnoteContext {
     pub fn extract(root: &NodeRef) -> Self {
-        let definition_nodes = definition_nodes(root);
+        let definition_nodes: Vec<NodeRef> = dom::select_nodes(root, "[id]")
+            .into_iter()
+            .filter(is_definition_node)
+            .collect();
         if definition_nodes.is_empty() {
             return Self::default();
         }
@@ -36,7 +44,7 @@ impl FootnoteContext {
             }
 
             target_labels.insert(id, label.clone());
-            definitions.push(FootnoteDefinition { label, body });
+            definitions.push(FootnoteDef { label, body });
             node.detach();
         }
 
@@ -49,7 +57,7 @@ impl FootnoteContext {
         Self { definitions }
     }
 
-    pub fn render_definitions(&self) -> String {
+    pub fn render_defs(&self) -> String {
         if self.definitions.is_empty() {
             return String::new();
         }
@@ -61,18 +69,6 @@ impl FootnoteContext {
         }
         output
     }
-}
-
-struct FootnoteDefinition {
-    label: String,
-    body: String,
-}
-
-fn definition_nodes(root: &NodeRef) -> Vec<NodeRef> {
-    dom::select_nodes(root, "[id]")
-        .into_iter()
-        .filter(is_definition_node)
-        .collect()
 }
 
 fn is_definition_node(node: &NodeRef) -> bool {
@@ -124,6 +120,10 @@ fn definition_body(node: &NodeRef) -> String {
 }
 
 fn remove_backlinks(node: &NodeRef) {
+    for wrapper in dom::select_nodes(node, ".mw-cite-backlink") {
+        wrapper.detach();
+    }
+
     for anchor in dom::select_nodes(node, "a") {
         if is_backlink_anchor(&anchor) {
             anchor.detach();
@@ -166,7 +166,9 @@ fn rewrite_references(root: &NodeRef, target_labels: &HashMap<String, String>) {
         .into_iter()
         .filter_map(|anchor| {
             let href = dom::attr(&anchor, "href")?;
-            let target = href.strip_prefix('#')?;
+            let target = href
+                .strip_prefix('#')
+                .or_else(|| href.split_once('#').map(|(_, fragment)| fragment))?;
             let label = target_labels.get(target)?;
             Some((anchor, label.clone()))
         })

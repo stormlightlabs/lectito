@@ -4,7 +4,7 @@ use kuchiki::traits::TendrilSink;
 use super::RenderContext;
 use crate::{dom, patterns};
 
-pub(crate) fn normalize_code_markup(root: &NodeRef) {
+pub fn normalize_code_markup(root: &NodeRef) {
     remove_code_chrome(root);
     normalize_code_tables(root);
     normalize_standalone_code_containers(root);

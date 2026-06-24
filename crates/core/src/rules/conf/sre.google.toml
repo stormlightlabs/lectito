@@ -1,0 +1,29 @@
+name = "google-sre"
+hosts = ["sre.google"]
+content_roots = [
+  "//div[@id='maia-main']//div[@id='content']",
+  "//section[@id='maia-main']",
+  "//div[@id='maia-main']",
+]
+remove_id_or_class = [
+  "header",
+  "footer",
+  "chapter-title",
+  "dropdown-content",
+  "menu-buttons",
+  "expand",
+  "expands",
+]
+remove = [
+  "//*[@id='curtain']",
+  "//*[@id='overlay-element']",
+  "//*[@id='drop-down']",
+  "//*[@id='burger-menu']",
+  "//div[contains(@class, 'header')]",
+  "//div[contains(@class, 'footer')]",
+]
+
+[metadata]
+title = ["//h1[@class='heading']", "//h2[@class='chapter-title']", "//title"]
+site_name = "Google SRE"
+title_suffixes = [" - Site Reliability Engineering", " Google index"]

@@ -29,7 +29,6 @@ remove_id_or_class = [
 ]
 remove = [
   "//*[@id='toc']",
-  "//div[@class='reflist']",
   "//div[@class='navbox']",
   "//div[@id='mw-content-text']//style",
   "//span[@class='mw-editsection']",

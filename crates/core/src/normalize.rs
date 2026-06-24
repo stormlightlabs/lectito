@@ -3,7 +3,7 @@ use kuchiki::traits::TendrilSink;
 
 use super::{dom, patterns};
 
-pub(crate) fn normalize_article(nodes: &[NodeRef], title: Option<&str>) {
+pub fn normalize_article(nodes: &[NodeRef], title: Option<&str>) {
     for node in nodes {
         remove_duplicate_title_heading(node, title);
         normalize_code_blocks(node);

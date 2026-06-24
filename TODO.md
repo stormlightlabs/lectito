@@ -35,16 +35,6 @@
 
 ## Markdown Conversion
 
-### Clean Reference Site Chrome
-
-- [ ] Remove reference-page chrome from Wikipedia extraction.
-  - URL: https://en.wikipedia.org/wiki/Mozilla
-  - Remove skip links, "from Wikipedia" boilerplate, edit links, table-of-contents blocks, and infoboxes.
-- [ ] Preserve equations, tables, footnotes, and citation references while removing navigation chrome.
-  - URL: https://en.wikipedia.org/wiki/Hermitian_matrix
-- [ ] Remove heading permalink/edit anchors but keep the heading text.
-  - URL: https://sre.google/sre-book/table-of-contents/
-
 ### Markdown Cleanup Edge Cases
 
 - [ ] Strip `<wbr>` without introducing spaces.

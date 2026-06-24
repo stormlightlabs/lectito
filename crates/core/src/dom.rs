@@ -5,11 +5,11 @@ use kuchiki::traits::TendrilSink;
 
 use super::patterns;
 
-pub(crate) fn inner_text(node: &NodeRef) -> String {
+pub fn inner_text(node: &NodeRef) -> String {
     patterns::normalize_spaces(node.text_contents().trim())
 }
 
-pub(crate) fn is_kuchiki_visible(node: &NodeRef) -> bool {
+pub fn is_kuchiki_visible(node: &NodeRef) -> bool {
     if attr(node, "hidden").is_some() {
         return false;
     }
@@ -24,14 +24,14 @@ pub(crate) fn is_kuchiki_visible(node: &NodeRef) -> bool {
     true
 }
 
-pub(crate) fn has_unlikely_role(node: &NodeRef) -> bool {
+pub fn has_unlikely_role(node: &NodeRef) -> bool {
     matches!(
         attr(node, "role").as_deref(),
         Some("menu" | "menubar" | "complementary" | "navigation" | "alert" | "alertdialog" | "dialog")
     )
 }
 
-pub(crate) fn has_ancestor_tag(node: &NodeRef, tag: &str, max_depth: usize) -> bool {
+pub fn has_ancestor_tag(node: &NodeRef, tag: &str, max_depth: usize) -> bool {
     for (depth, ancestor) in node
         .ancestors()
         .filter(|node| node.as_element().is_some())
@@ -48,25 +48,25 @@ pub(crate) fn has_ancestor_tag(node: &NodeRef, tag: &str, max_depth: usize) -> b
     false
 }
 
-pub(crate) fn remove_matching(root: &NodeRef, selector: &str) {
+pub fn remove_matching(root: &NodeRef, selector: &str) {
     for node in select_nodes(root, selector) {
         node.detach();
     }
 }
 
-pub(crate) fn select_nodes(root: &NodeRef, selector: &str) -> Vec<NodeRef> {
+pub fn select_nodes(root: &NodeRef, selector: &str) -> Vec<NodeRef> {
     root.select(selector)
         .map(|nodes| nodes.map(|node| node.as_node().clone()).collect())
         .unwrap_or_default()
 }
 
-pub(crate) fn node_name(node: &NodeRef) -> String {
+pub fn node_name(node: &NodeRef) -> String {
     node.as_element()
         .map(|element| element.name.local.to_string())
         .unwrap_or_default()
 }
 
-pub(crate) fn class_id_string(node: &NodeRef) -> String {
+pub fn class_id_string(node: &NodeRef) -> String {
     format!(
         "{} {}",
         attr(node, "class").unwrap_or_default(),
@@ -74,7 +74,7 @@ pub(crate) fn class_id_string(node: &NodeRef) -> String {
     )
 }
 
-pub(crate) fn attrs(node: &NodeRef) -> HashMap<String, String> {
+pub fn attrs(node: &NodeRef) -> HashMap<String, String> {
     node.as_element()
         .map(|element| {
             element
@@ -88,23 +88,23 @@ pub(crate) fn attrs(node: &NodeRef) -> HashMap<String, String> {
         .unwrap_or_default()
 }
 
-pub(crate) fn attr(node: &NodeRef, name: &str) -> Option<String> {
+pub fn attr(node: &NodeRef, name: &str) -> Option<String> {
     node.as_element()?.attributes.borrow().get(name).map(str::to_string)
 }
 
-pub(crate) fn set_attr(node: &NodeRef, name: &str, value: &str) {
+pub fn set_attr(node: &NodeRef, name: &str, value: &str) {
     if let Some(element) = node.as_element() {
         element.attributes.borrow_mut().insert(name, value.to_string());
     }
 }
 
-pub(crate) fn remove_attr(node: &NodeRef, name: &str) {
+pub fn remove_attr(node: &NodeRef, name: &str) {
     if let Some(element) = node.as_element() {
         element.attributes.borrow_mut().remove(name);
     }
 }
 
-pub(crate) fn retag_node(node: &NodeRef, tag: &str) -> Option<NodeRef> {
+pub fn retag_node(node: &NodeRef, tag: &str) -> Option<NodeRef> {
     let replacement_doc = kuchiki::parse_html().one(format!("<html><body><{tag}></{tag}></body></html>"));
     let replacement = select_nodes(&replacement_doc, tag).into_iter().next()?;
 
@@ -120,7 +120,7 @@ pub(crate) fn retag_node(node: &NodeRef, tag: &str) -> Option<NodeRef> {
     Some(replacement)
 }
 
-pub(crate) fn replace_with_children(node: &NodeRef) {
+pub fn replace_with_children(node: &NodeRef) {
     let children: Vec<_> = node.children().collect();
     for child in children {
         node.insert_before(child);
@@ -128,6 +128,6 @@ pub(crate) fn replace_with_children(node: &NodeRef) {
     node.detach();
 }
 
-pub(crate) fn node_id(node: &NodeRef) -> usize {
+pub fn node_id(node: &NodeRef) -> usize {
     (&**node) as *const _ as usize
 }

@@ -17,6 +17,7 @@ const BUNDLED_PROFILES: &[(&str, &str)] = &[
     ("wikipedia.org.toml", include_str!("./rules/conf/wikipedia.org.toml")),
     ("mozilla.org.toml", include_str!("./rules/conf/mozilla.org.toml")),
     ("github.com.toml", include_str!("./rules/conf/github.com.toml")),
+    ("sre.google.toml", include_str!("./rules/conf/sre.google.toml")),
     (
         "plato.stanford.edu.toml",
         include_str!("./rules/conf/plato.stanford.edu.toml"),
@@ -31,14 +32,14 @@ trait SiteExtractor {
     fn matches(&self, url: &Url) -> bool;
 
     fn extract(
-        &self, document: &NodeRef, url: &Url, options: &ReadabilityOptions, metadata: &Metadata,
+        &self, doc: &NodeRef, url: &Url, opts: &ReadabilityOptions, metadata: &Metadata,
     ) -> Result<Option<ExtractAttempt>>;
 }
 
-pub(crate) struct RuleExtraction {
-    pub(crate) attempt: ExtractAttempt,
-    pub(crate) flags: ExtractFlags,
-    pub(crate) diagnostic: SiteRuleDiagnostic,
+pub struct RuleExtraction {
+    pub attempt: ExtractAttempt,
+    pub flags: ExtractFlags,
+    pub diagnostic: SiteRuleDiagnostic,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -154,25 +155,25 @@ struct TomlFallbackProfile {
     generic_on_empty: Option<bool>,
 }
 
-pub(crate) fn extract_with_site_rule(
-    document: &NodeRef, url: Option<&Url>, options: &ReadabilityOptions, metadata: &Metadata,
+pub fn extract_with_site_rule(
+    doc: &NodeRef, url: Option<&Url>, opts: &ReadabilityOptions, metadata: &Metadata,
 ) -> Result<Option<RuleExtraction>> {
     let Some(url) = url else {
         return Ok(None);
     };
-    if options.content_selector.is_some() {
+    if opts.content_selector.is_some() {
         return Ok(None);
     }
 
-    if let Some(profile_match) = matching_profile(url, options)?
-        && let Some(extraction) = extract_with_profile(document, url, options, metadata, profile_match)?
+    if let Some(profile_match) = matching_profile(url, opts)?
+        && let Some(extraction) = extract_with_profile(doc, url, opts, metadata, profile_match)?
     {
         return Ok(Some(extraction));
     }
 
-    for extractor in site_extractors() {
+    for extractor in [&HACKER_NEWS_EXTRACTOR] {
         if extractor.matches(url)
-            && let Some(attempt) = extractor.extract(document, url, options, metadata)?
+            && let Some(attempt) = extractor.extract(doc, url, opts, metadata)?
         {
             let flags = ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: false };
             let diagnostic = SiteRuleDiagnostic {
@@ -196,16 +197,12 @@ pub(crate) fn extract_with_site_rule(
     Ok(None)
 }
 
-fn site_extractors() -> [&'static dyn SiteExtractor; 1] {
-    [&HACKER_NEWS_EXTRACTOR]
-}
-
 fn extract_with_profile(
-    document: &NodeRef, url: &Url, options: &ReadabilityOptions, metadata: &Metadata, profile_match: ProfileMatch,
+    doc: &NodeRef, url: &Url, opts: &ReadabilityOptions, metadata: &Metadata, profile_match: ProfileMatch,
 ) -> Result<Option<RuleExtraction>> {
     let profile = profile_match.profile;
-    let removals = apply_removals(document, &profile);
-    let roots = select_first_non_empty(document, &profile.content_roots);
+    let removals = apply_removals(doc, &profile);
+    let roots = select_first_non_empty(doc, &profile.content_roots);
     if roots.is_empty() {
         if profile.fallback.generic_on_empty {
             return Ok(None);
@@ -231,11 +228,11 @@ fn extract_with_profile(
     }
 
     let mut metadata = metadata.clone();
-    apply_metadata_hints(document, &profile, &mut metadata);
+    apply_metadata_hints(doc, &profile, &mut metadata);
 
     let root_selectors = roots.iter().map(node_selector).collect::<Vec<_>>();
     let flags = profile_flags(&profile);
-    let attempt = serialize_profile_roots(roots, options, flags, url.into(), metadata, profile.cleanup.enabled)?;
+    let attempt = serialize_profile_roots(roots, opts, flags, url.into(), metadata, profile.cleanup.enabled)?;
     let diagnostic = SiteRuleDiagnostic {
         name: profile.name,
         source: SiteRuleSource::DeclarativeProfile,
@@ -254,17 +251,17 @@ fn extract_with_profile(
     Ok(Some(RuleExtraction { attempt, flags, diagnostic }))
 }
 
-fn apply_metadata_hints(document: &NodeRef, profile: &SiteProfile, metadata: &mut Metadata) {
-    if let Some(title) = extract_string(document, &profile.metadata.title) {
+fn apply_metadata_hints(doc: &NodeRef, profile: &SiteProfile, metadata: &mut Metadata) {
+    if let Some(title) = extract_string(doc, &profile.metadata.title) {
         metadata.title = Some(strip_title_suffixes(title, &profile.metadata.title_suffixes));
     }
-    if let Some(author) = extract_string(document, &profile.metadata.author) {
+    if let Some(author) = extract_string(doc, &profile.metadata.author) {
         metadata.byline = Some(author);
     }
-    if let Some(date) = extract_string(document, &profile.metadata.date) {
+    if let Some(date) = extract_string(doc, &profile.metadata.date) {
         metadata.published_time = Some(date);
     }
-    if let Some(image) = extract_string(document, &profile.metadata.image) {
+    if let Some(image) = extract_string(doc, &profile.metadata.image) {
         metadata.image = Some(image);
     }
     if let Some(site_name) = &profile.metadata.site_name {
@@ -275,14 +272,14 @@ fn apply_metadata_hints(document: &NodeRef, profile: &SiteProfile, metadata: &mu
     }
 }
 
-fn matching_profile(url: &Url, options: &ReadabilityOptions) -> Result<Option<ProfileMatch>> {
+fn matching_profile(url: &Url, opts: &ReadabilityOptions) -> Result<Option<ProfileMatch>> {
     let Some(host) = url.host_str().map(|host| host.trim_start_matches("www.").to_string()) else {
         return Ok(None);
     };
     let path = url.path();
     let mut matches = Vec::new();
 
-    for (index, source) in options.site_profiles.iter().enumerate() {
+    for (index, source) in opts.site_profiles.iter().enumerate() {
         let mut profile = parse_toml_profile(&format!("user-profile-{index}"), source, false)?;
         if let Some(path_prefix) = matching_profile_path(&profile, &host, path) {
             profile.specificity += 10_000usize.saturating_sub(index);
@@ -383,10 +380,10 @@ fn parse_toml_profile(name: &str, source: &str, bundled: bool) -> Result<SitePro
     })
 }
 
-fn apply_removals(document: &NodeRef, profile: &SiteProfile) -> usize {
+fn apply_removals(doc: &NodeRef, profile: &SiteProfile) -> usize {
     let mut removals = 0;
     for pattern in &profile.remove_id_or_class {
-        for node in dom::select_nodes(document, "*") {
+        for node in dom::select_nodes(doc, "*") {
             let id_matches = dom::attr(&node, "id").as_deref() == Some(pattern.as_str());
             let class_matches =
                 dom::attr(&node, "class").is_some_and(|class| class.split_whitespace().any(|token| token == pattern));
@@ -399,7 +396,7 @@ fn apply_removals(document: &NodeRef, profile: &SiteProfile) -> usize {
 
     for selector in &profile.remove {
         if let Some(query) = selector_to_query(selector) {
-            for node in dom::select_nodes(document, &query.selector) {
+            for node in dom::select_nodes(doc, &query.selector) {
                 if let Some(attr) = query.attr.as_deref() {
                     dom::remove_attr(&node, attr);
                 } else {
@@ -412,7 +409,7 @@ fn apply_removals(document: &NodeRef, profile: &SiteProfile) -> usize {
     removals
 }
 
-fn select_first_non_empty(document: &NodeRef, selectors: &[String]) -> Vec<NodeRef> {
+fn select_first_non_empty(doc: &NodeRef, selectors: &[String]) -> Vec<NodeRef> {
     for selector in selectors {
         let Some(query) = selector_to_query(selector) else {
             continue;
@@ -420,7 +417,7 @@ fn select_first_non_empty(document: &NodeRef, selectors: &[String]) -> Vec<NodeR
         if query.attr.is_some() {
             continue;
         }
-        let nodes = dom::select_nodes(document, &query.selector)
+        let nodes = dom::select_nodes(doc, &query.selector)
             .into_iter()
             .filter(|node| !dom::inner_text(node).is_empty())
             .collect::<Vec<_>>();
@@ -431,12 +428,12 @@ fn select_first_non_empty(document: &NodeRef, selectors: &[String]) -> Vec<NodeR
     Vec::new()
 }
 
-fn extract_string(document: &NodeRef, selectors: &[String]) -> Option<String> {
+fn extract_string(doc: &NodeRef, selectors: &[String]) -> Option<String> {
     for selector in selectors {
         let Some(query) = selector_to_query(selector) else {
             continue;
         };
-        for node in dom::select_nodes(document, &query.selector) {
+        for node in dom::select_nodes(doc, &query.selector) {
             let value = query
                 .attr
                 .as_deref()
@@ -536,6 +533,7 @@ fn strip_title_suffixes(title: String, suffixes: &[String]) -> String {
     title
 }
 
+// TODO: this could be an into/from
 fn profile_flags(profile: &SiteProfile) -> ExtractFlags {
     ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: profile.cleanup.prune }
 }
@@ -572,6 +570,7 @@ fn serialize_profile_roots(
     Ok(ExtractAttempt { metadata, content, text_content, text_len })
 }
 
+// TODO: this could be an into/from
 fn empty_attempt(metadata: Metadata) -> ExtractAttempt {
     ExtractAttempt { metadata, content: String::new(), text_content: String::new(), text_len: 0 }
 }
@@ -755,6 +754,37 @@ mod tests {
         assert!(extraction.attempt.content.contains("Real body text."));
         assert!(!extraction.attempt.content.contains("chrome"));
         assert_eq!(extraction.diagnostic.source, SiteRuleSource::DeclarativeProfile);
+    }
+
+    #[test]
+    fn extracts_google_sre_content_rule() {
+        let document = kuchiki::parse_html().one(
+            r#"
+            <html><body><main>
+                <div class="header"><h2 class="chapter-title">Table of Contents</h2></div>
+                <div id="maia-main" role="main">
+                    <div id="content">
+                        <h1 class="heading">Table of Contents</h1>
+                        <ul><li><a href="/sre-book/introduction/">Chapter 1 - Introduction</a></li></ul>
+                    </div>
+                </div>
+                <div class="footer">Copyright Google</div>
+            </main></body></html>
+            "#,
+        );
+        let url = Url::parse("https://sre.google/sre-book/table-of-contents/").unwrap();
+        let extraction = extract_with_site_rule(
+            &document,
+            Some(&url),
+            &ReadabilityOptions::default(),
+            &Metadata::default(),
+        )
+        .unwrap()
+        .unwrap();
+
+        assert_eq!(extraction.diagnostic.name, "google-sre");
+        assert!(extraction.attempt.content.contains("Chapter 1 - Introduction"));
+        assert!(!extraction.attempt.content.contains("Copyright Google"));
     }
 
     #[test]

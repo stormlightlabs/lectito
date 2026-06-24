@@ -739,7 +739,7 @@ fn remove_empty_blocks(root: &NodeRef) {
     }
 }
 
-pub(crate) fn fix_relative_urls(root: &NodeRef, base_url: Option<&Url>) {
+pub fn fix_relative_urls(root: &NodeRef, base_url: Option<&Url>) {
     let Some(base_url) = base_url else {
         return;
     };
