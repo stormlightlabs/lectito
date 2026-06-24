@@ -30,6 +30,7 @@ const KNOWN_CONTENT_SELECTORS: &[&str] = &[
     ".content-wrapper",
 ];
 const USEFUL_WORD_THRESHOLD: usize = 180;
+const EXTREMELY_SHORT_WORD_THRESHOLD: usize = 80;
 const SUSPICIOUS_SIGNAL_RATIO: usize = 3;
 
 pub struct ExtractAttempt {
@@ -89,6 +90,12 @@ struct EntryPointCandidate {
     node: NodeRef,
     score: f64,
     diagnostic: CandidateDiagnostic,
+}
+
+#[derive(Clone, Copy)]
+struct AttemptConfig {
+    flags: ExtractFlags,
+    remove_hidden: bool,
 }
 
 /// Extract a readable article from an HTML document.
@@ -179,15 +186,29 @@ pub fn extract_with_diagnostics(
     }
 
     let attempts = [
-        ExtractFlags::all(),
-        ExtractFlags { strip_unlikely: false, weight_classes: true, clean_conditionally: true },
-        ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: true },
-        ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: false },
+        AttemptConfig { flags: ExtractFlags::all(), remove_hidden: true },
+        AttemptConfig {
+            flags: ExtractFlags { strip_unlikely: false, weight_classes: true, clean_conditionally: true },
+            remove_hidden: true,
+        },
+        AttemptConfig {
+            flags: ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: true },
+            remove_hidden: true,
+        },
+        AttemptConfig {
+            flags: ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: false },
+            remove_hidden: true,
+        },
+        AttemptConfig {
+            flags: ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: false },
+            remove_hidden: false,
+        },
     ];
 
-    for (index, flags) in attempts.into_iter().enumerate() {
+    for (index, config) in attempts.into_iter().enumerate() {
         let dom = kuchiki::parse_html().one(extraction_html.as_ref());
-        let mut recovery = prep_document(&dom, options, flags);
+        let flags = config.flags;
+        let mut recovery = prep_document_with_visibility(&dom, options, flags, config.remove_hidden);
         recovery.shadow_roots_flattened += source_recovery.shadow_roots_flattened;
 
         let Some((mut attempt, attempt_diagnostic)) = grab_article(
@@ -222,7 +243,13 @@ pub fn extract_with_diagnostics(
         let diagnostic_index = diagnostics.attempts.len() - 1;
 
         if attempt.text_len >= options.char_threshold
-            && !should_retry_short_or_suspicious(&attempt, &diagnostics.attempts[diagnostic_index], flags, options)
+            && !should_retry_short_or_suspicious(
+                &attempt,
+                &diagnostics.attempts[diagnostic_index],
+                flags,
+                config.remove_hidden,
+                options,
+            )
         {
             attempt = json_schema::apply_schema_fallback(html, attempt, &metadata, options, flags, base_url.as_ref())?;
             attempt.metadata = metadata;
@@ -259,6 +286,12 @@ pub fn extract_with_diagnostics(
 }
 
 pub fn prep_document(document: &NodeRef, options: &ReadabilityOptions, flags: ExtractFlags) -> RecoveryDiagnostic {
+    prep_document_with_visibility(document, options, flags, true)
+}
+
+fn prep_document_with_visibility(
+    document: &NodeRef, options: &ReadabilityOptions, flags: ExtractFlags, remove_hidden: bool,
+) -> RecoveryDiagnostic {
     let recovery = recovery::recover(document, options.mobile_viewport_width);
     unwrap_noscript_images(document);
     dom::remove_matching(document, "script, style");
@@ -267,7 +300,7 @@ pub fn prep_document(document: &NodeRef, options: &ReadabilityOptions, flags: Ex
     if flags.strip_unlikely {
         let nodes = dom::select_nodes(document, "*");
         for node in nodes {
-            if !dom::is_kuchiki_visible(&node) || dom::has_unlikely_role(&node) {
+            if (remove_hidden && !dom::is_kuchiki_visible(&node)) || dom::has_unlikely_role(&node) {
                 node.detach();
                 continue;
             }
@@ -289,7 +322,7 @@ pub fn prep_document(document: &NodeRef, options: &ReadabilityOptions, flags: Ex
     } else {
         let nodes = dom::select_nodes(document, "*");
         for node in nodes {
-            if !dom::is_kuchiki_visible(&node) {
+            if remove_hidden && !dom::is_kuchiki_visible(&node) {
                 node.detach();
             }
         }
@@ -343,15 +376,21 @@ fn strip_raw_script_blocks(html: &str) -> String {
 }
 
 fn should_retry_short_or_suspicious(
-    attempt: &ExtractAttempt, diagnostic: &AttemptDiagnostic, flags: ExtractFlags, options: &ReadabilityOptions,
+    attempt: &ExtractAttempt, diagnostic: &AttemptDiagnostic, flags: ExtractFlags, remove_hidden: bool,
+    options: &ReadabilityOptions,
 ) -> bool {
     flags != (ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: false })
         && (short_after_unlikely_stripping(attempt, flags)
             || far_below_best_content_signal(attempt.text_len, diagnostic, options.char_threshold))
+        || (remove_hidden && extremely_short(attempt))
 }
 
 fn short_after_unlikely_stripping(attempt: &ExtractAttempt, flags: ExtractFlags) -> bool {
     flags.strip_unlikely && shared::word_count(&attempt.text_content) < USEFUL_WORD_THRESHOLD
+}
+
+fn extremely_short(attempt: &ExtractAttempt) -> bool {
+    shared::word_count(&attempt.text_content) < EXTREMELY_SHORT_WORD_THRESHOLD
 }
 
 fn far_below_best_content_signal(text_len: usize, diagnostic: &AttemptDiagnostic, char_threshold: usize) -> bool {
@@ -688,6 +727,10 @@ fn grab_article(
     if included.is_empty() {
         included.push(top_candidate);
     }
+    let included_text_len = serialize::text_content(&included).encode_utf16().count();
+    if let Some(focused_root) = larger_focused_subtree(&candidates[0].node, included_text_len, opts.char_threshold) {
+        included = vec![focused_root];
+    }
 
     let selected_root = included.first().map(node_diagnostic);
     let (attempt, cleanup) = serialize_roots(included, opts, flags, base_url, metadata)?;
@@ -770,6 +813,43 @@ fn selected_entry_point(entry_points: &[EntryPointCandidate]) -> Option<Candidat
         return None;
     }
     Some(Candidate { node: best.node.clone(), score: best.score + 25.0 })
+}
+
+fn larger_focused_subtree(node: &NodeRef, current_text_len: usize, char_threshold: usize) -> Option<NodeRef> {
+    if shared::word_count(&dom::inner_text(node)) >= EXTREMELY_SHORT_WORD_THRESHOLD
+        && !looks_like_narrow_non_article(node)
+    {
+        return None;
+    }
+
+    let min_text_len = char_threshold.max(current_text_len.saturating_mul(2)).max(1);
+    node.ancestors()
+        .filter(|ancestor| ancestor.as_element().is_some())
+        .skip(1)
+        .take(5)
+        .filter(|ancestor| {
+            matches!(
+                dom::node_name(ancestor).as_str(),
+                "article" | "main" | "section" | "div"
+            )
+        })
+        .find(|ancestor| {
+            let text = dom::inner_text(ancestor);
+            text.encode_utf16().count() >= min_text_len
+                && shared::word_count(&text) >= USEFUL_WORD_THRESHOLD
+                && scoring::link_density(ancestor) < 0.35
+        })
+}
+
+fn looks_like_narrow_non_article(node: &NodeRef) -> bool {
+    let attrs = dom::class_id_string(node).to_ascii_lowercase();
+    ["author-note", "authors-note", "metadata", "meta", "single-step", "step"]
+        .iter()
+        .any(|needle| attrs.contains(needle))
+        || dom::inner_text(node)
+            .trim_start()
+            .to_ascii_lowercase()
+            .starts_with("*****notes*****")
 }
 
 fn node_diagnostic(node: &NodeRef) -> NodeDiagnostic {
@@ -1244,6 +1324,106 @@ mod tests {
         assert_eq!(report.diagnostics.selected_attempt, Some(1));
         assert!(report.diagnostics.attempts.len() > 1);
         assert!(article.text_content.contains("Hidden article paragraph 9"));
+    }
+
+    #[test]
+    fn retries_with_hidden_removal_disabled_when_result_is_extremely_short() {
+        let paragraphs = (0..14)
+            .map(|index| {
+                format!(
+                    "<p>Recovered hidden paragraph {index} contains article prose, concrete \
+                    examples, clear punctuation, and enough detail to be selected.</p>"
+                )
+            })
+            .collect::<String>();
+        let html = format!(
+            r#"
+            <html><body>
+                <article>
+                    <p>Brief visible summary.</p>
+                    <section style="display: none">
+                        {paragraphs}
+                    </section>
+                </article>
+            </body></html>
+            "#
+        );
+
+        let report = extract_with_diagnostics(&html, None, &ReadabilityOptions::default()).unwrap();
+        let article = report.article.unwrap();
+
+        assert_eq!(report.diagnostics.outcome, ExtractionOutcome::Accepted);
+        assert_eq!(report.diagnostics.selected_attempt, Some(4));
+        assert!(article.text_content.contains("Recovered hidden paragraph 13"));
+    }
+
+    #[test]
+    fn prefers_larger_focused_subtree_over_single_step() {
+        let paragraphs = (0..12)
+            .map(|index| {
+                format!(
+                    "<p>Full article paragraph {index} has useful prose, concrete detail, \
+                    commas, and enough punctuation to belong with the larger focused body.</p>"
+                )
+            })
+            .collect::<String>();
+        let html = format!(
+            r#"
+            <html><body>
+                <div class="negative-shell">
+                    <section class="post author-note">
+                        <p>*****Notes***** This long author note has enough words, commas, and punctuation to look readable on its own, but it is still page-adjacent context rather than the whole article. It mentions background details, pronunciation notes, side comments, reader guidance, and other metadata-like material that should not beat the larger focused article subtree.</p>
+                    </section>
+                    <section>
+                        {paragraphs}
+                    </section>
+                </div>
+            </body></html>
+            "#
+        );
+
+        let report = extract_with_diagnostics(&html, None, &ReadabilityOptions::default()).unwrap();
+        let article = report.article.unwrap();
+
+        assert_eq!(report.diagnostics.outcome, ExtractionOutcome::Accepted);
+        assert!(article.text_content.contains("Full article paragraph 11"));
+    }
+
+    #[test]
+    fn removes_trailing_related_card_lists() {
+        let cards = (0..4)
+            .map(|index| {
+                format!(
+                    "<li><h3>Related card {index}</h3><p>News &amp; Commentary</p><p>By: Staff Writer</p><p>This is a current site card, not article prose.</p></li>"
+                )
+            })
+            .collect::<String>();
+        let html = format!(
+            r#"
+            <html><body>
+                <main id="content">
+                    <article>
+                        <p>This article body has enough real prose, enough punctuation, and enough concrete detail to be the selected content.</p>
+                        <p>The second paragraph keeps the article meaningful before the related content cards begin.</p>
+                    </article>
+                    <section>
+                        <ul>{cards}</ul>
+                    </section>
+                </main>
+            </body></html>
+            "#
+        );
+
+        let article = extract(
+            &html,
+            None,
+            &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert!(article.text_content.contains("This article body has enough real prose"));
+        assert!(!article.text_content.contains("Related card 3"));
     }
 
     #[test]

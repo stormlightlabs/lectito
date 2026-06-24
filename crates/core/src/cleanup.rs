@@ -270,6 +270,10 @@ fn is_trailing_page_chrome(node: &NodeRef) -> bool {
         return true;
     }
 
+    if looks_like_related_card_list(node, &text) {
+        return true;
+    }
+
     let link_count = dom::select_nodes(node, "a").len();
     if link_count >= 3 && link_density(node) > 0.45 && text_len < 1500 {
         return true;
@@ -277,6 +281,16 @@ fn is_trailing_page_chrome(node: &NodeRef) -> bool {
 
     let input_count = dom::select_nodes(node, "input, button, select, textarea").len();
     input_count > 0 && text_len < 700 && looks_like_signup_text(&text)
+}
+
+fn looks_like_related_card_list(node: &NodeRef, text: &str) -> bool {
+    if dom::node_name(node) != "section" || dom::select_nodes(node, "h3").len() < 3 {
+        return false;
+    }
+
+    let lower = text.to_ascii_lowercase();
+    (lower.contains("news & commentary") || lower.contains("press release"))
+        && (lower.contains(" by:") || lower.contains("by: "))
 }
 
 fn is_footnote_or_reference_block(node: &NodeRef) -> bool {

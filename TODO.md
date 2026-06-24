@@ -15,20 +15,12 @@
 - Include `wasm-pack test --node` and `wasm-pack build` checks for the
   `bundler`, `web`, and `nodejs` WASM targets.
 
-## Extraction Quality
-
-### `examples.txt` Audit
-
-- [ ] Add a site rule for `unthread.at` post pages.
-  - URL: https://unthread.at/@desertthunder.dev/3mlgpk65xzw23
-  - These are ATProtocol records: `unthread.at/@{handle}/rkey`.
-  - Implement a fetcher for them and check whether standard.site parsing applies:
-    - https://standard.site/
-    - https://atproto.com/blog/standard-site-bluesky-timeline
-    - https://jola.dev/posts/publishing-your-blog
-
 ## Atproto
 
+- URLS:
+  - https://standard.site/
+  - https://atproto.com/blog/standard-site-bluesky-timeline
+  - https://jola.dev/posts/publishing-your-blog
 - [ ] Preserve rich-text facets when rendering Standard.site content records.
 - [ ] Resolve blob images into usable image URLs.
 - [ ] Render footnotes from publisher block records.
@@ -40,21 +32,6 @@
 - [ ] Keep image captions and alt text when the publisher supplies both.
 - [ ] Add frozen fixtures for Leaflet, pckt, and Offprint records.
 - [ ] Report Standard.site resolution and rendering warnings in diagnostics.
-
-### Retry Short Or Suspicious Extractions
-
-- [x] Retry with relaxed removal settings when extracted text is far below the
-      page's best content signals.
-  - URL: https://www.royalroad.com/fiction/63759/super-supportive/chapter/1449598/one-hundred-two-what-kind-of-wordchain
-- [x] Retry without unlikely-candidate stripping when the first result is under
-      a useful word threshold.
-  - URL: http://www.ehow.com/how_2042752_build-terrarium.html
-- [ ] Retry with hidden-element removal disabled when the first result is
-      extremely short.
-  - URL: https://www.aclu.org/blog/privacy-technology/internet-privacy/facebook-tracking-me-even-though-im-not-facebook
-- [ ] Prefer a larger focused subtree when the current result is only notes,
-      metadata, or a single step.
-  - URL: https://sport.aktualne.cz/fotbal/zahranici/west-ham-hrozi-gigantum-okouzlil-i-linekera-souckovu-praci-j/r~8fa032ba3add11ec8a900cc47ab5f122/
 
 ## Markdown Conversion
 
