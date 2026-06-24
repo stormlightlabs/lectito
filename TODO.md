@@ -33,13 +33,14 @@ The web app has two primary flows:
 - `/`: landing page with a direct workbench CTA, before/after extraction
   diagram, capability summary, and links to the API and samples.
 - `/workbench`: the main extraction workspace.
-- `/history`: saved local runs, with source, status, elapsed time, length,
-  title, timestamp, and options.
-- `/runs/:id`: one saved extraction result, with output, metadata, diagnostics,
-  and options.
-- `/samples`: a browsable gallery of curated fixtures and known edge cases.
+- `/workbench/runs`: saved local runs, with source, status, elapsed time,
+  length, title, timestamp, and options.
+- `/workbench/runs/:id`: one saved extraction result, with output, metadata,
+  diagnostics, and options.
+- `/workbench/samples`: a browsable gallery of curated fixtures and known edge
+  cases.
 - `/api`: Markdown-rendered API docs and reference examples.
-- `/settings`: output preferences and history settings.
+- `/workbench/settings`: output preferences and history settings.
 
 ### Controls
 
@@ -51,7 +52,7 @@ The web app has two primary flows:
 
 - [ ] Back run history with Dexie.js.
 - [ ] Add the sample gallery.
-- [ ] Add `/settings` persistence.
+- [ ] Add `/workbench/settings` persistence.
 
 ## WASM And Browser Safety
 

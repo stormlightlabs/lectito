@@ -48,6 +48,18 @@
     box-shadow: var(--shadow-thin);
 }
 
+.app-header--workbench {
+    justify-content: stretch;
+    align-items: start;
+}
+
+.app-header__main {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-6);
+    align-items: end;
+}
+
 .command-bar {
     min-width: 0;
     display: flex;
@@ -86,6 +98,40 @@
     color: var(--ink);
     text-decoration-color: var(--accent);
     text-underline-offset: 0.18em;
+}
+
+.workbench-tabs {
+    width: fit-content;
+    max-width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    border: 1px solid var(--rule);
+    background: var(--paper-raised);
+    box-shadow: var(--shadow-thin);
+}
+
+.workbench-tabs a {
+    min-height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    border-inline-start: 1px solid var(--rule);
+    padding: 0 var(--space-3);
+    color: var(--ink-muted);
+    font-size: var(--text-sm);
+    font-weight: 680;
+    line-height: var(--line-sm);
+    text-decoration: none;
+}
+
+.workbench-tabs a:first-child {
+    border-inline-start: 0;
+}
+
+.workbench-tabs a:hover,
+.workbench-tabs a.is-active {
+    color: var(--ink);
+    background: var(--paper-muted);
 }
 
 .mode-tabs {
@@ -166,6 +212,10 @@
     grid-template-columns: minmax(0, 1fr);
 }
 
+.workspace--input-only {
+    grid-template-columns: minmax(0, 1fr);
+}
+
 .has-output-fullscreen {
     position: fixed;
     inset: 0;
@@ -238,6 +288,11 @@
     .app-header,
     .workspace {
         display: grid;
+    }
+
+    .app-header__main {
+        display: grid;
+        gap: var(--space-3);
     }
 
     .command-bar {

@@ -1,9 +1,10 @@
 import { PageShell } from "./PageShell";
+import { WorkbenchTabs } from "./WorkbenchTabs";
 
 export function SettingsPage() {
   return (
-    <PageShell eyebrow="Settings" title="Web app settings">
-      <p>Configure defaults for API access, output views, and saved runs.</p>
+    <PageShell eyebrow="Workbench" title="Web app settings" headerBefore={<WorkbenchTabs />}>
+      <p>Configure defaults for output views and saved runs.</p>
     </PageShell>
   );
 }

@@ -5,10 +5,7 @@ import type { ParentProps } from "solid-js";
 const NAV_ITEMS = [
   { href: "/", label: "Home" },
   { href: "/workbench", label: "Workbench" },
-  { href: "/history", label: "History" },
-  { href: "/samples", label: "Samples" },
   { href: "/api", label: "API" },
-  { href: "/settings", label: "Settings" },
 ] as const;
 
 export function AppLayout(props: ParentProps) {
@@ -39,7 +36,6 @@ export function AppLayout(props: ParentProps) {
           <nav aria-label="Footer">
             <A href="/workbench">Workbench</A>
             <A href="/api">API</A>
-            <A href="/samples">Samples</A>
           </nav>
         </div>
       </footer>

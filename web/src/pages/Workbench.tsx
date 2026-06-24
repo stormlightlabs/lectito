@@ -8,6 +8,7 @@ import { sampleHtml, sampleHtmlFixtures } from "$lib/sample";
 import type { InspectTab, OutputTab, PipelineFailure, PipelineOptions, PipelineResult } from "$lib/types";
 import { A, useSearchParams } from "@solidjs/router";
 import { createEffect, createSignal, Show } from "solid-js";
+import { WorkbenchTabs } from "./WorkbenchTabs";
 
 const defaultOptions: PipelineOptions = {
   baseUrl: "",
@@ -40,12 +41,16 @@ function selectedOutput(result: PipelineResult, tab: OutputTab): { value: string
   if (tab === "preview") return { value: result.previewHtml, extension: "html", type: "text/html" };
   if (tab === "compare") {
     return {
-      value: JSON.stringify({
-        sanitizedHtml: result.sanitizedHtml,
-        cleanedHtml: result.cleanedHtml,
-        markdown: result.markdown,
-        metadata: result.metadata,
-      }, null, 2),
+      value: JSON.stringify(
+        {
+          sanitizedHtml: result.sanitizedHtml,
+          cleanedHtml: result.cleanedHtml,
+          markdown: result.markdown,
+          metadata: result.metadata,
+        },
+        null,
+        2,
+      ),
       extension: "json",
       type: "application/json",
     };
@@ -53,18 +58,20 @@ function selectedOutput(result: PipelineResult, tab: OutputTab): { value: string
   return { value: result.markdown, extension: "md", type: "text/markdown" };
 }
 
-function CommandBar(props: {
-  running: boolean;
-  hasResult: boolean;
-  onRun: () => void;
-  onCancel: () => void;
-  onReset: () => void;
-  onCopy: () => void;
-  onDownload: () => void;
-  onSave: () => void;
-  onShare: () => void;
-  onOpen: () => void;
-}) {
+function CommandBar(
+  props: {
+    running: boolean;
+    hasResult: boolean;
+    onRun: () => void;
+    onCancel: () => void;
+    onReset: () => void;
+    onCopy: () => void;
+    onDownload: () => void;
+    onSave: () => void;
+    onShare: () => void;
+    onOpen: () => void;
+  },
+) {
   return (
     <div class="command-bar" aria-label="Workbench commands">
       <MotionButton type="button" class="button button--primary" disabled={props.running} onClick={props.onRun}>
@@ -73,22 +80,22 @@ function CommandBar(props: {
       <MotionButton type="button" class="button button--secondary" disabled={!props.running} onClick={props.onCancel}>
         Cancel
       </MotionButton>
-      <MotionButton type="button" class="button button--secondary" onClick={props.onReset}>
-        Reset
-      </MotionButton>
+      <MotionButton type="button" class="button button--secondary" onClick={props.onReset}>Reset</MotionButton>
       <span class="command-bar__rule" aria-hidden="true" />
       <MotionButton type="button" class="button button--secondary" disabled={!props.hasResult} onClick={props.onCopy}>
         Copy
       </MotionButton>
-      <MotionButton type="button" class="button button--secondary" disabled={!props.hasResult} onClick={props.onDownload}>
+      <MotionButton
+        type="button"
+        class="button button--secondary"
+        disabled={!props.hasResult}
+        onClick={props.onDownload}>
         Download
       </MotionButton>
       <MotionButton type="button" class="button button--secondary" disabled={!props.hasResult} onClick={props.onSave}>
         Save run
       </MotionButton>
-      <MotionButton type="button" class="button button--secondary" onClick={props.onShare}>
-        Share view
-      </MotionButton>
+      <MotionButton type="button" class="button button--secondary" onClick={props.onShare}>Share view</MotionButton>
       <MotionButton type="button" class="button button--secondary" disabled={!props.hasResult} onClick={props.onOpen}>
         Open result
       </MotionButton>
@@ -108,7 +115,9 @@ export function WorkbenchPage() {
   const [inspectTab, setInspectTab] = createSignal<InspectTab>(initialInspectTab);
   const [inspectOpen, setInspectOpen] = createSignal(params.inspectOpen === "1");
   const [layout, setLayout] = createSignal<LayoutMode>(
-    isLayoutMode(localStorage.getItem("lectito.layout")) ? localStorage.getItem("lectito.layout") as LayoutMode : initialLayout,
+    isLayoutMode(localStorage.getItem("lectito.layout"))
+      ? localStorage.getItem("lectito.layout") as LayoutMode
+      : initialLayout,
   );
   const [fullscreenOutput, setFullscreenOutput] = createSignal(params.fullscreen === "1");
   const [running, setRunning] = createSignal(false);
@@ -152,6 +161,7 @@ export function WorkbenchPage() {
     const current = result();
     return current && !("message" in current) ? current : undefined;
   };
+  const hasOutput = () => Boolean(result());
 
   const copyText = async (value: string) => {
     await navigator.clipboard?.writeText(value);
@@ -201,34 +211,38 @@ export function WorkbenchPage() {
   };
 
   return (
-    <main
-      class="app-shell"
-      classList={{ "has-output-fullscreen": fullscreenOutput() }}>
-      <header class="app-header">
-        <div>
-          <p class="eyebrow">Workbench</p>
-          <h1>Extract pasted HTML</h1>
-          <p class="app-header__note">
-            Paste HTML here. Use the <A href="/api">API docs</A> for server-side URL extraction.
-          </p>
+    <main class="app-shell" classList={{ "has-output-fullscreen": fullscreenOutput() && hasOutput() }}>
+      <WorkbenchTabs />
+      <header class="app-header app-header--workbench">
+        <div class="app-header__main">
+          <div>
+            <p class="eyebrow">Workbench</p>
+            <h1>Extract pasted HTML</h1>
+            <p class="app-header__note">
+              Paste HTML here. Use the <A href="/api">API docs</A> for server-side URL extraction.
+            </p>
+          </div>
+          <CommandBar
+            running={running()}
+            hasResult={Boolean(resultValue())}
+            onRun={() => void runExtraction()}
+            onCancel={cancelRun}
+            onReset={resetInput}
+            onCopy={copySelected}
+            onDownload={downloadSelected}
+            onSave={saveCurrentRun}
+            onShare={shareView}
+            onOpen={openResult} />
         </div>
-        <CommandBar
-          running={running()}
-          hasResult={Boolean(resultValue())}
-          onRun={() => void runExtraction()}
-          onCancel={cancelRun}
-          onReset={resetInput}
-          onCopy={copySelected}
-          onDownload={downloadSelected}
-          onSave={saveCurrentRun}
-          onShare={shareView}
-          onOpen={openResult} />
       </header>
 
       <StatusStrip running={running()} result={result()} />
 
-      <section class="workspace" classList={{ [`workspace--${layout()}`]: true }} aria-label="Extraction workspace">
-        <Show when={layout() !== "input-collapsed"}>
+      <section
+        class="workspace"
+        classList={{ [`workspace--${layout()}`]: hasOutput(), "workspace--input-only": !hasOutput() }}
+        aria-label="Extraction workspace">
+        <Show when={!hasOutput() || layout() !== "input-collapsed"}>
           <InputPane
             html={html()}
             options={options()}
@@ -239,33 +253,35 @@ export function WorkbenchPage() {
             onRun={() => void runExtraction()}
             running={running()} />
         </Show>
-        <OutputPane
-          result={result()}
-          tab={tab()}
-          inspectTab={inspectTab()}
-          inspectOpen={inspectOpen()}
-          sourceHtml={html()}
-          layout={layout()}
-          fullscreen={fullscreenOutput()}
-          onTab={setTab}
-          onInspectTab={setInspectTab}
-          onToggleInspect={() => setInspectOpen((open) => !open)}
-          onLayout={setLayout}
-          onToggleFullscreen={() => setFullscreenOutput((fullscreen) => !fullscreen)}
-          onCopyMarkdown={() => {
-            const current = resultValue();
-            if (current) void copyText(current.markdown);
-          }}
-          onCopyHtml={() => {
-            const current = resultValue();
-            if (current) void copyText(current.cleanedHtml);
-          }}
-          onCopyMetadata={() => {
-            const current = resultValue();
-            if (current) void copyText(JSON.stringify(current.metadata, null, 2));
-          }}
-          onDownload={downloadSelected}
-          onOpenPreview={openResult} />
+        <Show when={hasOutput()}>
+          <OutputPane
+            result={result()}
+            tab={tab()}
+            inspectTab={inspectTab()}
+            inspectOpen={inspectOpen()}
+            sourceHtml={html()}
+            layout={layout()}
+            fullscreen={fullscreenOutput()}
+            onTab={setTab}
+            onInspectTab={setInspectTab}
+            onToggleInspect={() => setInspectOpen((open) => !open)}
+            onLayout={setLayout}
+            onToggleFullscreen={() => setFullscreenOutput((fullscreen) => !fullscreen)}
+            onCopyMarkdown={() => {
+              const current = resultValue();
+              if (current) void copyText(current.markdown);
+            }}
+            onCopyHtml={() => {
+              const current = resultValue();
+              if (current) void copyText(current.cleanedHtml);
+            }}
+            onCopyMetadata={() => {
+              const current = resultValue();
+              if (current) void copyText(JSON.stringify(current.metadata, null, 2));
+            }}
+            onDownload={downloadSelected}
+            onOpenPreview={openResult} />
+        </Show>
       </section>
     </main>
   );

@@ -1,9 +1,9 @@
 import { ApiPage } from "$pages/Api";
 import { AppLayout } from "$pages/AppLayout";
-import { HistoryPage } from "$pages/History";
 import { LandingPage } from "$pages/Landing";
 import { NotFoundPage } from "$pages/NotFound";
 import { RunPage } from "$pages/Run";
+import { RunsPage } from "$pages/Runs";
 import { SamplesPage } from "$pages/Samples";
 import { SettingsPage } from "$pages/Settings";
 import { WorkbenchPage } from "$pages/Workbench";
@@ -14,11 +14,11 @@ export default function App() {
     <Router root={AppLayout}>
       <Route path="/" component={LandingPage} />
       <Route path="/workbench" component={WorkbenchPage} />
-      <Route path="/history" component={HistoryPage} />
-      <Route path="/runs/:id" component={RunPage} />
-      <Route path="/samples" component={SamplesPage} />
+      <Route path="/workbench/runs" component={RunsPage} />
+      <Route path="/workbench/runs/:id" component={RunPage} />
+      <Route path="/workbench/samples" component={SamplesPage} />
+      <Route path="/workbench/settings" component={SettingsPage} />
       <Route path="/api" component={ApiPage} />
-      <Route path="/settings" component={SettingsPage} />
       <Route path="*404" component={NotFoundPage} />
     </Router>
   );

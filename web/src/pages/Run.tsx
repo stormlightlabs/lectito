@@ -2,13 +2,14 @@ import { getSavedRun } from "$lib/runs";
 import { useParams } from "@solidjs/router";
 import { createMemo, Show } from "solid-js";
 import { PageShell } from "./PageShell";
+import { WorkbenchTabs } from "./WorkbenchTabs";
 
 export function RunPage() {
   const params = useParams();
   const run = createMemo(() => params.id ? getSavedRun(params.id) : undefined);
 
   return (
-    <PageShell eyebrow="Run" title={`Run ${params.id}`}>
+    <PageShell eyebrow="Workbench" title={`Run ${params.id}`} headerBefore={<WorkbenchTabs />}>
       <Show when={run()} fallback={<p>This saved run was not found in local history.</p>}>
         {(savedRun) => (
           <div class="run-detail">
