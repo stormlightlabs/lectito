@@ -157,7 +157,10 @@ pub fn extract_with_diagnostics(
     let mut best_attempt: Option<ExtractAttempt> = None;
     let mut diagnostics = ExtractionDiagnostics::default();
 
-    if let Some((mut attempt, attempt_diagnostic)) = schema_text_attempt(&metadata, options, base_url.as_ref())? {
+    if options.content_selector.is_none()
+        && let Some((mut attempt, attempt_diagnostic)) =
+            known_content_attempt(&extraction_html, options, base_url.as_ref(), &metadata)?
+    {
         attempt.metadata = metadata;
         diagnostics.selected_attempt = Some(0);
         diagnostics.outcome = ExtractionOutcome::Accepted;
@@ -165,9 +168,9 @@ pub fn extract_with_diagnostics(
         return Ok(ExtractionReport { article: Some(attempt.into()), diagnostics });
     }
 
-    if options.content_selector.is_none()
-        && let Some((mut attempt, attempt_diagnostic)) =
-            known_content_attempt(&extraction_html, options, base_url.as_ref(), &metadata)?
+    let schema_text_has_markup = metadata.schema_text.as_deref().is_some_and(schema_text_contains_html);
+    if (schema_text_has_markup || !source_has_rich_article_content(&extraction_html))
+        && let Some((mut attempt, attempt_diagnostic)) = schema_text_attempt(&metadata, options, base_url.as_ref())?
     {
         attempt.metadata = metadata;
         diagnostics.selected_attempt = Some(0);
@@ -188,7 +191,6 @@ pub fn extract_with_diagnostics(
             rule_extraction.flags,
             base_url.as_ref(),
         )?;
-        rule_extraction.attempt.metadata = attempt_metadata;
         rule_extraction.diagnostic.text_len = rule_extraction.attempt.text_len;
         rule_extraction.diagnostic.accepted =
             matches!(rule_extraction.diagnostic.source, SiteRuleSource::CodeExtractor)
@@ -272,8 +274,8 @@ pub fn extract_with_diagnostics(
                 options,
             )
         {
+            attempt.metadata = metadata.clone();
             attempt = json_schema::apply_schema_fallback(html, attempt, &metadata, options, flags, base_url.as_ref())?;
-            attempt.metadata = metadata;
             diagnostics.selected_attempt = Some(diagnostic_index);
             diagnostics.outcome = ExtractionOutcome::Accepted;
             return Ok(ExtractionReport { article: Some(attempt.into()), diagnostics });
@@ -293,6 +295,7 @@ pub fn extract_with_diagnostics(
         diagnostics.outcome = ExtractionOutcome::NoContent;
         return Ok(ExtractionReport { article: None, diagnostics });
     };
+    attempt.metadata = metadata.clone();
     attempt = json_schema::apply_schema_fallback(
         html,
         attempt,
@@ -301,7 +304,6 @@ pub fn extract_with_diagnostics(
         ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: false },
         base_url.as_ref(),
     )?;
-    attempt.metadata = metadata;
     diagnostics.outcome = ExtractionOutcome::BestAttempt;
     Ok(ExtractionReport { article: Some(attempt.into()), diagnostics })
 }
@@ -484,10 +486,7 @@ fn schema_text_attempt(
         return Ok(None);
     }
 
-    let document = if ["<p", "<h1", "<h2", "<h3", "<blockquote", "<ul", "<ol", "<div"]
-        .iter()
-        .any(|tag| normalized.to_ascii_lowercase().contains(tag))
-    {
+    let document = if schema_text_contains_html(&normalized) {
         kuchiki::parse_html().one(format!("<html><body><article>{normalized}</article></body></html>"))
     } else {
         kuchiki::parse_html().one(format!(
@@ -520,6 +519,25 @@ fn schema_text_attempt(
     };
 
     Ok(Some((attempt, diagnostic)))
+}
+
+fn schema_text_contains_html(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    ["<p", "<h1", "<h2", "<h3", "<blockquote", "<ul", "<ol", "<div"]
+        .iter()
+        .any(|tag| lower.contains(tag))
+}
+
+fn source_has_rich_article_content(html: &str) -> bool {
+    let document = kuchiki::parse_html().one(html);
+    !dom::select_nodes(
+        &document,
+        "article img, article figure, article picture, article table, article video, article iframe,\
+         main img, main figure, main picture, main table, main video, main iframe,\
+         [role='main'] img, [role='main'] figure, [role='main'] picture, [role='main'] table,\
+         [role='main'] video, [role='main'] iframe",
+    )
+    .is_empty()
 }
 
 fn title_duplicates_site_name(metadata: &Metadata) -> bool {
@@ -910,17 +928,14 @@ fn round_score(value: f64) -> f64 {
 }
 
 fn enforce_element_limit(document: &Html, limit: Option<usize>) -> Result<()> {
-    let Some(limit) = limit else {
-        return Ok(());
-    };
-
-    let selector = patterns::selector("*");
-    let actual = document.select(&selector).count();
-    if actual > limit {
-        return Err(Error::MaxElemsExceeded { actual, limit });
+    match limit {
+        Some(limit) => {
+            let selector = patterns::selector("*");
+            let actual = document.select(&selector).count();
+            if actual > limit { Err(Error::MaxElemsExceeded { actual, limit }) } else { Ok(()) }
+        }
+        None => Ok(()),
     }
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -967,7 +982,6 @@ mod tests {
 
         let report = extract_with_diagnostics(&html, None, &ReadabilityOptions::default()).unwrap();
         let article = report.article.unwrap();
-
         assert_eq!(report.diagnostics.outcome, ExtractionOutcome::Accepted);
         assert_eq!(report.diagnostics.selected_attempt, Some(0));
         assert_eq!(report.diagnostics.attempts.len(), 1);
@@ -996,7 +1010,7 @@ mod tests {
             .unwrap();
 
         assert!(article.content.contains("<p>Schema paragraph one"));
-        assert!(article.content.contains(r#"<a href="https://example.com">links</a>"#));
+        assert!(article.content.contains(r#"<a href="https://example.com/">links</a>"#));
         assert!(!article.text_content.contains("<p>"));
     }
 
@@ -1032,6 +1046,46 @@ mod tests {
         assert_eq!(report.diagnostics.attempts[0].candidate_count, 0);
         assert!(article.text_content.contains("focused article-body container"));
         assert!(!article.text_content.contains("Navigation, recommendations"));
+    }
+
+    #[test]
+    fn prefers_known_content_dom_over_plain_schema_text() {
+        let body = (0..12)
+            .map(|index| {
+                format!(
+                    "<p>Article paragraph {index} has useful prose, concrete detail, \
+                    and enough punctuation to be accepted before schema text.</p>"
+                )
+            })
+            .collect::<String>();
+        let schema_text = patterns::normalize_spaces(&body.replace(['<', '>'], " "));
+        let html = format!(
+            r#"
+            <html><head>
+                <title>Media Story</title>
+                <script type="application/ld+json">
+                    {{"@type":"NewsArticle","headline":"Media Story","articleBody":{}}}
+                </script>
+            </head><body>
+                <article>
+                    <div class="story-body">
+                        {body}
+                        <figure><img src="/chart.png" alt="Chart"><figcaption>Chart caption.</figcaption></figure>
+                    </div>
+                </article>
+            </body></html>
+            "#,
+            serde_json::to_string(&schema_text).unwrap()
+        );
+
+        let report =
+            extract_with_diagnostics(&html, Some("https://example.com/story"), &ReadabilityOptions::default()).unwrap();
+        let article = report.article.unwrap();
+
+        assert_eq!(report.diagnostics.outcome, ExtractionOutcome::Accepted);
+        assert_eq!(report.diagnostics.selected_attempt, Some(0));
+        assert!(article.content.contains("chart.png"));
+        assert!(article.text_content.contains("Chart caption."));
     }
 
     #[test]
@@ -1736,6 +1790,79 @@ mod tests {
         );
         assert!(!article.text_content.contains("Related articles"));
         assert!(!article.text_content.contains("Join the discussion"));
+    }
+
+    #[test]
+    fn removes_jetpack_related_posts_inside_article_body() {
+        let article = extract(
+            r#"
+            <html><body>
+                <article>
+                    <div class="entry-content" itemprop="articleBody">
+                        <p>This article body has enough substance, punctuation, and concrete
+                        detail to be selected by the known content selector.</p>
+                        <p>The second paragraph keeps the story meaningful before the related
+                        module appears at the end of the article body.</p>
+                        <div id="jp-relatedposts" class="jp-relatedposts">
+                            <h3>Related</h3>
+                            <div>
+                                <h4><a href="/related">Related story headline</a></h4>
+                                <p>Related teaser text should stay out of the article output.</p>
+                                <p>In "News"</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </body></html>
+            "#,
+            None,
+            &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert!(article.text_content.contains("This article body has enough substance"));
+        assert!(!article.text_content.contains("Related story headline"));
+        assert!(!article.text_content.contains("Related teaser text"));
+    }
+
+    #[test]
+    fn keeps_body_list_items_with_short_image_captions() {
+        let article = extract(
+            r#"
+            <html><body>
+                <article>
+                    <p>This article opens with enough detail, punctuation, and prose to pass
+                    extraction before a list of visual updates.</p>
+                    <ul>
+                        <li>
+                            <b>Feature milestone</b> reached a useful state.
+                            <ul>
+                                <li>
+                                    <div class="wp-caption aligncenter">
+                                        <a href="/image.png"><img src="/image.png" alt="Feature chart"></a>
+                                        <p class="wp-caption-text">The feature chart confirms this milestone.</p>
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p>The closing paragraph proves the list sits inside the article body.</p>
+                </article>
+            </body></html>
+            "#,
+            None,
+            &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert!(article.text_content.contains("Feature milestone"));
+        assert!(
+            article
+                .text_content
+                .contains("The feature chart confirms this milestone")
+        );
     }
 
     #[test]

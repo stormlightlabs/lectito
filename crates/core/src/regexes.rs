@@ -147,7 +147,7 @@ static TRAILING_CHROME_ATTRS: Lazy<Regex> = Lazy::new(|| {
             mortgage|most[-_]?popular|most[-_]?read|most[-_]?viewed|newsletter|next[-_]?article|next[-_]?up|
             onward[-_]?journey|outbrain|partner[-_]?offer|popular|promo|
             read[-_]?also|read[-_]?more|read[-_]?next|recommend(ed|ation|ations)?|
-            recirc|related|signup|sign[-_]?up|sponsor(ed)?|subscribe|
+            recirc|related[-_]?posts?|related|signup|sign[-_]?up|sponsor(ed)?|subscribe|
             subscription|taboola|widget|yarpp
         )\b",
     )

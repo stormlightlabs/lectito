@@ -33,6 +33,7 @@ pub fn apply_schema_fallback(
     html: &str, attempt: ExtractAttempt, metadata: &Metadata, opts: &ReadabilityOptions, flags: ExtractFlags,
     base_url: Option<&Url>,
 ) -> Result<ExtractAttempt> {
+    let attempt_metadata = attempt.metadata.clone();
     let Some(schema_text) = metadata.schema_text.as_deref() else {
         return Ok(attempt);
     };
@@ -43,11 +44,21 @@ pub fn apply_schema_fallback(
 
     let extracted_len = normalized_match_text(&attempt.text_content).chars().count();
     let schema_len = normalized_schema.chars().count();
+    if !contains_html(schema_text)
+        && contains_rich_content(&attempt.content)
+        && schema_len <= extracted_len.saturating_add(40)
+        && extracted_len <= schema_len.saturating_add(40)
+    {
+        return Ok(attempt);
+    }
+
     let document = kuchiki::parse_html().one(html);
     prep_document(&document, opts, flags);
     if let Some(root) = smallest_schema_match(&document, &normalized_schema) {
         let matched_len = normalized_match_text(&dom::inner_text(&root)).chars().count();
-        let (fallback, _) = serialize_roots(vec![root], opts, flags, base_url, metadata)?;
+        let (mut fallback, _) = serialize_roots(vec![root], opts, flags, base_url, metadata)?;
+        fallback.metadata = attempt_metadata.clone();
+
         if fallback.text_len > attempt.text_len
             || (matched_len >= schema_len.saturating_mul(4) / 5 && extracted_len > matched_len.saturating_mul(6) / 5)
         {
@@ -65,8 +76,36 @@ pub fn apply_schema_fallback(
     let Some(root) = dom::select_nodes(&document, "article").into_iter().next() else {
         return Ok(attempt);
     };
-    let (fallback, _) = serialize_roots(vec![root], opts, flags, base_url, metadata)?;
+
+    let (mut fallback, _) = serialize_roots(vec![root], opts, flags, base_url, metadata)?;
+    fallback.metadata = attempt_metadata;
+
     if fallback.text_len > attempt.text_len { Ok(fallback) } else { Ok(attempt) }
+}
+
+fn contains_html(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    [
+        "<p",
+        "<h1",
+        "<h2",
+        "<h3",
+        "<blockquote",
+        "<ul",
+        "<ol",
+        "<div",
+        "<table",
+        "<figure",
+        "<img",
+    ]
+    .iter()
+    .any(|tag| lower.contains(tag))
+}
+
+fn contains_rich_content(content: &str) -> bool {
+    ["<img", "<figure", "<picture", "<table", "<video", "<iframe"]
+        .iter()
+        .any(|tag| content.to_ascii_lowercase().contains(tag))
 }
 
 fn find_json_ld_article(value: &Value) -> Option<&Value> {
@@ -206,6 +245,7 @@ mod tests {
         assert!(article.text_content.contains("target post content"));
         assert!(!article.text_content.contains("First post in the feed"));
         assert!(!article.text_content.contains("Third post"));
+        assert_eq!(article.title.as_deref(), Some("Feed Page"));
     }
 
     #[test]
@@ -231,5 +271,6 @@ mod tests {
         assert!(article.content.contains("Safe schema text"));
         assert!(!article.content.contains("<script>"));
         assert!(!article.content.contains("</script>"));
+        assert_eq!(article.title.as_deref(), Some("No Match"));
     }
 }

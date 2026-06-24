@@ -349,7 +349,7 @@ fn is_trailing_page_chrome(node: &NodeRef) -> bool {
     }
 
     let link_count = dom::select_nodes(node, "a").len();
-    if link_count >= 3 && link_density(node) > 0.45 && text_len < 1500 {
+    if !matches!(tag.as_str(), "ul" | "ol" | "li") && link_count >= 3 && link_density(node) > 0.45 && text_len < 1500 {
         return true;
     }
 
@@ -518,7 +518,7 @@ fn trim_leading_metadata_siblings(root: &NodeRef, metadata: &Metadata) {
 fn looks_like_article_header(node: &NodeRef, metadata: &Metadata) -> bool {
     if matches!(
         dom::node_name(node).as_str(),
-        "body" | "main" | "article" | "section" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+        "body" | "main" | "article" | "section" | "ul" | "ol" | "li" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
     ) {
         return false;
     }
