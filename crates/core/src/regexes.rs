@@ -206,7 +206,7 @@ static FOOTNOTE_TRAILING_NUMBER: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?i)(?:^|[-_:])(?:fn|ftnt|note|ref)?(\d+)$|(\d+)$").expect("valid footnote label regex"));
 
 static BYLINE_PREFIX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)^\s*(by|author|authors|written by)\s+").expect("valid byline prefix regex"));
+    Lazy::new(|| Regex::new(r"(?i)^\s*(by|author|authors|written by)\s*:?\s+").expect("valid byline prefix regex"));
 
 static BYLINE_TRAILING_DATE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(

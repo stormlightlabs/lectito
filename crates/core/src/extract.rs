@@ -484,8 +484,17 @@ fn schema_text_attempt(
         return Ok(None);
     }
 
-    let escaped = shared::escape_html(&normalized);
-    let document = kuchiki::parse_html().one(format!("<html><body><article><p>{escaped}</p></article></body></html>"));
+    let document = if ["<p", "<h1", "<h2", "<h3", "<blockquote", "<ul", "<ol", "<div"]
+        .iter()
+        .any(|tag| normalized.to_ascii_lowercase().contains(tag))
+    {
+        kuchiki::parse_html().one(format!("<html><body><article>{normalized}</article></body></html>"))
+    } else {
+        kuchiki::parse_html().one(format!(
+            "<html><body><article><p>{}</p></article></body></html>",
+            shared::escape_html(&normalized)
+        ))
+    };
     let Some(root) = dom::select_nodes(&document, "article").into_iter().next() else {
         return Ok(None);
     };
@@ -520,11 +529,13 @@ fn title_duplicates_site_name(metadata: &Metadata) -> bool {
 }
 
 fn first_content_heading(content: &str) -> Option<String> {
-    let document = kuchiki::parse_html().one(format!("<html><body>{content}</body></html>"));
-    dom::select_nodes(&document, "h1, h2, h3")
-        .into_iter()
-        .map(|heading| patterns::normalize_spaces(dom::inner_text(&heading).trim()))
-        .find(|heading| !heading.is_empty())
+    dom::select_nodes(
+        &kuchiki::parse_html().one(format!("<html><body>{content}</body></html>")),
+        "h1, h2, h3",
+    )
+    .into_iter()
+    .map(|heading| patterns::normalize_spaces(dom::inner_text(&heading).trim()))
+    .find(|heading| !heading.is_empty())
 }
 
 fn try_site_rule(
@@ -963,6 +974,30 @@ mod tests {
         assert_eq!(report.diagnostics.attempts[0].candidate_count, 0);
         assert!(article.text_content.contains("JSON-LD before the generic scoring path"));
         assert!(!article.text_content.contains("Navigation, recommendations"));
+    }
+
+    #[test]
+    fn parses_html_json_ld_article_body() {
+        let schema_text = "<p>Schema paragraph one has enough useful article prose, punctuation, and detail.</p><p>Schema paragraph two keeps inline <a href=\"https://example.com\">links</a> as markup instead of escaped text.</p>".repeat(4);
+        let html = format!(
+            r#"
+            <html><head>
+                <title>Schema HTML Article</title>
+                <script type="application/ld+json">
+                    {{"@type":"NewsArticle","headline":"Schema HTML Article","articleBody":{}}}
+                </script>
+            </head><body><main><p>Short fallback.</p></main></body></html>
+            "#,
+            serde_json::to_string(&schema_text).unwrap()
+        );
+
+        let article = extract(&html, Some("https://example.com/story"), &ReadabilityOptions::default())
+            .unwrap()
+            .unwrap();
+
+        assert!(article.content.contains("<p>Schema paragraph one"));
+        assert!(article.content.contains(r#"<a href="https://example.com">links</a>"#));
+        assert!(!article.text_content.contains("<p>"));
     }
 
     #[test]
@@ -1757,6 +1792,47 @@ mod tests {
 
         assert!(!article.text_content.contains("Continue reading"));
         assert!(article.text_content.contains("second paragraph"));
+    }
+
+    #[test]
+    fn preserves_read_more_article_continuation() {
+        let continuation = (0..8)
+            .map(|index| {
+                format!(
+                    "<p>Continuation paragraph {index} carries article prose, commas, \
+                    and enough detail to remain part of the story body.</p>"
+                )
+            })
+            .collect::<String>();
+        let related = (0..5)
+            .map(|index| {
+                format!(
+                    r#"<div class="story-block"><h4><a href="/related-{index}">Related story {index}</a></h4>
+                    <p>Related teaser {index} should not remain in the article.</p></div>"#
+                )
+            })
+            .collect::<String>();
+        let html = format!(
+            r##"
+            <html><body>
+                <div id="content">
+                    <div class="story-body">
+                        <p>Main story paragraph has enough prose, commas, and detail.</p>
+                        <div id="read-more">
+                            <div id="read-more-link"><a href="#">Read more</a></div>
+                            <div id="read-more-content">{continuation}</div>
+                        </div>
+                    </div>
+                    <div class="group text-g-other-opinion-columns">{related}</div>
+                </div>
+            </body></html>
+            "##
+        );
+
+        let article = extract(&html, None, &ReadabilityOptions::default()).unwrap().unwrap();
+
+        assert!(article.text_content.contains("Continuation paragraph 7"));
+        assert!(!article.text_content.contains("Related teaser"));
     }
 
     #[test]

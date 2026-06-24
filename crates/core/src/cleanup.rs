@@ -315,6 +315,9 @@ fn is_trailing_page_chrome(node: &NodeRef) -> bool {
     if is_footnote_or_reference_block(node) {
         return false;
     }
+    if is_article_continuation(node) {
+        return false;
+    }
 
     let tag = dom::node_name(node);
     if matches!(tag.as_str(), "aside" | "footer" | "form" | "nav") {
@@ -355,6 +358,11 @@ fn is_trailing_page_chrome(node: &NodeRef) -> bool {
 }
 
 fn looks_like_related_card_list(node: &NodeRef, text: &str) -> bool {
+    let attrs = trailing_signal_attrs(node);
+    if attrs.contains("other-opinion-columns") || attrs.contains("story-block") {
+        return true;
+    }
+
     if dom::node_name(node) != "section" || dom::select_nodes(node, "h3").len() < 3 {
         return false;
     }
@@ -362,6 +370,17 @@ fn looks_like_related_card_list(node: &NodeRef, text: &str) -> bool {
     let lower = text.to_ascii_lowercase();
     (lower.contains("news & commentary") || lower.contains("press release"))
         && (lower.contains(" by:") || lower.contains("by: "))
+}
+
+fn is_article_continuation(node: &NodeRef) -> bool {
+    let attrs = trailing_signal_attrs(node);
+    (attrs.contains("read-more") || attrs.contains("continue-reading"))
+        && dom::select_nodes(
+            node,
+            "#read-more-content, .read-more-content, .continue-reading-content",
+        )
+        .into_iter()
+        .any(|content| dom::select_nodes(&content, "p").len() >= 3)
 }
 
 fn is_footnote_or_reference_block(node: &NodeRef) -> bool {
