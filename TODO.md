@@ -27,8 +27,8 @@
 - [x] Render embedded Standard.site posts.
 - [x] Render Bluesky post embeds.
 - [x] Render web bookmark and web embed blocks.
-- [ ] Render tables from publisher block records.
-- [ ] Render math blocks.
-- [ ] Keep image captions and alt text when the publisher supplies both.
-- [ ] Add frozen fixtures for Leaflet, pckt, and Offprint records.
-- [ ] Report Standard.site resolution and rendering warnings in diagnostics.
+- [x] Render tables from publisher block records.
+- [x] Render math blocks.
+- [x] Keep image captions and alt text when the publisher supplies both.
+- [x] Add frozen fixtures for Leaflet, pckt, and Offprint records.
+- [x] Report Standard.site resolution and rendering warnings in diagnostics.

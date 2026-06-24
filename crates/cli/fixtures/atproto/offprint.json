@@ -1,0 +1,15 @@
+{
+  "path": "/agentic-software-development",
+  "site": "at://did:plc:4hodhjl2kposuchzvpiviwps/site.standard.publication/3mjpdnluv5l2o",
+  "tags": ["tech", "ai", "agents", "coding agents"],
+  "$type": "site.standard.document",
+  "title": "A Software Engineer's Guide to Agentic Software Development",
+  "updatedAt": "2026-05-29T03:26:38.246Z",
+  "bskyPostRef": {
+    "cid": "bafyreigtjx2nl3pu5zrguzpqfanj5lnink7zsl45gumwcn3skskdwhwtq4",
+    "uri": "at://did:plc:4hodhjl2kposuchzvpiviwps/app.bsky.feed.post/3m6gmagugd222"
+  },
+  "description": "I've cracked the code on breaking the eternal cycle - features win, tech debt piles up, codebase becomes 'legacy', and an eventual rewrite.",
+  "publishedAt": "2025-11-24T03:22:00+00:00",
+  "textContent": "I've watched the same cycle at every company: product teams prioritize features over codebase improvements, tech debt piles up, engineers get frustrated, and the application becomes more brittle and difficult to work in over time.\n\nWhat if I told you I've found a way to finally break this cycle?\n\nAgentic Software Development is the practice of systematically delegating well-scoped, clearly-defined tasks to AI coding agents while you focus on development work that requires more human judgment."
+}

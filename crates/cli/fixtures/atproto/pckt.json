@@ -1,0 +1,57 @@
+{
+  "path": "/hello-forest-z1b4dj6",
+  "site": "at://did:plc:lqmen5vsre5oabzmepfv3r7e/site.standard.publication/3moyoa5xdadvk",
+  "tags": [],
+  "$type": "site.standard.document",
+  "title": "Hello, Forest",
+  "content": {
+    "$type": "blog.pckt.content",
+    "items": [
+      {
+        "$type": "blog.pckt.block.image",
+        "attrs": {
+          "alt": "",
+          "src": "blob:bafkreidsccg74kezomxalg6mvz5mavzwlv7xpsoju672y24hox7eyfwyd4",
+          "blob": {
+            "ref": { "$link": "bafkreidsccg74kezomxalg6mvz5mavzwlv7xpsoju672y24hox7eyfwyd4" },
+            "size": 1728648,
+            "$type": "blob",
+            "mimeType": "image/jpeg"
+          },
+          "align": "center",
+          "naturalWidth": 1920,
+          "naturalHeight": 1440
+        }
+      },
+      {
+        "$type": "blog.pckt.block.text",
+        "plaintext": "A quick hello from Northern New Mexico, where reality defies expectations."
+      },
+      {
+        "$type": "blog.pckt.block.text",
+        "facets": [
+          {
+            "index": { "byteEnd": 52, "byteStart": 42 },
+            "features": [
+              {
+                "did": "did:plc:revjuqmkvrw6fnkxppqtszpv",
+                "$type": "blog.pckt.richtext.facet#didMention"
+              }
+            ]
+          }
+        ],
+        "plaintext": "My purpose with this post is to check out @pckt.blog and its features."
+      }
+    ]
+  },
+  "updatedAt": "2026-06-24T04:56:26+00:00",
+  "coverImage": {
+    "ref": { "$link": "bafkreidsccg74kezomxalg6mvz5mavzwlv7xpsoju672y24hox7eyfwyd4" },
+    "size": 1728648,
+    "$type": "blob",
+    "mimeType": "image/jpeg"
+  },
+  "description": "A quick hello from Northern New Mexico.",
+  "publishedAt": "2026-06-24T00:47:20+00:00",
+  "textContent": "A quick hello from Northern New Mexico, where reality defies expectations.\nMy purpose with this post is to check out @pckt.blog and its features."
+}

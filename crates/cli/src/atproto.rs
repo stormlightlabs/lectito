@@ -77,17 +77,32 @@ impl AtprotoClient {
             return Ok(StandardSiteRenderMetadata::default());
         };
 
-        let site_name = self
-            .get_record(&document.site)
-            .ok()
-            .filter(|publication| publication.collection == SITE_STANDARD_PUBLICATION)
-            .and_then(|publication| serde_json::from_value::<SiteStandardPublication>(publication.value).ok())
-            .map(|publication| publication.name)
-            .filter(|name| !name.trim().is_empty());
+        let mut warnings = Vec::new();
+        let site_name = match self.get_record(&document.site) {
+            Ok(publication) if publication.collection == SITE_STANDARD_PUBLICATION => {
+                serde_json::from_value::<SiteStandardPublication>(publication.value)
+                    .map(|publication| publication.name)
+                    .ok()
+                    .filter(|name| !name.trim().is_empty())
+            }
+            Ok(publication) => {
+                warnings.push(format!(
+                    "site reference resolved to {}, not {SITE_STANDARD_PUBLICATION}",
+                    publication.collection
+                ));
+                None
+            }
+            Err(error) => {
+                warnings.push(format!(
+                    "failed to resolve Standard.site publication metadata: {error:#}"
+                ));
+                None
+            }
+        };
         let byline = document_byline(&document)
             .or_else(|| source_url.and_then(|url| source_url_author(url, site_name.as_deref())));
 
-        Ok(StandardSiteRenderMetadata { site_name, byline })
+        Ok(StandardSiteRenderMetadata { site_name, byline, warnings })
     }
 
     fn get_json<T: for<'de> Deserialize<'de>>(&self, url: &str) -> Result<T> {
@@ -176,6 +191,13 @@ pub struct SiteStandardContributor {
 pub struct StandardSiteRenderMetadata {
     pub site_name: Option<String>,
     pub byline: Option<String>,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct StandardSiteRender {
+    pub html: String,
+    pub warnings: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -205,11 +227,12 @@ struct RenderedFootnote {
 struct StandardSiteRenderer<'a> {
     record: &'a ResolvedRecord,
     footnotes: Vec<RenderedFootnote>,
+    warnings: Vec<String>,
 }
 
 impl<'a> StandardSiteRenderer<'a> {
     fn new(record: &'a ResolvedRecord) -> Self {
-        Self { record, footnotes: Vec::new() }
+        Self { record, footnotes: Vec::new(), warnings: Vec::new() }
     }
 
     fn render_content_value(&mut self, value: &Value) -> String {
@@ -236,6 +259,9 @@ impl<'a> StandardSiteRenderer<'a> {
         if block_type.contains("lineardocument") {
             return self.render_first_nested(fields, &["blocks", "children", "content"]);
         }
+        if block_type.ends_with(".block.text") || block_type == "text" {
+            return self.text_html(&text_field(fields), fields.get("facets"), true);
+        }
         if block_type.contains("unorderedlist")
             || block_type.contains("bulletlist")
             || block_type.contains("unordered-list")
@@ -250,6 +276,12 @@ impl<'a> StandardSiteRenderer<'a> {
         }
         if block_type.contains("code") {
             return render_code(fields);
+        }
+        if block_type.contains("table") {
+            return self.render_table(fields);
+        }
+        if block_type.contains("math") || block_type.contains("equation") {
+            return self.render_math(fields);
         }
         if block_type.contains("blockquote") || block_type.contains("quote") {
             let inner = if has_text(fields) {
@@ -288,7 +320,11 @@ impl<'a> StandardSiteRenderer<'a> {
             return self.text_html(&text_field(fields), fields.get("facets"), true);
         }
 
-        self.render_first_nested(fields, &["content", "children", "pages", "blocks", "items"])
+        let nested = self.render_first_nested(fields, &["content", "children", "pages", "blocks", "items"]);
+        if nested.trim().is_empty() && !block_type.is_empty() {
+            self.warn(format!("unsupported Standard.site block type {block_type}"));
+        }
+        nested
     }
 
     fn render_first_nested(&mut self, fields: &serde_json::Map<String, Value>, names: &[&str]) -> String {
@@ -351,7 +387,11 @@ impl<'a> StandardSiteRenderer<'a> {
     fn render_image(&self, fields: &serde_json::Map<String, Value>) -> String {
         let attrs = fields.get("attrs").and_then(Value::as_object).unwrap_or(fields);
         let src = string_field(attrs, &["src", "url"]);
-        let src = if src.is_empty() {
+        let src = if let Some(cid) = src.strip_prefix("blob:") {
+            first_value(attrs, &["image", "blob"])
+                .and_then(|value| self.blob_url(value))
+                .or_else(|| self.blob_url(&Value::String(cid.to_string())))
+        } else if src.is_empty() {
             first_value(attrs, &["image", "blob"]).and_then(|value| self.blob_url(value))
         } else {
             Some(src)
@@ -359,12 +399,89 @@ impl<'a> StandardSiteRenderer<'a> {
         let Some(src) = src.filter(|src| !src.is_empty()) else {
             return String::new();
         };
-        let alt = string_field(attrs, &["alt", "caption"]);
-        format!(
-            "<figure><img src=\"{}\" alt=\"{}\"></figure>",
+        let alt = string_field(attrs, &["alt"]);
+        let caption = string_field(attrs, &["caption", "credit"]);
+        let mut html = format!(
+            "<figure><img src=\"{}\" alt=\"{}\">",
             escape_html(&src),
             escape_html(&alt)
-        )
+        );
+        if !caption.is_empty() {
+            html.push_str(&format!("<figcaption>{}</figcaption>", escape_html(&caption)));
+        }
+        html.push_str("</figure>");
+        html
+    }
+
+    fn render_table(&mut self, fields: &serde_json::Map<String, Value>) -> String {
+        let Some(rows) = first_value(fields, &["rows", "children", "items", "content"]).and_then(Value::as_array)
+        else {
+            self.warn("table block did not contain rows".to_string());
+            return String::new();
+        };
+
+        let mut html = String::from("<table><tbody>");
+        for row in rows {
+            let Some(cells) = table_row_cells(row) else {
+                continue;
+            };
+            html.push_str("<tr>");
+            let row_header = row
+                .as_object()
+                .map(|fields| truthy_field(fields, &["header", "isHeader", "heading"]))
+                .unwrap_or(false);
+            for cell in cells {
+                let cell_header = cell
+                    .as_object()
+                    .map(|fields| truthy_field(fields, &["header", "isHeader", "heading"]))
+                    .unwrap_or(false);
+                let tag = if row_header || cell_header { "th" } else { "td" };
+                let body = self.render_table_cell(cell);
+                html.push_str(&format!("<{tag}>{body}</{tag}>"));
+            }
+            html.push_str("</tr>");
+        }
+        html.push_str("</tbody></table>");
+        html
+    }
+
+    fn render_table_cell(&mut self, value: &Value) -> String {
+        if let Some(fields) = value.as_object() {
+            if let Some(content) = first_value(fields, &["content", "children", "blocks", "items"]) {
+                if let Some(content_fields) = content.as_object()
+                    && has_text(content_fields)
+                {
+                    return self.text_html(&text_field(content_fields), content_fields.get("facets"), false);
+                }
+                return self.render_content_value(content);
+            }
+            if has_text(fields) {
+                return self.text_html(&text_field(fields), fields.get("facets"), false);
+            }
+        }
+        match value {
+            Value::String(text) => escape_html(text),
+            Value::Number(_) | Value::Bool(_) => escape_html(&value.to_string()),
+            _ => String::new(),
+        }
+    }
+
+    fn render_math(&mut self, fields: &serde_json::Map<String, Value>) -> String {
+        let latex = string_field(fields, &["latex", "tex", "formula", "expression", "plaintext", "text"]);
+        if latex.is_empty() {
+            self.warn("math block did not contain latex text".to_string());
+            return String::new();
+        }
+        let display = truthy_field(fields, &["display", "displayMode", "block"])
+            || string_field(fields, &["mode"]).eq_ignore_ascii_case("display");
+        if display {
+            format!(
+                "<div class=\"math display\"><span data-latex=\"{}\" display=\"block\"></span></div>",
+                escape_html(&latex)
+            )
+        } else {
+            format!("<span class=\"math\" data-latex=\"{}\"></span>", escape_html(&latex))
+        }
     }
 
     fn render_footnotes(&self) -> String {
@@ -415,6 +532,12 @@ impl<'a> StandardSiteRenderer<'a> {
             return;
         }
         self.footnotes.push(RenderedFootnote { id: id.to_string(), html });
+    }
+
+    fn warn(&mut self, warning: String) {
+        if !self.warnings.iter().any(|existing| existing == &warning) {
+            self.warnings.push(warning);
+        }
     }
 
     fn blob_url(&self, value: &Value) -> Option<String> {
@@ -564,9 +687,9 @@ pub fn standard_site_link(html: &str) -> Option<String> {
         .map(str::to_string)
 }
 
-pub fn standard_site_document_html(
+pub fn standard_site_document_render(
     record: &ResolvedRecord, source_url: Option<&str>, metadata: &StandardSiteRenderMetadata,
-) -> Result<Option<String>> {
+) -> Result<Option<StandardSiteRender>> {
     let Some(document) = standard_site_document(record)? else {
         return Ok(None);
     };
@@ -631,7 +754,9 @@ pub fn standard_site_document_html(
     html.push_str(&body);
     html.push_str(&renderer.render_footnotes());
     html.push_str("</article></body></html>");
-    Ok(Some(html))
+    let mut warnings = metadata.warnings.clone();
+    warnings.extend(renderer.warnings);
+    Ok(Some(StandardSiteRender { html, warnings }))
 }
 
 pub fn standard_site_document(record: &ResolvedRecord) -> Result<Option<SiteStandardDocument>> {
@@ -754,6 +879,24 @@ fn raw_string_field(fields: &serde_json::Map<String, Value>, names: &[&str]) -> 
 
 fn first_value<'a>(fields: &'a serde_json::Map<String, Value>, names: &[&str]) -> Option<&'a Value> {
     names.iter().find_map(|name| fields.get(*name))
+}
+
+fn truthy_field(fields: &serde_json::Map<String, Value>, names: &[&str]) -> bool {
+    first_value(fields, names).is_some_and(|value| {
+        value.as_bool().unwrap_or_else(|| {
+            value
+                .as_str()
+                .is_some_and(|text| matches!(text.to_ascii_lowercase().as_str(), "true" | "yes" | "1" | "display"))
+        })
+    })
+}
+
+fn table_row_cells(value: &Value) -> Option<&Vec<Value>> {
+    if let Some(cells) = value.as_array() {
+        return Some(cells);
+    }
+    let fields = value.as_object()?;
+    first_value(fields, &["cells", "children", "items", "content"]).and_then(Value::as_array)
 }
 
 fn did_document_url(did: &str) -> Result<String> {
@@ -906,9 +1049,7 @@ mod tests {
             }
         }));
 
-        let html = standard_site_document_html(&record, None, &StandardSiteRenderMetadata::default())
-            .unwrap()
-            .unwrap();
+        let html = rendered_html(&record);
 
         assert!(html.contains("<p><strong>Read</strong> <a href=\"https://example.com\">this</a> now</p>"));
     }
@@ -939,13 +1080,216 @@ mod tests {
             }
         }));
 
-        let html = standard_site_document_html(&record, None, &StandardSiteRenderMetadata::default())
-            .unwrap()
-            .unwrap();
+        let html = rendered_html(&record);
 
         assert!(html.contains(
             "<img src=\"https://pds.example/xrpc/com.atproto.sync.getBlob?did=did%3Aplc%3Aabc&amp;cid=bafkreidemo\" alt=\"A diagram\">"
         ));
+    }
+
+    #[test]
+    fn preserves_image_alt_text_and_caption() {
+        let record = resolved_document(json!({
+            "site": "at://did:plc:abc/site.standard.publication/main",
+            "title": "Captioned image",
+            "publishedAt": "2026-06-24T00:00:00Z",
+            "content": {
+                "$type": "pub.leaflet.pages.linearDocument",
+                "blocks": [{
+                    "block": {
+                        "$type": "pub.leaflet.blocks.image",
+                        "src": "https://example.com/forest.jpg",
+                        "alt": "Sunlight through trees",
+                        "caption": "Northern New Mexico forest"
+                    }
+                }]
+            }
+        }));
+
+        let html = rendered_html(&record);
+
+        assert!(html.contains(
+            "<figure><img src=\"https://example.com/forest.jpg\" alt=\"Sunlight through trees\"><figcaption>Northern New Mexico forest</figcaption></figure>"
+        ));
+    }
+
+    #[test]
+    fn renders_tables_from_publisher_blocks() {
+        let record = resolved_document(json!({
+            "site": "at://did:plc:abc/site.standard.publication/main",
+            "title": "Table",
+            "publishedAt": "2026-06-24T00:00:00Z",
+            "content": {
+                "$type": "pub.leaflet.pages.linearDocument",
+                "blocks": [{
+                    "block": {
+                        "$type": "pub.leaflet.blocks.table",
+                        "rows": [
+                            { "header": true, "cells": [
+                                { "text": "Name" },
+                                { "text": "Value" }
+                            ]},
+                            { "cells": [
+                                { "text": "Leaflet" },
+                                {
+                                    "content": {
+                                        "$type": "pub.leaflet.blocks.text",
+                                        "plaintext": "supports links",
+                                        "facets": [{
+                                            "index": { "byteStart": 9, "byteEnd": 14 },
+                                            "features": [{
+                                                "$type": "pub.leaflet.richtext.facet#link",
+                                                "uri": "https://standard.site/"
+                                            }]
+                                        }]
+                                    }
+                                }
+                            ]}
+                        ]
+                    }
+                }]
+            }
+        }));
+
+        let html = rendered_html(&record);
+
+        assert!(html.contains("<table><tbody><tr><th>Name</th><th>Value</th></tr>"));
+        assert!(
+            html.contains("<tr><td>Leaflet</td><td>supports <a href=\"https://standard.site/\">links</a></td></tr>")
+        );
+    }
+
+    #[test]
+    fn renders_math_blocks_as_latex_markdown_source() {
+        let record = resolved_document(json!({
+            "site": "at://did:plc:abc/site.standard.publication/main",
+            "title": "Math",
+            "publishedAt": "2026-06-24T00:00:00Z",
+            "content": {
+                "$type": "pub.leaflet.pages.linearDocument",
+                "blocks": [{
+                    "block": {
+                        "$type": "pub.leaflet.blocks.math",
+                        "latex": "E = mc^2",
+                        "display": true
+                    }
+                }]
+            }
+        }));
+
+        let html = rendered_html(&record);
+        let markdown = lectito::html_to_markdown(&html);
+
+        assert!(html.contains("<span data-latex=\"E = mc^2\" display=\"block\"></span>"));
+        assert!(markdown.contains("$$\nE = mc^2\n$$"), "{markdown}");
+    }
+
+    #[test]
+    fn reports_rendering_warnings_for_unknown_blocks() {
+        let record = resolved_document(json!({
+            "site": "at://did:plc:abc/site.standard.publication/main",
+            "title": "Unknown",
+            "publishedAt": "2026-06-24T00:00:00Z",
+            "content": {
+                "$type": "pub.leaflet.pages.linearDocument",
+                "blocks": [{
+                    "block": { "$type": "pub.leaflet.blocks.customWidget" }
+                }]
+            },
+            "textContent": "Fallback"
+        }));
+
+        let render = standard_site_document_render(&record, None, &StandardSiteRenderMetadata::default())
+            .unwrap()
+            .unwrap();
+
+        assert!(
+            render
+                .warnings
+                .contains(&"unsupported Standard.site block type pub.leaflet.blocks.customwidget".to_string())
+        );
+    }
+
+    #[test]
+    fn renders_offprint_text_blocks_without_warnings() {
+        let record = resolved_document(json!({
+            "site": "at://did:plc:abc/site.standard.publication/main",
+            "title": "Offprint",
+            "publishedAt": "2026-06-24T00:00:00Z",
+            "content": {
+                "$type": "app.offprint.content",
+                "items": [
+                    {
+                        "$type": "app.offprint.block.text",
+                        "plaintext": "Worth building",
+                        "facets": [{
+                            "index": { "byteStart": 0, "byteEnd": 5 },
+                            "features": [{ "$type": "app.offprint.richtext.facet#italic" }]
+                        }]
+                    },
+                    { "$type": "app.offprint.block.text", "plaintext": "" }
+                ]
+            }
+        }));
+
+        let render = standard_site_document_render(&record, None, &StandardSiteRenderMetadata::default())
+            .unwrap()
+            .unwrap();
+
+        assert!(render.html.contains("<p><em>Worth</em> building</p>"));
+        assert!(render.warnings.is_empty(), "{:?}", render.warnings);
+    }
+
+    #[test]
+    fn renders_frozen_standard_site_record_examples() {
+        let examples = [
+            (
+                "leaflet",
+                include_str!("../fixtures/atproto/leaflet.json"),
+                "did:plc:4vjd3fe2cgzq5d24j4f3zvar",
+                "https://hydnum.us-west.host.bsky.network",
+                "Skyreader update",
+            ),
+            (
+                "pckt",
+                include_str!("../fixtures/atproto/pckt.json"),
+                "did:plc:lqmen5vsre5oabzmepfv3r7e",
+                "https://shimeji.us-east.host.bsky.network",
+                "Hello, Forest",
+            ),
+            (
+                "offprint",
+                include_str!("../fixtures/atproto/offprint.json"),
+                "did:plc:4hodhjl2kposuchzvpiviwps",
+                "https://gomphus.us-west.host.bsky.network",
+                "Agentic Software Development",
+            ),
+        ];
+
+        for (name, json, repo, pds, expected) in examples {
+            let record = ResolvedRecord {
+                repo: repo.to_string(),
+                pds: pds.to_string(),
+                collection: SITE_STANDARD_DOCUMENT.to_string(),
+                value: serde_json::from_str(json).expect("fixture record"),
+            };
+            let render = standard_site_document_render(&record, None, &StandardSiteRenderMetadata::default())
+                .unwrap()
+                .unwrap();
+            let markdown = lectito::html_to_markdown(&render.html);
+
+            assert!(render.html.contains(expected), "{name} html:\n{}", render.html);
+            assert!(markdown.contains(expected), "{name} markdown:\n{markdown}");
+            if name == "pckt" {
+                assert!(
+                    render
+                        .html
+                        .contains("https://shimeji.us-east.host.bsky.network/xrpc/com.atproto.sync.getBlob"),
+                    "{name} html:\n{}",
+                    render.html
+                );
+            }
+        }
     }
 
     #[test]
@@ -982,9 +1326,7 @@ mod tests {
             }
         }));
 
-        let html = standard_site_document_html(&record, None, &StandardSiteRenderMetadata::default())
-            .unwrap()
-            .unwrap();
+        let html = rendered_html(&record);
 
         assert!(html.contains("<p>Claim<sup id=\"fnref-1\"><a href=\"#fn-1\">1</a></sup></p>"));
         assert!(html.contains(
@@ -1010,9 +1352,7 @@ mod tests {
             }
         }));
 
-        let html = standard_site_document_html(&record, None, &StandardSiteRenderMetadata::default())
-            .unwrap()
-            .unwrap();
+        let html = rendered_html(&record);
 
         assert!(html.contains(
             "<blockquote><p>Embedded Standard.site post: <a href=\"at://did:plc:def/site.standard.document/3moxvif7ejk2i\">at://did:plc:def/site.standard.document/3moxvif7ejk2i</a></p></blockquote>"
@@ -1040,9 +1380,7 @@ mod tests {
             }
         }));
 
-        let html = standard_site_document_html(&record, None, &StandardSiteRenderMetadata::default())
-            .unwrap()
-            .unwrap();
+        let html = rendered_html(&record);
 
         assert!(html.contains(
             "<blockquote><p>Embedded Bluesky post: <a href=\"https://bsky.app/profile/did:plc:f4os2wz5fjl56xpwcvtnqu7m/post/3moluu6nxfs2q\">https://bsky.app/profile/did:plc:f4os2wz5fjl56xpwcvtnqu7m/post/3moluu6nxfs2q</a></p></blockquote>"
@@ -1089,9 +1427,7 @@ mod tests {
             }
         }));
 
-        let html = standard_site_document_html(&record, None, &StandardSiteRenderMetadata::default())
-            .unwrap()
-            .unwrap();
+        let html = rendered_html(&record);
 
         assert!(html.contains(
             "<p><a href=\"https://standard.site/docs/lexicons/document/\">Document Lexicon</a></p><p>Schema reference</p><figure><img src=\"https://pds.example/xrpc/com.atproto.sync.getBlob?did=did%3Aplc%3Aabc&amp;cid=bafkreiwebsite\" alt=\"\"></figure>"
@@ -1100,6 +1436,13 @@ mod tests {
             "<iframe src=\"https://example.com/embed\" loading=\"lazy\" referrerpolicy=\"no-referrer-when-downgrade\"></iframe>"
         ));
         assert!(html.contains("<p><a href=\"https://leaflet.pub/checkout/pro\">Get Leaflet Pro</a></p>"));
+    }
+
+    fn rendered_html(record: &ResolvedRecord) -> String {
+        standard_site_document_render(record, None, &StandardSiteRenderMetadata::default())
+            .unwrap()
+            .unwrap()
+            .html
     }
 
     fn resolved_document(value: Value) -> ResolvedRecord {

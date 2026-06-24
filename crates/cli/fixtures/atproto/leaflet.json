@@ -1,0 +1,82 @@
+{
+  "path": "/3moxvif7ejk2i",
+  "site": "at://did:plc:4vjd3fe2cgzq5d24j4f3zvar/site.standard.publication/3mde2epyylk2s",
+  "tags": [],
+  "$type": "site.standard.document",
+  "title": "Skyreader update - Bookmark syncing to Semble/Margin and Standard Reader Collections support",
+  "content": {
+    "$type": "pub.leaflet.content",
+    "pages": [
+      {
+        "id": "019ef238-c47d-7ccf-a254-c9acb793e80b",
+        "$type": "pub.leaflet.pages.linearDocument",
+        "blocks": [
+          {
+            "$type": "pub.leaflet.pages.linearDocument#block",
+            "block": {
+              "$type": "pub.leaflet.blocks.text",
+              "plaintext": "There are two big updates to call out this week:"
+            }
+          },
+          {
+            "$type": "pub.leaflet.pages.linearDocument#block",
+            "block": {
+              "$type": "pub.leaflet.blocks.unorderedList",
+              "children": [
+                {
+                  "$type": "pub.leaflet.blocks.unorderedList#listItem",
+                  "content": {
+                    "$type": "pub.leaflet.blocks.text",
+                    "plaintext": "@standard-reader.app collection support"
+                  }
+                },
+                {
+                  "$type": "pub.leaflet.blocks.unorderedList#listItem",
+                  "content": {
+                    "$type": "pub.leaflet.blocks.text",
+                    "plaintext": "Saved article syncing with @semble.so and @margin.at"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "$type": "pub.leaflet.pages.linearDocument#block",
+            "block": {
+              "$type": "pub.leaflet.blocks.header",
+              "level": 2,
+              "plaintext": "Saving your reading"
+            }
+          },
+          {
+            "$type": "pub.leaflet.pages.linearDocument#block",
+            "block": {
+              "alt": "Screenshot of Skyreader settings page with Semble selected for saved articles",
+              "$type": "pub.leaflet.blocks.image",
+              "image": {
+                "ref": { "$link": "bafkreiaww4zmatibw2kfuxcryuipcpnycse75xkhvy77xk3qeijumpg3cm" },
+                "size": 80246,
+                "$type": "blob",
+                "mimeType": "image/webp"
+              },
+              "aspectRatio": { "width": 1244, "height": 1092 }
+            }
+          },
+          {
+            "$type": "pub.leaflet.pages.linearDocument#block",
+            "block": {
+              "$type": "pub.leaflet.blocks.bskyPost",
+              "postRef": {
+                "cid": "bafyreih2gyc6dcqmuimiihfvlkesedwkgcpa7n62wu4mamdl23kh7vheqi",
+                "uri": "at://did:plc:f4os2wz5fjl56xpwcvtnqu7m/app.bsky.feed.post/3moluu6nxfs2q"
+              },
+              "clientHost": "bsky.app"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "description": "Sync your reading list across the Atmosphere. Read magazine-like collections.",
+  "publishedAt": "2026-06-23T17:12:17.898Z"
+}

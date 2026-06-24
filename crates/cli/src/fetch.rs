@@ -58,11 +58,17 @@ pub struct InputDocument {
     base_url: Option<String>,
     content_type: Option<String>,
     last_modified: Option<String>,
+    atproto_warnings: Vec<String>,
 }
 
 impl InputDocument {
     fn new(html: String, base_url: Option<String>, content_type: Option<String>, lastmod: Option<String>) -> Self {
-        Self { html, base_url, content_type, last_modified: lastmod }
+        Self { html, base_url, content_type, last_modified: lastmod, atproto_warnings: Vec::new() }
+    }
+
+    fn with_atproto_warnings(mut self, warnings: Vec<String>) -> Self {
+        self.atproto_warnings = warnings;
+        self
     }
 
     pub fn html(&self) -> &str {
@@ -79,6 +85,10 @@ impl InputDocument {
 
     pub fn last_modified(&self) -> Option<&str> {
         self.last_modified.as_deref()
+    }
+
+    pub fn atproto_warnings(&self) -> &[String] {
+        &self.atproto_warnings
     }
 
     pub fn read_src(input: Option<&str>, read_stdin: bool, base_url: Option<&str>) -> anyhow::Result<InputDocument> {
@@ -223,14 +233,14 @@ impl InputDocument {
                 continue;
             }
 
-            let html = standard_site_html(&client, &html, Some(current_url.as_str())).unwrap_or(html);
+            let (html, atproto_warnings) = standard_site_html(&client, &html, Some(current_url.as_str()))
+                .map(|render| (render.html, render.warnings))
+                .unwrap_or((html, Vec::new()));
 
-            return Ok(InputDocument::new(
-                html,
-                Some(current_url.to_string()),
-                content_type,
-                last_modified,
-            ));
+            return Ok(
+                InputDocument::new(html, Some(current_url.to_string()), content_type, last_modified)
+                    .with_atproto_warnings(atproto_warnings),
+            );
         }
 
         unreachable!("redirect loop exits by returning a response or bailing at the redirect limit")
@@ -299,22 +309,25 @@ impl InputDocument {
             .get_record(at_uri)
             .with_context(|| format!("failed to resolve AT URI {at_uri}"))?;
         let metadata = atproto.standard_site_render_metadata(&record, None).unwrap_or_default();
-        let html = atproto::standard_site_document_html(&record, None, &metadata)?.ok_or_else(|| {
+        let render = atproto::standard_site_document_render(&record, None, &metadata)?.ok_or_else(|| {
             anyhow::anyhow!("AT URI {at_uri} did not resolve to renderable Standard.site document content")
         })?;
 
-        Ok(InputDocument::new(html, None, Some("text/html".to_string()), None))
+        Ok(
+            InputDocument::new(render.html, None, Some("text/html".to_string()), None)
+                .with_atproto_warnings(render.warnings),
+        )
     }
 }
 
-fn standard_site_html(client: &Client, html: &str, source_url: Option<&str>) -> Option<String> {
+fn standard_site_html(client: &Client, html: &str, source_url: Option<&str>) -> Option<atproto::StandardSiteRender> {
     let at_uri = atproto::standard_site_link(html)?;
     let atproto = AtprotoClient::new(client.clone());
     let record = atproto.get_record(&at_uri).ok()?;
     let metadata = atproto
         .standard_site_render_metadata(&record, source_url)
         .unwrap_or_default();
-    atproto::standard_site_document_html(&record, source_url, &metadata)
+    atproto::standard_site_document_render(&record, source_url, &metadata)
         .ok()
         .flatten()
 }

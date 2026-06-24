@@ -24,21 +24,22 @@ mod llms;
 mod utils;
 
 fn main() -> ExitCode {
-    match run(Cli::parse(), color_enabled()) {
+    let parsed = Cli::parse();
+    let color = color_enabled();
+
+    let res = match parsed.command {
+        Some(Commands::Readable(args)) => run_readable(args),
+        Some(Commands::Inspect(args)) => run_inspect(args),
+        Some(Commands::Llms(args)) => llms::run(args),
+        None => run_extract(parsed.extract, color),
+    };
+
+    match res {
         Ok(code) => code,
         Err(error) => {
             eprintln!("lectito: {error:#}");
             if error.downcast_ref::<lectito::Error>().is_some() { ExitCode::from(3) } else { ExitCode::from(2) }
         }
-    }
-}
-
-fn run(cli: Cli, color: bool) -> Result<ExitCode> {
-    match cli.command {
-        Some(Commands::Readable(args)) => run_readable(args),
-        Some(Commands::Inspect(args)) => run_inspect(args),
-        Some(Commands::Llms(args)) => llms::run(args),
-        None => run_extract(cli.extract, color),
     }
 }
 
@@ -90,12 +91,15 @@ fn run_extract(args: ExtractArgs, color: bool) -> Result<ExitCode> {
         io::stdout().flush().context("failed to flush article output")?;
         eprintln!(
             "{}",
-            echo::inspect(&report, InspectOptions::new(false, input.base_url(), false))?
+            echo::inspect(
+                &report,
+                InspectOptions::new(false, input.base_url(), false).with_atproto_warnings(input.atproto_warnings())
+            )?
         );
     }
     if let Some(format) = args.diagnostic_format {
         io::stdout().flush().context("failed to flush article output")?;
-        echo::diagnostics(&report.diagnostics, format, color)?;
+        echo::diagnostics_with_atproto_warnings(&report.diagnostics, format, color, input.atproto_warnings())?;
     }
 
     Ok(if report.article.is_some() { ExitCode::SUCCESS } else { ExitCode::from(1) })
@@ -130,7 +134,11 @@ fn run_inspect(args: InspectArgs) -> Result<ExitCode> {
     };
     println!(
         "{}",
-        echo::inspect(&report, InspectOptions::new(args.pretty, input.base_url(), args.json,))?
+        echo::inspect(
+            &report,
+            InspectOptions::new(args.pretty, input.base_url(), args.json)
+                .with_atproto_warnings(input.atproto_warnings())
+        )?
     );
     Ok(if report.article.is_some() { ExitCode::SUCCESS } else { ExitCode::from(1) })
 }

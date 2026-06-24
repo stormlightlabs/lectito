@@ -23,17 +23,36 @@ pub struct InspectOptions<'a> {
     source: Option<&'a str>,
     json: bool,
     pretty: bool,
+    atproto_warnings: &'a [String],
 }
 
 impl<'a> InspectOptions<'a> {
     pub fn new(pretty: bool, source: Option<&'a str>, json: bool) -> Self {
-        Self { pretty, source, json }
+        Self { pretty, source, json, atproto_warnings: &[] }
+    }
+
+    pub fn with_atproto_warnings(mut self, warnings: &'a [String]) -> Self {
+        self.atproto_warnings = warnings;
+        self
     }
 }
 
-pub fn diagnostics(diagnostics: &ExtractionDiagnostics, format: DiagnosticFormat, color: bool) -> Result<()> {
+pub fn diagnostics_with_atproto_warnings(
+    diagnostics: &ExtractionDiagnostics, format: DiagnosticFormat, color: bool, atproto_warnings: &[String],
+) -> Result<()> {
     match format {
         DiagnosticFormat::Json => {
+            if !atproto_warnings.is_empty() {
+                let value = serde_json::json!({
+                    "atproto_warnings": atproto_warnings,
+                    "extraction": diagnostics,
+                });
+                eprintln!(
+                    "{}",
+                    serde_json::to_string_pretty(&value).context("failed to serialize diagnostics")?
+                );
+                return Ok(());
+            }
             eprintln!(
                 "{}",
                 serde_json::to_string_pretty(diagnostics).context("failed to serialize diagnostics")?
@@ -49,6 +68,15 @@ pub fn diagnostics(diagnostics: &ExtractionDiagnostics, format: DiagnosticFormat
                 style("outcome:", color, |value| value.bold().to_string()),
                 diagnostics.outcome
             );
+            if !atproto_warnings.is_empty() {
+                eprintln!(
+                    "{}",
+                    style("atproto warnings:", color, |value| value.bold().to_string())
+                );
+                for warning in atproto_warnings {
+                    eprintln!("  {warning}");
+                }
+            }
             if let Some(selector) = &diagnostics.content_selector {
                 let status = if selector.matched {
                     style("matched", color, |value| value.green().to_string())
@@ -210,6 +238,7 @@ pub fn inspect(report: &ExtractionReport, opts: InspectOptions) -> Result<String
             "source": opts.source,
             "article": report.article,
             "diagnostics": report.diagnostics,
+            "atproto_warnings": opts.atproto_warnings,
         });
         if opts.pretty {
             return serde_json::to_string_pretty(&value).context("failed to serialize inspect JSON");
@@ -222,6 +251,10 @@ pub fn inspect(report: &ExtractionReport, opts: InspectOptions) -> Result<String
         lines.push(format!("source: {source}"));
     }
     lines.push(format!("outcome: {:?}", report.diagnostics.outcome));
+    if !opts.atproto_warnings.is_empty() {
+        lines.push("atproto warnings:".to_string());
+        lines.extend(opts.atproto_warnings.iter().map(|warning| format!("  {warning}")));
+    }
 
     match &report.article {
         Some(article) => {
