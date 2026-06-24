@@ -267,6 +267,8 @@ pub enum LlmsCommands {
     Parse(LlmsParseArgs),
     /// Expand linked resources into one Markdown context file.
     Expand(LlmsExpandArgs),
+    /// Crawl pages and generate an llms.txt index.
+    Generate(LlmsGenerateArgs),
 }
 
 #[derive(Debug, Args)]
@@ -311,6 +313,40 @@ pub struct LlmsExpandArgs {
     pub output: Option<PathBuf>,
 }
 
+#[derive(Debug, Args)]
+pub struct LlmsGenerateArgs {
+    /// Seed URL or local HTML file to crawl.
+    pub input: String,
+
+    /// Title to use for the generated llms.txt file.
+    #[arg(long)]
+    pub title: Option<String>,
+
+    /// Summary to include as the llms.txt blockquote.
+    #[arg(long)]
+    pub summary: Option<String>,
+
+    /// H2 section name for crawled pages.
+    #[arg(long, default_value = "Docs")]
+    pub section: String,
+
+    /// Maximum pages to fetch while crawling.
+    #[arg(long, default_value_t = 25)]
+    pub max_pages: usize,
+
+    /// Maximum link depth from the seed page.
+    #[arg(long, default_value_t = 2)]
+    pub max_depth: usize,
+
+    /// Maximum seconds to spend extracting each HTML page.
+    #[arg(long, default_value_t = 30)]
+    pub timeout: u64,
+
+    /// Write output to a file instead of stdout.
+    #[arg(short, long, value_name = "PATH")]
+    pub output: Option<PathBuf>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -335,6 +371,33 @@ mod tests {
                 LlmsCommands::Expand(args) => {
                     assert_eq!(args.input, "https://example.com");
                     assert!(args.include_optional);
+                }
+                other => panic!("unexpected llms subcommand: {other:?}"),
+            },
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn llms_generate_subcommand_parses() {
+        let cli = Cli::try_parse_from([
+            "lectito",
+            "llms",
+            "generate",
+            "https://example.com/docs/",
+            "--max-pages",
+            "5",
+            "--max-depth",
+            "1",
+        ])
+        .expect("llms generate command should parse");
+
+        match cli.command {
+            Some(Commands::Llms(args)) => match args.command {
+                LlmsCommands::Generate(args) => {
+                    assert_eq!(args.input, "https://example.com/docs/");
+                    assert_eq!(args.max_pages, 5);
+                    assert_eq!(args.max_depth, 1);
                 }
                 other => panic!("unexpected llms subcommand: {other:?}"),
             },

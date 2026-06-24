@@ -8,6 +8,7 @@ Lectito supports the practical parts of the convention:
 - fetching a site's `llms.txt`
 - parsing its sections and links
 - expanding linked pages into one Markdown context file
+- crawling a bounded set of pages to generate an `llms.txt` index
 
 It does not treat `llms.txt` as access control. Use `robots.txt`, HTTP
 authorization, and normal server controls for that.
@@ -109,6 +110,42 @@ Use `--max-links` when you want a smaller bundle:
 
 ```sh
 lectito llms expand llms.txt --max-links 10
+```
+
+## Generate
+
+Generate an `llms.txt` file from a seed page:
+
+```sh
+lectito llms generate https://example.com/docs/ --output llms.txt
+```
+
+The crawler is intentionally bounded. For URL seeds, Lectito follows
+same-origin links only. For local HTML files, it follows relative local links.
+Assets such as images, stylesheets, scripts, PDFs, archives, and feeds are
+skipped.
+
+By default, generation fetches up to 25 pages and follows links up to depth 2:
+
+```sh
+lectito llms generate https://example.com/docs/ \
+  --max-pages 10 \
+  --max-depth 1
+```
+
+Only pages that produce readable article content are included. Each accepted
+page becomes one link in the generated file. Lectito uses the extracted title as
+the link label and the extracted excerpt as the link note.
+
+Set the generated title, summary, or section name when the defaults are too
+generic:
+
+```sh
+lectito llms generate https://example.com/docs/ \
+  --title "Example Docs" \
+  --summary "Public documentation for Example." \
+  --section "Guides" \
+  --output llms.txt
 ```
 
 ## When To Use It

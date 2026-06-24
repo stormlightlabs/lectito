@@ -1,3 +1,4 @@
+use std::collections::{HashSet, VecDeque};
 use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
@@ -6,9 +7,10 @@ use std::process::ExitCode;
 use anyhow::{Context, Result};
 use lectito::ReadabilityOptions;
 use reqwest::Url;
+use scraper::{Html, Selector};
 use serde::Serialize;
 
-use crate::cli::{LlmsArgs, LlmsCommands, LlmsExpandArgs, LlmsFetchArgs, LlmsParseArgs};
+use crate::cli::{LlmsArgs, LlmsCommands, LlmsExpandArgs, LlmsFetchArgs, LlmsGenerateArgs, LlmsParseArgs};
 use crate::{echo, fetch, read_site_profiles};
 
 #[derive(Debug, Serialize)]
@@ -38,11 +40,29 @@ struct LlmsSource {
     base: Option<String>,
 }
 
+struct CrawlItem {
+    target: String,
+    depth: usize,
+}
+
+struct CrawlPage {
+    id: String,
+    html: String,
+    base_url: Option<String>,
+}
+
+struct CrawledEntry {
+    title: String,
+    url: String,
+    notes: Option<String>,
+}
+
 pub fn run(args: LlmsArgs) -> Result<ExitCode> {
     match args.command {
         LlmsCommands::Fetch(args) => run_fetch(args),
         LlmsCommands::Parse(args) => run_parse(args),
         LlmsCommands::Expand(args) => run_expand(args),
+        LlmsCommands::Generate(args) => run_generate(args),
     }
 }
 
@@ -108,6 +128,244 @@ fn run_expand(args: LlmsExpandArgs) -> Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
+fn run_generate(args: LlmsGenerateArgs) -> Result<ExitCode> {
+    if args.max_pages == 0 {
+        anyhow::bail!("--max-pages must be greater than zero");
+    }
+
+    let entries = crawl_entries(&args)?;
+    let title = args
+        .title
+        .clone()
+        .or_else(|| entries.first().map(|entry| entry.title.clone()))
+        .unwrap_or_else(|| "Site documentation".to_string());
+    let summary = args
+        .summary
+        .clone()
+        .unwrap_or_else(|| format!("Readable pages discovered from {}.", display_seed(&args.input)));
+    let output = render_generated_llms_txt(&title, &summary, &args.section, &entries);
+
+    write_output(args.output.as_ref(), &output)?;
+    Ok(if entries.is_empty() { ExitCode::from(1) } else { ExitCode::SUCCESS })
+}
+
+fn crawl_entries(args: &LlmsGenerateArgs) -> Result<Vec<CrawledEntry>> {
+    let seed = normalize_seed(&args.input)?;
+    let mut queue = VecDeque::from([CrawlItem { target: seed.clone(), depth: 0 }]);
+    let mut seen = HashSet::new();
+    let mut entries = Vec::new();
+
+    while let Some(item) = queue.pop_front() {
+        if seen.len() >= args.max_pages {
+            break;
+        }
+        if !seen.insert(item.target.clone()) {
+            continue;
+        }
+
+        let page = match read_crawl_page(&item.target) {
+            Ok(page) => page,
+            Err(error) => {
+                eprintln!("lectito: skipping {}: {error:#}", item.target);
+                continue;
+            }
+        };
+
+        if let Some(entry) = crawled_entry(&page, args.timeout)? {
+            entries.push(entry);
+        }
+
+        if item.depth >= args.max_depth {
+            continue;
+        }
+
+        for link in discover_links(&page, &seed) {
+            if !seen.contains(&link) {
+                queue.push_back(CrawlItem { target: link, depth: item.depth + 1 });
+            }
+        }
+    }
+
+    Ok(entries)
+}
+
+fn normalize_seed(input: &str) -> Result<String> {
+    if input.starts_with("http://") || input.starts_with("https://") {
+        return normalize_url(input);
+    }
+
+    Ok(PathBuf::from(input).to_string_lossy().to_string())
+}
+
+fn read_crawl_page(input: &str) -> Result<CrawlPage> {
+    if input.starts_with("http://") || input.starts_with("https://") {
+        let document = fetch::InputDocument::read_source(Some(input), false, None)?;
+        let base_url = document.base_url().map(str::to_string);
+        let id = base_url.clone().unwrap_or_else(|| input.to_string());
+        return Ok(CrawlPage { id, html: document.html().to_string(), base_url });
+    }
+
+    let path = Path::new(input);
+    let html = fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+    Ok(CrawlPage { id: path.to_string_lossy().to_string(), html, base_url: None })
+}
+
+fn crawled_entry(page: &CrawlPage, timeout: u64) -> Result<Option<CrawledEntry>> {
+    let options = default_readability_options()?;
+    let Some(report) = super::extract_with_timeout(&page.html, page.base_url.as_deref(), options, timeout)? else {
+        eprintln!("lectito: extraction timed out for {}", page.id);
+        return Ok(None);
+    };
+    let Some(article) = report.article else {
+        return Ok(None);
+    };
+
+    let title = article
+        .title
+        .as_deref()
+        .filter(|title| !title.trim().is_empty())
+        .unwrap_or(page.id.as_str())
+        .trim()
+        .to_string();
+    let notes = article
+        .excerpt
+        .as_deref()
+        .map(clean_note)
+        .filter(|note| !note.is_empty());
+
+    Ok(Some(CrawledEntry { title, url: page.id.clone(), notes }))
+}
+
+fn discover_links(page: &CrawlPage, seed: &str) -> Vec<String> {
+    let document = Html::parse_document(&page.html);
+    let selector = Selector::parse("a[href]").expect("valid link selector");
+    let mut links = Vec::new();
+    let mut seen = HashSet::new();
+
+    for element in document.select(&selector) {
+        let Some(href) = element.value().attr("href") else {
+            continue;
+        };
+        let Some(link) = resolve_crawl_link(href, page, seed) else {
+            continue;
+        };
+        if seen.insert(link.clone()) {
+            links.push(link);
+        }
+    }
+
+    links
+}
+
+fn resolve_crawl_link(href: &str, page: &CrawlPage, seed: &str) -> Option<String> {
+    let href = href.trim();
+    if href.is_empty()
+        || href.starts_with('#')
+        || href.starts_with("mailto:")
+        || href.starts_with("tel:")
+        || href.starts_with("javascript:")
+    {
+        return None;
+    }
+
+    if seed.starts_with("http://") || seed.starts_with("https://") {
+        let base = page.base_url.as_deref().unwrap_or(page.id.as_str());
+        let resolved = Url::parse(base).ok()?.join(href).ok()?;
+        if !same_origin(seed, resolved.as_str()) || !crawlable_url_path(resolved.path()) {
+            return None;
+        }
+        let mut resolved = resolved;
+        resolved.set_fragment(None);
+        resolved.set_query(None);
+        return Some(resolved.to_string());
+    }
+
+    if href.starts_with("http://") || href.starts_with("https://") {
+        return None;
+    }
+
+    let href = href.split('#').next().unwrap_or(href);
+    let href = href.split('?').next().unwrap_or(href);
+    if href.is_empty() || !crawlable_url_path(href) {
+        return None;
+    }
+    let base = Path::new(&page.id).parent().unwrap_or_else(|| Path::new("."));
+    Some(base.join(href).to_string_lossy().to_string())
+}
+
+fn same_origin(seed: &str, candidate: &str) -> bool {
+    let Ok(seed) = Url::parse(seed) else {
+        return false;
+    };
+    let Ok(candidate) = Url::parse(candidate) else {
+        return false;
+    };
+    seed.scheme() == candidate.scheme()
+        && seed.host_str() == candidate.host_str()
+        && seed.port_or_known_default() == candidate.port_or_known_default()
+}
+
+fn crawlable_url_path(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    !matches!(
+        Path::new(&lower).extension().and_then(|ext| ext.to_str()),
+        Some(
+            "avif"
+                | "css"
+                | "gif"
+                | "ico"
+                | "jpeg"
+                | "jpg"
+                | "js"
+                | "json"
+                | "pdf"
+                | "png"
+                | "svg"
+                | "webp"
+                | "woff"
+                | "woff2"
+                | "xml"
+                | "zip"
+        )
+    )
+}
+
+fn normalize_url(input: &str) -> Result<String> {
+    let mut url = Url::parse(input).with_context(|| format!("invalid URL: {input}"))?;
+    url.set_fragment(None);
+    Ok(url.to_string())
+}
+
+fn render_generated_llms_txt(title: &str, summary: &str, section: &str, entries: &[CrawledEntry]) -> String {
+    let mut output = String::new();
+    output.push_str("# ");
+    output.push_str(&clean_heading(title));
+    output.push_str("\n\n> ");
+    output.push_str(&clean_note(summary));
+    output.push_str("\n\nGenerated by Lectito from crawled readable pages.\n\n## ");
+    output.push_str(&clean_heading(section));
+    output.push_str("\n\n");
+
+    for entry in entries {
+        output.push_str("- [");
+        output.push_str(&escape_link_label(&entry.title));
+        output.push_str("](");
+        output.push_str(&escape_link_destination(&entry.url));
+        output.push(')');
+        if let Some(notes) = entry.notes.as_deref() {
+            output.push_str(": ");
+            output.push_str(notes);
+        }
+        output.push('\n');
+    }
+
+    output
+}
+
+fn display_seed(input: &str) -> String {
+    input.trim_end_matches('/').to_string()
+}
+
 fn selected_links(document: &LlmsDocument, include_optional: bool, max_links: usize) -> Vec<LlmsLink> {
     document
         .sections
@@ -163,7 +421,18 @@ fn read_resource_markdown(input: &str, timeout: u64) -> Result<String> {
 }
 
 fn extract_resource_markdown(html: &str, base_url: Option<&str>, timeout: u64) -> Result<String> {
-    let options = ReadabilityOptions {
+    let options = default_readability_options()?;
+    let Some(report) = super::extract_with_timeout(html, base_url, options, timeout)? else {
+        anyhow::bail!("extraction timed out after {timeout}s");
+    };
+    echo::render_article(
+        report.article.as_ref(),
+        echo::RenderOptions::new(crate::cli::OutputFormat::Markdown, false, base_url, false),
+    )
+}
+
+fn default_readability_options() -> Result<ReadabilityOptions> {
+    Ok(ReadabilityOptions {
         max_elems_to_parse: None,
         nb_top_candidates: 5,
         char_threshold: 500,
@@ -175,14 +444,7 @@ fn extract_resource_markdown(html: &str, base_url: Option<&str>, timeout: u64) -
         disable_json_ld: false,
         link_density_modifier: 0.0,
         media_retention: lectito::MediaRetention::Article,
-    };
-    let Some(report) = super::extract_with_timeout(html, base_url, options, timeout)? else {
-        anyhow::bail!("extraction timed out after {timeout}s");
-    };
-    echo::render_article(
-        report.article.as_ref(),
-        echo::RenderOptions::new(crate::cli::OutputFormat::Markdown, false, base_url, false),
-    )
+    })
 }
 
 fn looks_like_markdown(input: &str, text: &str) -> bool {
@@ -321,6 +583,35 @@ fn non_empty_join(values: Vec<String>) -> Option<String> {
     (!joined.is_empty()).then_some(joined)
 }
 
+fn clean_heading(value: &str) -> String {
+    let value = value.replace(['\n', '\r'], " ");
+    let value = value.trim().trim_start_matches('#').trim();
+    if value.is_empty() { "Untitled".to_string() } else { value.to_string() }
+}
+
+fn clean_note(value: &str) -> String {
+    let collapsed = value.split_whitespace().collect::<Vec<_>>().join(" ");
+    let limit = 220;
+    if collapsed.chars().count() <= limit {
+        return collapsed;
+    }
+
+    let mut clipped = collapsed.chars().take(limit).collect::<String>();
+    if let Some((prefix, _)) = clipped.rsplit_once(' ') {
+        clipped = prefix.to_string();
+    }
+    clipped.push_str("...");
+    clipped
+}
+
+fn escape_link_label(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('[', "\\[").replace(']', "\\]")
+}
+
+fn escape_link_destination(value: &str) -> String {
+    value.replace(' ', "%20").replace(')', "%29")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -375,5 +666,42 @@ Use Markdown outputs for agent context.
 
         assert_eq!(links.len(), 1);
         assert_eq!(links[0].title, "A");
+    }
+
+    #[test]
+    fn discovers_same_origin_html_links_only() {
+        let page = CrawlPage {
+            id: "https://example.com/docs/index.html".to_string(),
+            base_url: Some("https://example.com/docs/index.html".to_string()),
+            html: r##"
+                <a href="/docs/guide.html#intro">Guide</a>
+                <a href="https://other.example/docs/offsite.html">Offsite</a>
+                <a href="/assets/site.css">CSS</a>
+                <a href="mailto:test@example.com">Mail</a>
+            "##
+            .to_string(),
+        };
+
+        let links = discover_links(&page, "https://example.com/docs/");
+
+        assert_eq!(links, vec!["https://example.com/docs/guide.html"]);
+    }
+
+    #[test]
+    fn renders_generated_llms_txt() {
+        let output = render_generated_llms_txt(
+            "Example",
+            "Readable pages.",
+            "Guides",
+            &[CrawledEntry {
+                title: "A [guide]".to_string(),
+                url: "https://example.com/a guide.html".to_string(),
+                notes: Some("Short note.".to_string()),
+            }],
+        );
+
+        assert!(output.contains("# Example"));
+        assert!(output.contains("## Guides"));
+        assert!(output.contains("- [A \\[guide\\]](https://example.com/a%20guide.html): Short note."));
     }
 }

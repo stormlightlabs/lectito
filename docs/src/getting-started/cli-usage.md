@@ -123,17 +123,25 @@ you want to bundle its linked resources into one Markdown context file.
 lectito llms fetch https://example.com
 lectito llms parse https://example.com/llms.txt --pretty
 lectito llms expand https://example.com/llms.txt --output llms-full.txt
+lectito llms generate https://example.com/docs/ --output llms.txt
 ```
 
 `fetch` resolves a bare site URL to `/llms.txt`. `parse` prints structured JSON.
 `expand` reads the linked resources, keeps Markdown resources as-is, and runs
-HTML resources through Lectito before adding them to the bundle.
+HTML resources through Lectito before adding them to the bundle. `generate`
+crawls same-origin links from a seed page and writes a new `llms.txt` index.
 
 Links in the special `Optional` section are skipped unless you pass
 `--include-optional`:
 
 ```sh
 lectito llms expand https://example.com/llms.txt --include-optional
+```
+
+Keep generated files small by limiting crawl depth and page count:
+
+```sh
+lectito llms generate https://example.com/docs/ --max-depth 1 --max-pages 10
 ```
 
 See the [llms.txt guide](./llms-txt.md) for the expected file shape and the
