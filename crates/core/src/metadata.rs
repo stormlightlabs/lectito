@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::shared;
+
 use scraper::Html;
 use url::Url;
 
@@ -283,14 +285,14 @@ fn article_title(document: &Html) -> Option<String> {
         had_hierarchical_separator = matches!(separator, " \\ " | " / " | " > " | " » ");
         title = patterns::normalize_spaces(original[..index].trim());
 
-        if word_count(&title) < 3 {
+        if shared::word_count(&title) < 3 {
             title = patterns::normalize_spaces(original[index + separator.len()..].trim());
         }
     } else if original.contains(": ") && !heading_matches(document, &original) {
         title = patterns::normalize_spaces(original[original.rfind(':').unwrap_or(0) + 1..].trim());
-        if word_count(&title) < 3 {
+        if shared::word_count(&title) < 3 {
             title = patterns::normalize_spaces(original[original.find(':').unwrap_or(0) + 1..].trim());
-        } else if word_count(&original[..original.find(':').unwrap_or(0)]) > 5 {
+        } else if shared::word_count(&original[..original.find(':').unwrap_or(0)]) > 5 {
             title = original.clone();
         }
     } else if original.chars().count() > 150 || original.chars().count() < 15 {
@@ -301,12 +303,12 @@ fn article_title(document: &Html) -> Option<String> {
         }
     }
 
-    let title_word_count = word_count(&title);
+    let title_word_count = shared::word_count(&title);
     let original_without_separators = TITLE_SEPARATORS
         .iter()
         .fold(original.clone(), |title, separator| title.replace(separator, " "));
     if title_word_count <= 4
-        && (!had_hierarchical_separator || title_word_count != word_count(&original_without_separators) - 1)
+        && (!had_hierarchical_separator || title_word_count != shared::word_count(&original_without_separators) - 1)
     {
         title = original;
     }
@@ -327,8 +329,8 @@ fn prefer_specific_headline(document: &Html, site_name: Option<&str>, title: &st
         return Some(headline.to_string());
     }
 
-    if word_count(&title) <= 2
-        && let Some(headline) = headline.filter(|headline| word_count(headline) >= 3)
+    if shared::word_count(&title) <= 2
+        && let Some(headline) = headline.filter(|headline| shared::word_count(headline) >= 3)
     {
         return Some(headline);
     }
@@ -360,10 +362,6 @@ fn last_separator(title: &str) -> Option<(&'static str, usize)> {
         .iter()
         .filter_map(|separator| title.rfind(separator).map(|index| (*separator, index)))
         .max_by_key(|(_, index)| *index)
-}
-
-fn word_count(value: &str) -> usize {
-    value.split_whitespace().count()
 }
 
 fn heading_matches(document: &Html, title: &str) -> bool {

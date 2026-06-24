@@ -5,6 +5,8 @@ use kuchiki::traits::TendrilSink;
 use scraper::Html;
 use url::Url;
 
+use crate::shared;
+
 use super::config::{Article, ExtractFlags, ReadabilityOptions};
 use super::diagnostics::{
     AttemptDiagnostic, CandidateDiagnostic, CandidateSelection, CleanupDiagnostic, ContentSelectorDiagnostic,
@@ -13,9 +15,7 @@ use super::diagnostics::{
 };
 use super::error::{Error, Result};
 use super::regexes::RegexPattern;
-use super::{
-    cleanup, dom, html, json_schema, markdown, metadata, normalize, patterns, recovery, rules, scoring, serialize,
-};
+use super::{cleanup, dom, json_schema, markdown, metadata, normalize, patterns, recovery, rules, scoring, serialize};
 use super::{metadata::Metadata, scoring::Candidate};
 
 const KNOWN_CONTENT_SELECTORS: &[&str] = &[
@@ -29,6 +29,8 @@ const KNOWN_CONTENT_SELECTORS: &[&str] = &[
     ".post-content",
     ".content-wrapper",
 ];
+const USEFUL_WORD_THRESHOLD: usize = 180;
+const SUSPICIOUS_SIGNAL_RATIO: usize = 3;
 
 pub struct ExtractAttempt {
     pub metadata: Metadata,
@@ -219,7 +221,9 @@ pub fn extract_with_diagnostics(
         diagnostics.attempts.push(attempt_diagnostic.attempt);
         let diagnostic_index = diagnostics.attempts.len() - 1;
 
-        if attempt.text_len >= options.char_threshold {
+        if attempt.text_len >= options.char_threshold
+            && !should_retry_short_or_suspicious(&attempt, &diagnostics.attempts[diagnostic_index], flags, options)
+        {
             attempt = json_schema::apply_schema_fallback(html, attempt, &metadata, options, flags, base_url.as_ref())?;
             attempt.metadata = metadata;
             diagnostics.selected_attempt = Some(diagnostic_index);
@@ -338,6 +342,34 @@ fn strip_raw_script_blocks(html: &str) -> String {
     RegexPattern::RawScript.to_regex().replace_all(html, "").into_owned()
 }
 
+fn should_retry_short_or_suspicious(
+    attempt: &ExtractAttempt, diagnostic: &AttemptDiagnostic, flags: ExtractFlags, options: &ReadabilityOptions,
+) -> bool {
+    flags != (ExtractFlags { strip_unlikely: false, weight_classes: false, clean_conditionally: false })
+        && (short_after_unlikely_stripping(attempt, flags)
+            || far_below_best_content_signal(attempt.text_len, diagnostic, options.char_threshold))
+}
+
+fn short_after_unlikely_stripping(attempt: &ExtractAttempt, flags: ExtractFlags) -> bool {
+    flags.strip_unlikely && shared::word_count(&attempt.text_content) < USEFUL_WORD_THRESHOLD
+}
+
+fn far_below_best_content_signal(text_len: usize, diagnostic: &AttemptDiagnostic, char_threshold: usize) -> bool {
+    best_content_signal_len(diagnostic) >= char_threshold.saturating_mul(2).max(1)
+        && text_len.saturating_mul(SUSPICIOUS_SIGNAL_RATIO) < best_content_signal_len(diagnostic)
+}
+
+fn best_content_signal_len(diagnostic: &AttemptDiagnostic) -> usize {
+    diagnostic
+        .selected_root
+        .iter()
+        .chain(diagnostic.candidates.iter().map(|candidate| &candidate.node))
+        .chain(diagnostic.entry_points.iter().map(|entry_point| &entry_point.node))
+        .map(|node| node.text_len)
+        .max()
+        .unwrap_or(0)
+}
+
 fn known_content_attempt(
     html: &str, opts: &ReadabilityOptions, base_url: Option<&Url>, metadata: &Metadata,
 ) -> Result<Option<(ExtractAttempt, AttemptDiagnostic)>> {
@@ -388,7 +420,7 @@ fn schema_text_attempt(
         return Ok(None);
     }
 
-    let escaped = html::escape_html(&normalized);
+    let escaped = shared::escape_html(&normalized);
     let document = kuchiki::parse_html().one(format!("<html><body><article><p>{escaped}</p></article></body></html>"));
     let Some(root) = dom::select_nodes(&document, "article").into_iter().next() else {
         return Ok(None);
@@ -1145,6 +1177,73 @@ mod tests {
         assert_eq!(diagnostic.name, "weak profile");
         assert!(!diagnostic.accepted);
         assert!(diagnostic.fallback_reason.unwrap().contains("below char_threshold"));
+    }
+
+    #[test]
+    fn retries_relaxed_cleanup_when_result_is_far_below_content_signal() {
+        let paragraphs = (0..12)
+            .map(|index| {
+                format!(
+                    "<p>Recovered paragraph {index} has substantial article prose, commas, \
+                    concrete detail, and enough punctuation to prove it belongs in the story.</p>"
+                )
+            })
+            .collect::<String>();
+        let html = format!(
+            r#"
+            <html><body>
+                <article>
+                    <p>This opening paragraph is long enough to pass the minimum threshold, but it is only the beginning of the article and should not be accepted alone.</p>
+                    <section class="shopping">
+                        {paragraphs}
+                    </section>
+                </article>
+            </body></html>
+            "#
+        );
+
+        let report = extract_with_diagnostics(&html, None, &ReadabilityOptions::default()).unwrap();
+        let article = report.article.unwrap();
+
+        assert_eq!(report.diagnostics.outcome, ExtractionOutcome::Accepted);
+        assert_eq!(report.diagnostics.selected_attempt, Some(2));
+        assert_eq!(report.diagnostics.attempts.len(), 3);
+        assert!(article.text_content.contains("Recovered paragraph 11"));
+    }
+
+    #[test]
+    fn retries_without_unlikely_stripping_when_first_result_is_short() {
+        let paragraphs = (0..30)
+            .map(|index| {
+                format!(
+                    "<p>Hidden article paragraph {index} has useful prose, commas, \
+                    concrete examples, and enough detail to beat the short fallback result.</p>"
+                )
+            })
+            .collect::<String>();
+        let html = format!(
+            r#"
+            <html><body>
+                <article>
+                    <p>This short fallback paragraph has enough characters to pass the old threshold, but too few words to be a useful extraction.</p>
+                    <p>The second short fallback paragraph adds characters while still leaving the extraction well under a useful article word count.</p>
+                    <p>The third short fallback paragraph repeats the same problem: enough length for acceptance, not enough substance to stop retrying.</p>
+                    <p>The fourth short fallback paragraph keeps the first attempt above the default character threshold without making it useful.</p>
+                </article>
+                <section class="comments">
+                    {paragraphs}
+                </section>
+            </body></html>
+            "#
+        );
+
+        let report = extract_with_diagnostics(&html, None, &ReadabilityOptions::default()).unwrap();
+        let article = report.article.unwrap();
+
+        assert_eq!(report.diagnostics.outcome, ExtractionOutcome::Accepted);
+        assert_eq!(report.diagnostics.selected_attempt, Some(1));
+        assert!(report.diagnostics.attempts.len() > 1);
+        assert!(article.text_content.contains("Hidden article paragraph 9"));
     }
 
     #[test]

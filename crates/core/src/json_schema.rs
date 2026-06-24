@@ -9,7 +9,7 @@ use super::error::Result;
 use super::extract::{ExtractAttempt, element_count, prep_document, serialize_roots};
 use super::metadata::{Metadata, clean_metadata_value, decode_html_entities, normalize_byline};
 use super::regexes::RegexPattern;
-use super::{dom, html, patterns};
+use super::{dom, patterns, shared};
 
 pub fn extract_json_ld(html: &str) -> Metadata {
     let document = Html::parse_document(html);
@@ -60,7 +60,7 @@ pub fn apply_schema_fallback(
         return Ok(attempt);
     }
 
-    let escaped = html::escape_html(schema_text);
+    let escaped = shared::escape_html(schema_text);
     let document = kuchiki::parse_html().one(format!("<html><body><article><p>{escaped}</p></article></body></html>"));
     let Some(root) = dom::select_nodes(&document, "article").into_iter().next() else {
         return Ok(attempt);

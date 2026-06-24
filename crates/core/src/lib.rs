@@ -27,7 +27,6 @@ mod diagnostics;
 mod dom;
 mod error;
 mod extract;
-pub mod html;
 mod json_schema;
 mod markdown;
 mod metadata;
@@ -39,6 +38,7 @@ mod regexes;
 mod rules;
 mod scoring;
 mod serialize;
+mod shared;
 
 pub use config::{Article, MarkdownOptions, MediaRetention, ReadabilityOptions, ReadableOptions};
 pub use diagnostics::{
@@ -49,3 +49,4 @@ pub use error::{Error, Result};
 pub use extract::{clean_article_html, extract, extract_with_diagnostics};
 pub use markdown::{html_to_markdown, markdown_to_html, markdown_with_toml_frontmatter};
 pub use readable::is_probably_readable;
+pub use shared::escape_html;

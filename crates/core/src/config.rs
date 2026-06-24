@@ -173,7 +173,7 @@ pub struct Article {
     pub favicon: Option<String>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ExtractFlags {
     pub strip_unlikely: bool,
     pub weight_classes: bool,

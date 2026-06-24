@@ -7,8 +7,8 @@ use super::{dom, serialize};
 use crate::config::ReadabilityOptions;
 use crate::error::Result;
 use crate::extract::ExtractAttempt;
-use crate::html::escape_html;
 use crate::metadata::{Metadata, decode_html_entities};
+use crate::shared::escape_html;
 
 struct HnComment {
     author: String,

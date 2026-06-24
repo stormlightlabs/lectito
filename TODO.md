@@ -19,35 +19,6 @@
 
 ### `examples.txt` Audit
 
-- [x] Fix MDN-style code block rendering.
-      URL:
-  - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy
-  - Keep usable `<pre><code>` nodes, normalize language IDs such as
-    `js notranslate`, remove sibling language labels, and add a focused fixture.
-- [x] Clean app-doc controls from Mintlify-style pages.
-  - URL: https://www.mintlify.com/docs/create/code
-  - Remove duplicated `Copy page` SVG/button text and tab labels without their
-    code panels. Extend button/control cleanup and add a fixture for tabbed code
-    docs.
-- [x] Improve modern docs root scoring.
-  - URL: https://mintlify.com/docs/code
-  - Prefer focused `main`/article roots over body-level app shells when both are
-    available. Mintlify can select `body.antialiased` and clean it to empty
-    before accepting `main#content-container`.
-- [x] Tighten web.dev title cleanup.
-  - URL: https://web.dev/articles/responsive-images
-  - Remove UI suffixes such as `Stay organized with collections Save and
-categorize content based on your preferences.` from metadata titles.
-- [x] Decide whether site-profile extraction should still absolutize URLs when
-      cleanup is disabled.
-  - URL: https://en.wikipedia.org/wiki/Hermitian_matrix
-  - Wikipedia profile output can keep links such as `/wiki/Hermitian_matrix` even
-    when the CLI input is a URL.
-- [x] Improve Rustdoc output polish.
-  - URL: https://docs.rs/serde/latest/serde/
-  - Remove `Expand description`, strip section permalink glyphs such as `§`, and
-    render item definition lists with spacing instead of concatenating adjacent
-    entries.
 - [ ] Add a site rule for `unthread.at` post pages.
   - URL: https://unthread.at/@desertthunder.dev/3mlgpk65xzw23
   - These are ATProtocol records: `unthread.at/@{handle}/rkey`.
@@ -72,10 +43,10 @@ categorize content based on your preferences.` from metadata titles.
 
 ### Retry Short Or Suspicious Extractions
 
-- [ ] Retry with relaxed removal settings when extracted text is far below the
+- [x] Retry with relaxed removal settings when extracted text is far below the
       page's best content signals.
   - URL: https://www.royalroad.com/fiction/63759/super-supportive/chapter/1449598/one-hundred-two-what-kind-of-wordchain
-- [ ] Retry without unlikely-candidate stripping when the first result is under
+- [x] Retry without unlikely-candidate stripping when the first result is under
       a useful word threshold.
   - URL: http://www.ehow.com/how_2042752_build-terrarium.html
 - [ ] Retry with hidden-element removal disabled when the first result is

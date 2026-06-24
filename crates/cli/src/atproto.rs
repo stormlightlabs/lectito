@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use lectito::html::escape_html;
+use lectito::escape_html;
 use reqwest::Url;
 use reqwest::blocking::Client;
 use serde::Deserialize;
