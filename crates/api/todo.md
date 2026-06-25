@@ -29,8 +29,8 @@ Move the current web `/api` docs page before this goes live. Good targets are
 
 ## Render Service
 
-- Deploy the existing Dockerfile unless Render's native Rust build is clearly
-  simpler.
+- Deploy `crates/api/Dockerfile` from the repository root context unless
+  Render's native Rust build is clearly simpler.
 - Set the service port through Render's `PORT` environment variable.
 - Keep `LECTITO_ALLOWED_ORIGINS` scoped to
   `https://lectito.stormlightlabs.org` for production.

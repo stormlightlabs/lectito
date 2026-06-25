@@ -116,6 +116,34 @@ impl Limit {
             Self::RequestTimeoutSecs => "LECTITO_REQUEST_TIMEOUT_SECS",
         }
     }
+
+    fn from_env_usize(self) -> usize {
+        env::var(self.env_var())
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or_else(|| self.into())
+    }
+
+    fn from_env_u64(self) -> u64 {
+        env::var(self.env_var())
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or_else(|| self.into())
+    }
+
+    fn env_u16(name: &str, default: u16) -> u16 {
+        env::var(name)
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(default)
+    }
+
+    fn env_bool(name: &str, default: bool) -> bool {
+        env::var(name)
+            .ok()
+            .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
+            .unwrap_or(default)
+    }
 }
 
 impl From<Limit> for usize {
@@ -154,16 +182,16 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Self {
         Self {
-            port: env_u16("PORT", 3000),
-            max_body_bytes: env_usize(Limit::MaxBodyBytes),
-            max_fetch_bytes: env_usize(Limit::MaxFetchBytes),
-            redirect_limit: env_usize(Limit::Redirect),
-            request_timeout_secs: env_u64(Limit::RequestTimeoutSecs),
+            port: Limit::env_u16("PORT", 3000),
+            max_body_bytes: Limit::MaxBodyBytes.from_env_usize(),
+            max_fetch_bytes: Limit::MaxFetchBytes.from_env_usize(),
+            redirect_limit: Limit::Redirect.from_env_usize(),
+            request_timeout_secs: Limit::RequestTimeoutSecs.from_env_u64(),
             allowed_origins: env::var("LECTITO_ALLOWED_ORIGINS")
                 .ok()
                 .map(|value| split_csv(&value))
                 .unwrap_or_default(),
-            allow_private_network: env_bool("LECTITO_ALLOW_PRIVATE_NETWORK", false),
+            allow_private_network: Limit::env_bool("LECTITO_ALLOW_PRIVATE_NETWORK", false),
         }
     }
 }
@@ -400,38 +428,6 @@ fn ensure_html_content_type(headers: &HeaderMap) -> Result<(), ApiError> {
             "upstream content type is not supported",
         )),
     }
-}
-
-// TODO: static method on Limit
-fn env_u16(name: &str, default: u16) -> u16 {
-    env::var(name)
-        .ok()
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(default)
-}
-
-// TODO: instance method on Limit
-fn env_usize(limit: Limit) -> usize {
-    env::var(limit.env_var())
-        .ok()
-        .and_then(|value| value.parse().ok())
-        .unwrap_or_else(|| limit.into())
-}
-
-// TODO: instance method on Limit
-fn env_u64(limit: Limit) -> u64 {
-    env::var(limit.env_var())
-        .ok()
-        .and_then(|value| value.parse().ok())
-        .unwrap_or_else(|| limit.into())
-}
-
-// TODO: static method on Limit
-fn env_bool(name: &str, default: bool) -> bool {
-    env::var(name)
-        .ok()
-        .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
-        .unwrap_or(default)
 }
 
 fn split_csv(value: &str) -> Vec<String> {
