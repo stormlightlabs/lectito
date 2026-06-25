@@ -851,7 +851,15 @@ fn selected_entry_point(entry_points: &[EntryPointCandidate]) -> Option<Candidat
     if best.diagnostic.node.text_len < 140 || best.score < 8.0 {
         return None;
     }
-    Some(Candidate { node: best.node.clone(), score: best.score + 25.0 })
+    let selected = entry_points
+        .iter()
+        .find(|entry_point| {
+            dom::node_name(&entry_point.node) == "article"
+                && entry_point.score >= best.score * 0.75
+                && entry_point.diagnostic.node.text_len >= 500
+        })
+        .unwrap_or(best);
+    Some(Candidate { node: selected.node.clone(), score: best.score + 25.0 })
 }
 
 fn larger_focused_subtree(node: &NodeRef, current_text_len: usize, char_threshold: usize) -> Option<NodeRef> {
@@ -1456,6 +1464,45 @@ mod tests {
         assert_eq!(report.diagnostics.selected_attempt, Some(0));
         assert!(article.text_content.contains("Article paragraph 23"));
         assert!(!article.text_content.contains("Teaser copy"));
+    }
+
+    #[test]
+    fn keeps_cms_content_class_as_article_body() {
+        let paragraphs = (0..12)
+            .map(|index| {
+                format!(
+                    "<p>City article paragraph {index} has substantial prose, commas, \
+                    and enough detail to survive conditional cleanup.</p>"
+                )
+            })
+            .collect::<String>();
+        let html = format!(
+            r#"
+            <html><body>
+                <main id="main-content">
+                    <article class="l-article s-cms-content">
+                        <header><h1>City Story</h1><p>By Reporter</p></header>
+                        <section class="s-article__section o-small-container">
+                            {paragraphs}
+                        </section>
+                    </article>
+                </main>
+            </body></html>
+            "#
+        );
+
+        let report = extract_with_diagnostics(&html, None, &ReadabilityOptions::default()).unwrap();
+        let article = report.article.unwrap();
+
+        assert_eq!(report.diagnostics.outcome, ExtractionOutcome::Accepted);
+        assert_eq!(
+            report.diagnostics.attempts[0]
+                .selected_root
+                .as_ref()
+                .map(|root| root.tag.as_str()),
+            Some("article")
+        );
+        assert!(article.text_content.contains("City article paragraph 11"));
     }
 
     #[test]

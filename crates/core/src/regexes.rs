@@ -114,7 +114,7 @@ static POSITIVE: Lazy<Regex> = Lazy::new(|| {
 });
 
 static NEGATIVE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|comment|com-|contact|footer|gdpr|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|widget")
+    Regex::new(r"(?i)-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|comment|\bcom-|contact|footer|gdpr|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|widget")
         .expect("valid negative regex")
 });
 

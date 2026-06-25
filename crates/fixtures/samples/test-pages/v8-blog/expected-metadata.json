@@ -5,6 +5,6 @@
   "lang": "en",
   "excerpt": "Emscripten now supports standalone Wasm files, which do not need JavaScript.",
   "siteName": null,
-  "publishedTime": null,
+  "publishedTime": "2019-11-21",
   "readerable": true
 }
