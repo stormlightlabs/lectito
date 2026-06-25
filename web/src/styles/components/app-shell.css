@@ -1,13 +1,16 @@
 .app-frame {
+    height: 100svh;
     min-height: 100svh;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
     background: var(--paper);
 }
 
 .app-frame__content {
     min-width: 0;
     min-height: 0;
+    overflow: auto;
 }
 
 .app-nav {
@@ -29,12 +32,27 @@
 }
 
 .app-shell {
-    min-height: calc(100svh - 4.5rem);
+    height: 100%;
+    min-height: 0;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr);
     gap: var(--space-3);
     padding: var(--space-8);
-    overflow: auto;
+    overflow: hidden;
+}
+
+.app-shell--workbench {
+    grid-template-columns: minmax(8.5rem, auto) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+}
+
+.app-shell--workbench .workbench-tabs {
+    grid-row: 1 / -1;
+}
+
+.app-shell--workbench .app-header--workbench,
+.app-shell--workbench .workspace {
+    grid-column: 2;
 }
 
 .app-header {
@@ -55,6 +73,7 @@
 
 .app-header__main {
     display: flex;
+    width: 100%;
     justify-content: space-between;
     gap: var(--space-6);
     align-items: end;
@@ -101,12 +120,12 @@
 }
 
 .workbench-tabs {
-    width: fit-content;
+    width: 100%;
     max-width: 100%;
-    display: flex;
-    flex-wrap: wrap;
+    align-self: start;
+    display: grid;
     gap: var(--space-1);
-    border: 1px solid var(--rule);
+    border-inline-end: 1px solid var(--rule);
     background: var(--paper-raised);
     box-shadow: var(--shadow-thin);
 }
@@ -115,7 +134,7 @@
     min-height: 2rem;
     display: inline-flex;
     align-items: center;
-    border-inline-start: 1px solid var(--rule);
+    border-inline-end: 2px solid transparent;
     padding: 0 var(--space-3);
     color: var(--ink-muted);
     font-size: var(--text-sm);
@@ -124,12 +143,9 @@
     text-decoration: none;
 }
 
-.workbench-tabs a:first-child {
-    border-inline-start: 0;
-}
-
 .workbench-tabs a:hover,
 .workbench-tabs a.is-active {
+    border-color: var(--accent);
     color: var(--ink);
     background: var(--paper-muted);
 }
@@ -163,45 +179,12 @@
     background: var(--paper-muted);
 }
 
-.status-strip {
-    min-height: 1.75rem;
-    display: flex;
-    align-items: center;
-    color: var(--ink-muted);
-    font-size: var(--text-sm);
-    line-height: var(--line-sm);
-}
-
-.status-strip div {
-    min-width: 0;
-    display: flex;
-    gap: var(--space-2);
-    align-items: baseline;
-}
-
-.status-strip span {
-    color: var(--ink);
-    font-size: var(--text-sm);
-    font-weight: 720;
-    line-height: var(--line-sm);
-}
-
-.status-strip strong {
-    overflow: hidden;
-    color: var(--ink-muted);
-    font-size: var(--text-sm);
-    font-weight: 560;
-    line-height: var(--line-sm);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-}
-
 .workspace {
     min-height: 0;
     display: grid;
     grid-template-columns: minmax(24rem, 0.95fr) minmax(28rem, 1.05fr);
     gap: var(--space-4);
+    overflow: hidden;
 }
 
 .workspace--wide-output {
@@ -270,6 +253,15 @@
 }
 
 @media (max-width: 980px) {
+    .app-frame {
+        height: auto;
+        overflow: visible;
+    }
+
+    .app-frame__content {
+        overflow: visible;
+    }
+
     .app-nav {
         position: static;
     }
@@ -280,9 +272,35 @@
     }
 
     .app-shell {
+        height: auto;
         min-height: 100svh;
         padding: var(--space-3);
         overflow: visible;
+    }
+
+    .app-shell--workbench {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto auto;
+    }
+
+    .app-shell--workbench .workbench-tabs,
+    .app-shell--workbench .app-header--workbench,
+    .app-shell--workbench .workspace {
+        grid-column: 1;
+        grid-row: auto;
+    }
+
+    .workbench-tabs {
+        width: fit-content;
+        display: flex;
+        overflow-x: auto;
+        border: 1px solid var(--rule);
+    }
+
+    .workbench-tabs a {
+        border-inline-end: 0;
+        border-bottom: 2px solid transparent;
+        white-space: nowrap;
     }
 
     .app-header,
@@ -309,7 +327,6 @@
         justify-content: start;
     }
 
-    .status-strip,
     .workspace {
         grid-template-columns: 1fr;
     }

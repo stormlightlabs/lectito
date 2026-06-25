@@ -3,9 +3,21 @@ import type { PipelineOptions } from "../lib/types";
 type OptionsPanelProps = { options: PipelineOptions; onChangeOpts: (options: PipelineOptions) => void };
 
 const presets: Array<{ id: string; label: string; options: Partial<PipelineOptions> }> = [
-  { id: "default", label: "Default", options: { contentSelector: "", charThreshold: 0, keepClasses: false, diagnostics: false } },
-  { id: "strict", label: "Strict article", options: { contentSelector: "article, main", charThreshold: 1_200, diagnostics: false } },
-  { id: "media", label: "Keep media", options: { contentSelector: "", charThreshold: 0, keepClasses: false, diagnostics: false } },
+  {
+    id: "default",
+    label: "Default",
+    options: { contentSelector: "", charThreshold: 0, keepClasses: false, diagnostics: false },
+  },
+  {
+    id: "strict",
+    label: "Strict article",
+    options: { contentSelector: "article, main", charThreshold: 1200, diagnostics: false },
+  },
+  {
+    id: "media",
+    label: "Keep media",
+    options: { contentSelector: "", charThreshold: 0, keepClasses: false, diagnostics: false },
+  },
   { id: "debug", label: "Debug", options: { diagnostics: true, charThreshold: 0 } },
   { id: "styling", label: "Preserve styling", options: { keepClasses: true, charThreshold: 0 } },
 ];
@@ -19,7 +31,9 @@ export function OptionsPanel(props: OptionsPanelProps) {
     <section class="options-panel" aria-label="Extraction options">
       <div class="preset-row" role="group" aria-label="Option presets">
         {presets.map((preset) => (
-          <button type="button" onClick={() => props.onChangeOpts({ ...props.options, ...preset.options })}>
+          <button
+            type="button"
+            onClick={() => props.onChangeOpts({ ...props.options, ...preset.options })}>
             {preset.label}
           </button>
         ))}

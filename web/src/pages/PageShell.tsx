@@ -1,11 +1,8 @@
 import type { JSX, ParentProps } from "solid-js";
 
-type PageShellProps = {
-  eyebrow: string;
-  title: string;
-  headerBefore?: JSX.Element;
-  headerAfter?: JSX.Element;
-} & ParentProps;
+type PageShellProps =
+  & { eyebrow: string; title: string; headerBefore?: JSX.Element; headerAfter?: JSX.Element }
+  & ParentProps;
 
 export function PageShell(props: PageShellProps) {
   return (

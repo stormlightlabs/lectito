@@ -14,7 +14,20 @@
     min-height: 2.125rem;
     padding: 0 var(--space-3);
     display: flex;
+    gap: var(--space-2);
     align-items: center;
+}
+
+.button--icon {
+    width: 2.125rem;
+    justify-content: center;
+    padding: 0;
+}
+
+.icon {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
 }
 
 .button--primary {
@@ -34,4 +47,83 @@
 .tabs button:hover,
 .inspect-panel__tabs button:hover {
     background: var(--paper-muted);
+}
+
+.overflow-menu {
+    position: relative;
+}
+
+.overflow-menu summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.overflow-menu summary::-webkit-details-marker {
+    display: none;
+}
+
+.overflow-menu__panel {
+    position: absolute;
+    inset-block-start: calc(100% + var(--space-1));
+    inset-inline-end: 0;
+    z-index: 20;
+    min-width: 13rem;
+    display: grid;
+    gap: var(--space-1);
+    border: 1px solid var(--rule);
+    padding: var(--space-1);
+    background: var(--paper-raised);
+    box-shadow: var(--shadow-thin);
+}
+
+.overflow-menu--up .overflow-menu__panel {
+    inset-block-start: auto;
+    inset-block-end: calc(100% + var(--space-1));
+}
+
+.overflow-menu__panel button {
+    width: 100%;
+    min-height: 2rem;
+    border: 0;
+    border-radius: var(--radius-2);
+    padding: 0 var(--space-2);
+    color: var(--ink);
+    background: transparent;
+    font: inherit;
+    font-size: var(--text-sm);
+    line-height: var(--line-sm);
+    text-align: start;
+}
+
+.overflow-menu__panel button:hover {
+    background: var(--paper-muted);
+}
+
+.overflow-menu__panel button:disabled {
+    cursor: default;
+    opacity: 0.58;
+}
+
+.overflow-menu__panel label {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-2);
+}
+
+.overflow-menu__panel select {
+    width: 100%;
+    min-height: 2.125rem;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-2);
+    padding-inline: var(--space-2);
+    color: var(--ink);
+    background: var(--paper-raised);
+}
+
+.visually-hidden-file {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    opacity: 0;
+    pointer-events: none;
 }

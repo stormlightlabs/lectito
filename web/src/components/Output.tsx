@@ -1,12 +1,15 @@
 import { createMemo, createSignal, For, lazy, Show, Suspense } from "solid-js";
 import type { InspectTab, OutputTab, PipelineFailure, PipelineMetadata, PipelineResult } from "../lib/types";
 import type { CodeEditorProps } from "./CodeEditor";
+import { Icon } from "./Icon";
 import { MotionButton, MotionReveal, MotionSwap } from "./shared/Motion";
 
-const tabs: Array<{ id: OutputTab; label: string }> = [{ id: "markdown", label: "Markdown" }, {
-  id: "preview",
-  label: "Preview",
-}, { id: "cleaned", label: "HTML" }, { id: "compare", label: "Compare" }];
+const tabs: Array<{ id: OutputTab; label: string }> = [
+  { id: "markdown", label: "Markdown" },
+  { id: "preview", label: "Preview" },
+  { id: "cleaned", label: "HTML" },
+  { id: "compare", label: "Compare" },
+];
 
 const inspectTabs: Array<{ id: InspectTab; label: string }> = [{ id: "metadata", label: "Metadata" }, {
   id: "diagnostics",
@@ -27,17 +30,9 @@ function outputValue(result: PipelineResult, tab: OutputTab): string {
   }
 }
 
-function selectedLabel(tab: OutputTab): string {
-  return tabs.find((item) => item.id === tab)?.label ?? "Output";
-}
+const tabPanelId = (tab: string) => `panel-${tab}`;
 
-function tabPanelId(tab: string) {
-  return `panel-${tab}`;
-}
-
-function tabButtonId(tab: string) {
-  return `tab-${tab}`;
-}
+const tabButtonId = (tab: string) => `tab-${tab}`;
 
 function inspectValue(result: PipelineResult, tab: InspectTab): string {
   switch (tab) {
@@ -70,13 +65,14 @@ function LazyCodeEditor(props: CodeEditorProps) {
   );
 }
 
-function CompareView(props: { result: PipelineResult; sourceHtml: string }) {
-  const panes = () => [
-    { label: "Source HTML", value: props.sourceHtml, language: "html" as const },
-    { label: "Sanitized HTML", value: props.result.sanitizedHtml, language: "html" as const },
-    { label: "Cleaned article HTML", value: props.result.cleanedHtml, language: "html" as const },
-    { label: "Markdown", value: props.result.markdown, language: "markdown" as const },
-  ];
+function CompareView(props: { result: PipelineResult; sourceHtml: string; statusText: string }) {
+  const panes =
+    () => [
+      { label: "Source HTML", value: props.sourceHtml, language: "html" as const },
+      { label: "Sanitized HTML", value: props.result.sanitizedHtml, language: "html" as const },
+      { label: "Cleaned article HTML", value: props.result.cleanedHtml, language: "html" as const },
+      { label: "Markdown", value: props.result.markdown, language: "markdown" as const },
+    ];
 
   return (
     <div class="compare-grid">
@@ -84,7 +80,7 @@ function CompareView(props: { result: PipelineResult; sourceHtml: string }) {
         {(pane) => (
           <section class="compare-pane">
             <h3>{pane.label}</h3>
-            <LazyCodeEditor value={pane.value} readonly language={pane.language} />
+            <LazyCodeEditor value={pane.value} readonly language={pane.language} statusText={props.statusText} />
           </section>
         )}
       </For>
@@ -92,7 +88,7 @@ function CompareView(props: { result: PipelineResult; sourceHtml: string }) {
   );
 }
 
-function ResultView(props: { result: PipelineResult; sourceHtml: string; tab: OutputTab }) {
+function ResultView(props: { result: PipelineResult; sourceHtml: string; statusText: string; tab: OutputTab }) {
   const [readerSize, setReaderSize] = createSignal("regular");
   const [readerWidth, setReaderWidth] = createSignal("measure");
 
@@ -106,9 +102,10 @@ function ResultView(props: { result: PipelineResult; sourceHtml: string; tab: Ou
             <LazyCodeEditor
               value={outputValue(props.result, props.tab)}
               readonly
-              language={props.tab === "markdown" ? "markdown" : "html"} />
+              language={props.tab === "markdown" ? "markdown" : "html"}
+              statusText={props.statusText} />
           }>
-          <CompareView result={props.result} sourceHtml={props.sourceHtml} />
+          <CompareView result={props.result} sourceHtml={props.sourceHtml} statusText={props.statusText} />
         </Show>
       }>
       <div class="reader-view">
@@ -148,12 +145,12 @@ function ResultView(props: { result: PipelineResult; sourceHtml: string; tab: Ou
   );
 }
 
-function FailureView(props: { result: PipelineFailure }) {
+function FailureView(props: { result: PipelineFailure; statusText: string }) {
   return (
     <div class="failure">
       <p>{props.result.message}</p>
       <Show when={props.result.sanitizedHtml}>
-        <LazyCodeEditor value={props.result.sanitizedHtml} readonly language="html" />
+        <LazyCodeEditor value={props.result.sanitizedHtml} readonly language="html" statusText={props.statusText} />
       </Show>
     </div>
   );
@@ -188,24 +185,25 @@ function MetadataView(props: { metadata: PipelineMetadata }) {
 
 function MetadataSummary(props: { result: PipelineResult }) {
   const metadata = () => props.result.metadata;
-
   return (
     <div class="metadata-summary" aria-label="Result metadata summary">
       <span>{metadata().title || "Untitled"}</span>
-      <strong>{metadata().domain || metadata().site || "No domain"}</strong>
-      <strong>{metadata().length.toLocaleString()} chars</strong>
-      <strong>{props.result.elapsedMs}ms</strong>
+      <div>
+        <strong>{metadata().domain || metadata().site || "No domain"}</strong>
+        <strong>{metadata().length.toLocaleString()} chars</strong>
+        <strong>{props.result.elapsedMs}ms</strong>
+      </div>
     </div>
   );
 }
 
-function DiagnosticsView(props: { diagnostics: string }) {
+function DiagnosticsView(props: { diagnostics: string; statusText: string }) {
   const parsed = createMemo(() => {
     try {
       const value = JSON.parse(props.diagnostics);
       return value && typeof value === "object" ? value as Record<string, unknown> : undefined;
     } catch {
-      return undefined;
+      return;
     }
   });
   const fallbackReason = () => String(parsed()?.fallback ?? parsed()?.reason ?? "Not reported");
@@ -220,7 +218,11 @@ function DiagnosticsView(props: { diagnostics: string }) {
     <div class="diagnostics-view">
       <section>
         <h3>Summary</h3>
-        <p>{props.diagnostics === "Diagnostics disabled." ? props.diagnostics : "Diagnostics data is available for this run."}</p>
+        <p>
+          <Show when={props.diagnostics.includes("disabled")} fallback="Diagnostics data is available for this run.">
+            {props.diagnostics}
+          </Show>
+        </p>
       </section>
       <section>
         <h3>Fallback reason</h3>
@@ -244,31 +246,39 @@ function DiagnosticsView(props: { diagnostics: string }) {
       </section>
       <section>
         <h3>Raw diagnostics</h3>
-        <LazyCodeEditor value={props.diagnostics} readonly language="plain" />
+        <LazyCodeEditor value={props.diagnostics} readonly language="plain" statusText={props.statusText} />
       </section>
     </div>
   );
 }
 
-function SanitizedComparison(props: { result: PipelineResult }) {
+function SanitizedComparison(props: { result: PipelineResult; statusText: string }) {
   return (
     <div class="compare-grid compare-grid--two">
       <section class="compare-pane">
         <h3>Sanitized HTML</h3>
-        <LazyCodeEditor value={props.result.sanitizedHtml} readonly language="html" />
+        <LazyCodeEditor value={props.result.sanitizedHtml} readonly language="html" statusText={props.statusText} />
       </section>
       <section class="compare-pane">
         <h3>Cleaned article HTML</h3>
-        <LazyCodeEditor value={props.result.cleanedHtml} readonly language="html" />
+        <LazyCodeEditor value={props.result.cleanedHtml} readonly language="html" statusText={props.statusText} />
       </section>
     </div>
   );
 }
 
-function InspectPanel(props: { result: PipelineResult; tab: InspectTab; onTab: (tab: InspectTab) => void }) {
+function InspectPanel(
+  props: { result: PipelineResult; tab: InspectTab; statusText: string; onTab: (tab: InspectTab) => void },
+) {
   const onKeyDown = (event: KeyboardEvent, tab: InspectTab) => {
     const index = inspectTabs.findIndex((item) => item.id === tab);
-    const nextIndex = event.key === "ArrowRight" ? index + 1 : event.key === "ArrowLeft" ? index - 1 : index;
+    let nextIndex = index;
+    if (event.key === "ArrowRight") {
+      nextIndex = index + 1;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex = index - 1;
+    }
+
     if (nextIndex === index) return;
     event.preventDefault();
     props.onTab(inspectTabs[(nextIndex + inspectTabs.length) % inspectTabs.length].id);
@@ -300,8 +310,8 @@ function InspectPanel(props: { result: PipelineResult; tab: InspectTab; onTab: (
           fallback={
             <Show
               when={props.tab === "diagnostics"}
-              fallback={<SanitizedComparison result={props.result} />}>
-              <DiagnosticsView diagnostics={inspectValue(props.result, props.tab)} />
+              fallback={<SanitizedComparison result={props.result} statusText={props.statusText} />}>
+              <DiagnosticsView diagnostics={inspectValue(props.result, props.tab)} statusText={props.statusText} />
             </Show>
           }>
           <MetadataView metadata={props.result.metadata} />
@@ -329,13 +339,60 @@ type OutputPaneProps = {
   onCopyMetadata: () => void;
   onDownload: () => void;
   onOpenPreview: () => void;
+  statusText: string;
 };
+
+function OutputOverflowMenu(
+  props:
+    & Pick<
+      OutputPaneProps,
+      "fullscreen" | "layout" | "onCopyHtml" | "onCopyMetadata" | "onLayout" | "onOpenPreview" | "onToggleFullscreen"
+    >
+    & { hasResult: boolean },
+) {
+  return (
+    <details class="overflow-menu">
+      <summary class="button button--secondary button--icon" aria-label="More output actions" title="More actions">
+        <Icon kind="more" />
+      </summary>
+      <div class="overflow-menu__panel">
+        <MotionButton type="button" disabled={!props.hasResult} onClick={props.onCopyHtml}>Copy HTML</MotionButton>
+        <MotionButton type="button" disabled={!props.hasResult} onClick={props.onCopyMetadata}>
+          Copy metadata
+        </MotionButton>
+        <MotionButton type="button" disabled={!props.hasResult} onClick={props.onOpenPreview}>
+          Open preview
+        </MotionButton>
+        <MotionButton type="button" disabled={!props.hasResult} onClick={props.onToggleFullscreen}>
+          {props.fullscreen ? "Exit fullscreen" : "Fullscreen"}
+        </MotionButton>
+        <label>
+          <span>Layout</span>
+          <select
+            aria-label="Layout"
+            value={props.layout}
+            onChange={(event) => props.onLayout(event.currentTarget.value as OutputPaneProps["layout"])}>
+            <option value="split">Split layout</option>
+            <option value="wide-output">Wide output</option>
+            <option value="input-collapsed">Collapse input</option>
+          </select>
+        </label>
+      </div>
+    </details>
+  );
+}
 
 export function OutputPane(props: OutputPaneProps) {
   const resultValue = () => props.result && !("message" in props.result) ? props.result : undefined;
   const onKeyDown = (event: KeyboardEvent, tab: OutputTab) => {
     const index = tabs.findIndex((item) => item.id === tab);
-    const nextIndex = event.key === "ArrowRight" ? index + 1 : event.key === "ArrowLeft" ? index - 1 : index;
+    let nextIndex = index;
+    if (event.key === "ArrowRight") {
+      nextIndex = index + 1;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex = index - 1;
+    }
+
     if (nextIndex === index) return;
     event.preventDefault();
     props.onTab(tabs[(nextIndex + tabs.length) % tabs.length].id);
@@ -343,12 +400,10 @@ export function OutputPane(props: OutputPaneProps) {
 
   return (
     <section class="pane pane--output">
-      <div class="pane__header">
-        <div>
-          <p class="eyebrow">Output</p>
-          <h2>{selectedLabel(props.tab)}</h2>
-        </div>
-        <div class="pane__header-controls">
+      <div class="pane-toolbar pane-toolbar--output">
+        <div
+          class="pane-toolbar__actions pane-toolbar__actions--output"
+          style={{ display: "flex", "justify-content": "space-between", flex: 1 }}>
           <div class="tabs" role="tablist" aria-label="Output views">
             <For each={tabs}>
               {(tab) => (
@@ -367,73 +422,83 @@ export function OutputPane(props: OutputPaneProps) {
               )}
             </For>
           </div>
-          <MotionButton
-            type="button"
-            class="button button--secondary"
-            disabled={!props.result || "message" in props.result}
-            aria-expanded={props.inspectOpen}
-            onClick={props.onToggleInspect}>
-            Inspect
-          </MotionButton>
+          {/* eslint-disable react/jsx-max-depth */}
+          <div class="tabs__buttons">
+            <MotionButton
+              type="button"
+              class="button button--secondary button--icon"
+              disabled={!props.result || "message" in props.result}
+              aria-label="Inspect"
+              aria-expanded={props.inspectOpen}
+              title="Inspect"
+              onClick={props.onToggleInspect}>
+              <Icon kind="inspect" />
+            </MotionButton>
+            <MotionButton
+              type="button"
+              class="button button--secondary button--icon"
+              disabled={!resultValue()}
+              aria-label="Copy Markdown"
+              title="Copy Markdown"
+              onClick={props.onCopyMarkdown}>
+              <Icon kind="markdown" />
+            </MotionButton>
+            <MotionButton
+              type="button"
+              class="button button--secondary button--icon"
+              disabled={!resultValue()}
+              aria-label="Download"
+              title="Download"
+              onClick={props.onDownload}>
+              <Icon kind="download" />
+            </MotionButton>
+            <OutputOverflowMenu
+              hasResult={Boolean(resultValue())}
+              fullscreen={props.fullscreen}
+              layout={props.layout}
+              onCopyHtml={props.onCopyHtml}
+              onCopyMetadata={props.onCopyMetadata}
+              onLayout={props.onLayout}
+              onOpenPreview={props.onOpenPreview}
+              onToggleFullscreen={props.onToggleFullscreen} />
+          </div>
+          {/* eslint-enable react/jsx-max-depth */}
         </div>
       </div>
-
-      <Show when={resultValue()}>
-        {(result) => <MetadataSummary result={result()} />}
-      </Show>
-
-      <Show when={resultValue()}>
-        <div class="output-actions" aria-label="Output actions">
-          <MotionButton type="button" class="button button--secondary" onClick={props.onCopyMarkdown}>
-            Copy Markdown
-          </MotionButton>
-          <MotionButton type="button" class="button button--secondary" onClick={props.onCopyHtml}>
-            Copy HTML
-          </MotionButton>
-          <MotionButton type="button" class="button button--secondary" onClick={props.onCopyMetadata}>
-            Copy metadata
-          </MotionButton>
-          <MotionButton type="button" class="button button--secondary" onClick={props.onDownload}>
-            Download
-          </MotionButton>
-          <MotionButton type="button" class="button button--secondary" onClick={props.onOpenPreview}>
-            Open preview
-          </MotionButton>
-          <MotionButton type="button" class="button button--secondary" onClick={props.onToggleFullscreen}>
-            {props.fullscreen ? "Exit fullscreen" : "Fullscreen"}
-          </MotionButton>
-          <select
-            aria-label="Layout"
-            value={props.layout}
-            onChange={(event) => props.onLayout(event.currentTarget.value as OutputPaneProps["layout"])}>
-            <option value="split">Split layout</option>
-            <option value="wide-output">Wide output</option>
-            <option value="input-collapsed">Collapse input</option>
-          </select>
-        </div>
-      </Show>
 
       <div class="output-layout" classList={{ "has-inspect": props.inspectOpen }}>
         <Show
           when={props.result}
           fallback={<div class="empty">Convert a URL or HTML document to generate output.</div>}>
           {(result) => (
-            <Show when={!("message" in result())} fallback={<FailureView result={result() as PipelineFailure} />}>
+            <Show
+              when={!("message" in result())}
+              fallback={<FailureView result={result() as PipelineFailure} statusText={props.statusText} />}>
               <MotionSwap viewKey={props.tab} class="output-view">
                 <div
                   id={tabPanelId(props.tab)}
                   role="tabpanel"
                   aria-labelledby={tabButtonId(props.tab)}
                   class="output-tabpanel">
-                  <ResultView result={result() as PipelineResult} sourceHtml={props.sourceHtml} tab={props.tab} />
+                  <ResultView
+                    result={result() as PipelineResult}
+                    sourceHtml={props.sourceHtml}
+                    statusText={props.statusText}
+                    tab={props.tab} />
                 </div>
               </MotionSwap>
               <MotionReveal show={props.inspectOpen} class="inspect-reveal">
-                <InspectPanel result={result() as PipelineResult} tab={props.inspectTab} onTab={props.onInspectTab} />
+                <InspectPanel
+                  result={result() as PipelineResult}
+                  tab={props.inspectTab}
+                  statusText={props.statusText}
+                  onTab={props.onInspectTab} />
               </MotionReveal>
             </Show>
           )}
         </Show>
+
+        <Show when={resultValue()}>{(result) => <MetadataSummary result={result()} />}</Show>
       </div>
     </section>
   );

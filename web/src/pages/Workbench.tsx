@@ -1,13 +1,13 @@
+import { Icon } from "$components/Icon";
 import { InputPane } from "$components/Input";
 import { OutputPane } from "$components/Output";
 import { MotionButton } from "$components/shared/Motion";
-import { StatusStrip } from "$components/Status";
 import { extractHtmlWithWasm } from "$lib/clients/wasm";
 import { saveRun } from "$lib/runs";
 import { sampleHtml, sampleHtmlFixtures } from "$lib/sample";
 import type { InspectTab, OutputTab, PipelineFailure, PipelineOptions, PipelineResult } from "$lib/types";
 import { A, useSearchParams } from "@solidjs/router";
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import { WorkbenchTabs } from "./WorkbenchTabs";
 
 const defaultOptions: PipelineOptions = {
@@ -18,25 +18,40 @@ const defaultOptions: PipelineOptions = {
   diagnostics: false,
 };
 
-const outputTabs: OutputTab[] = ["markdown", "preview", "cleaned", "compare"];
-const inspectTabs: InspectTab[] = ["metadata", "diagnostics", "sanitized"];
+const outputTabs: Set<OutputTab> = new Set(["markdown", "preview", "cleaned", "compare"]);
+const inspectTabs: Set<InspectTab> = new Set(["metadata", "diagnostics", "sanitized"]);
 const layoutModes = ["split", "wide-output", "input-collapsed"] as const;
 
 type LayoutMode = typeof layoutModes[number];
 
 function isOutputTab(value: unknown): value is OutputTab {
-  return outputTabs.includes(value as OutputTab);
+  return outputTabs.has(value as OutputTab);
 }
 
 function isInspectTab(value: unknown): value is InspectTab {
-  return inspectTabs.includes(value as InspectTab);
+  return inspectTabs.has(value as InspectTab);
 }
 
 function isLayoutMode(value: unknown): value is LayoutMode {
   return layoutModes.includes(value as LayoutMode);
 }
 
+async function copyText(value: string) {
+  await navigator.clipboard?.writeText(value);
+}
+
+function shareView() {
+  void copyText(globalThis.location.href);
+}
+
+function statusText(running: boolean, result?: PipelineResult | PipelineFailure): string {
+  if (running) return "Converting";
+  if (!result) return "Waiting";
+  return "message" in result ? "Error" : "Ready";
+}
+
 function selectedOutput(result: PipelineResult, tab: OutputTab): { value: string; extension: string; type: string } {
+  // TODO: this could be a switch..case
   if (tab === "cleaned") return { value: result.cleanedHtml, extension: "html", type: "text/html" };
   if (tab === "preview") return { value: result.previewHtml, extension: "html", type: "text/html" };
   if (tab === "compare") {
@@ -58,48 +73,97 @@ function selectedOutput(result: PipelineResult, tab: OutputTab): { value: string
   return { value: result.markdown, extension: "md", type: "text/markdown" };
 }
 
-function CommandBar(
-  props: {
-    running: boolean;
-    hasResult: boolean;
-    onRun: () => void;
-    onCancel: () => void;
-    onReset: () => void;
-    onCopy: () => void;
-    onDownload: () => void;
-    onSave: () => void;
-    onShare: () => void;
-    onOpen: () => void;
-  },
-) {
+type CommandBarProps = {
+  running: boolean;
+  hasResult: boolean;
+  onRun: () => void;
+  onCancel: () => void;
+  onReset: () => void;
+  onCopy: () => void;
+  onDownload: () => void;
+  onSave: () => void;
+  onShare: () => void;
+  onOpen: () => void;
+};
+
+function CommandBar(props: CommandBarProps) {
   return (
     <div class="command-bar" aria-label="Workbench commands">
       <MotionButton type="button" class="button button--primary" disabled={props.running} onClick={props.onRun}>
-        {props.running ? "Converting" : "Convert"}
-      </MotionButton>
-      <MotionButton type="button" class="button button--secondary" disabled={!props.running} onClick={props.onCancel}>
-        Cancel
-      </MotionButton>
-      <MotionButton type="button" class="button button--secondary" onClick={props.onReset}>Reset</MotionButton>
-      <span class="command-bar__rule" aria-hidden="true" />
-      <MotionButton type="button" class="button button--secondary" disabled={!props.hasResult} onClick={props.onCopy}>
-        Copy
+        <Icon kind="convert" />
+        <Show when={props.running} fallback="Convert">Converting</Show>
       </MotionButton>
       <MotionButton
         type="button"
-        class="button button--secondary"
+        class="button button--secondary button--icon"
+        disabled={!props.running}
+        aria-label="Cancel"
+        title="Cancel"
+        onClick={props.onCancel}>
+        <Icon kind="cancel" />
+      </MotionButton>
+      <MotionButton
+        type="button"
+        class="button button--secondary button--icon"
+        aria-label="Reset"
+        title="Reset"
+        onClick={props.onReset}>
+        <Icon kind="reset" />
+      </MotionButton>
+      <span class="command-bar__rule" aria-hidden="true" />
+      <MotionButton
+        type="button"
+        class="button button--secondary button--icon"
         disabled={!props.hasResult}
+        aria-label="Copy"
+        title="Copy"
+        onClick={props.onCopy}>
+        <Icon kind="copy" />
+      </MotionButton>
+      <MotionButton
+        type="button"
+        class="button button--secondary button--icon"
+        disabled={!props.hasResult}
+        aria-label="Download"
+        title="Download"
         onClick={props.onDownload}>
-        Download
+        <Icon kind="download" />
       </MotionButton>
-      <MotionButton type="button" class="button button--secondary" disabled={!props.hasResult} onClick={props.onSave}>
-        Save run
+      <MotionButton
+        type="button"
+        class="button button--secondary button--icon"
+        disabled={!props.hasResult}
+        aria-label="Save run"
+        title="Save run"
+        onClick={props.onSave}>
+        <Icon kind="save" />
       </MotionButton>
-      <MotionButton type="button" class="button button--secondary" onClick={props.onShare}>Share view</MotionButton>
-      <MotionButton type="button" class="button button--secondary" disabled={!props.hasResult} onClick={props.onOpen}>
-        Open result
+      <MotionButton
+        type="button"
+        class="button button--secondary button--icon"
+        aria-label="Share view"
+        title="Share view"
+        onClick={props.onShare}>
+        <Icon kind="share" />
+      </MotionButton>
+      <MotionButton
+        type="button"
+        class="button button--secondary button--icon"
+        disabled={!props.hasResult}
+        aria-label="Open result"
+        title="Open result"
+        onClick={props.onOpen}>
+        <Icon kind="open" />
       </MotionButton>
     </div>
+  );
+}
+
+function HeaderNote() {
+  return (
+    <p class="app-header__note">
+      Paste HTML here. Use the <A href="/api">API docs</A> for server-side URL extraction.
+    </p>
   );
 }
 
@@ -121,6 +185,7 @@ export function WorkbenchPage() {
   );
   const [fullscreenOutput, setFullscreenOutput] = createSignal(params.fullscreen === "1");
   const [running, setRunning] = createSignal(false);
+  const editorStatusText = createMemo(() => statusText(running(), result()));
   let runId = 0;
 
   createEffect(() => {
@@ -161,11 +226,8 @@ export function WorkbenchPage() {
     const current = result();
     return current && !("message" in current) ? current : undefined;
   };
-  const hasOutput = () => Boolean(result());
 
-  const copyText = async (value: string) => {
-    await navigator.clipboard?.writeText(value);
-  };
+  const hasOutput = () => Boolean(result());
 
   const copySelected = () => {
     const current = resultValue();
@@ -199,10 +261,6 @@ export function WorkbenchPage() {
     });
   };
 
-  const shareView = () => {
-    void copyText(window.location.href);
-  };
-
   const openResult = () => {
     const current = resultValue();
     if (!current) return;
@@ -211,16 +269,16 @@ export function WorkbenchPage() {
   };
 
   return (
-    <main class="app-shell" classList={{ "has-output-fullscreen": fullscreenOutput() && hasOutput() }}>
+    <main
+      class="app-shell app-shell--workbench"
+      classList={{ "has-output-fullscreen": fullscreenOutput() && hasOutput() }}>
       <WorkbenchTabs />
       <header class="app-header app-header--workbench">
         <div class="app-header__main">
           <div>
             <p class="eyebrow">Workbench</p>
+            <HeaderNote />
             <h1>Extract pasted HTML</h1>
-            <p class="app-header__note">
-              Paste HTML here. Use the <A href="/api">API docs</A> for server-side URL extraction.
-            </p>
           </div>
           <CommandBar
             running={running()}
@@ -236,8 +294,6 @@ export function WorkbenchPage() {
         </div>
       </header>
 
-      <StatusStrip running={running()} result={result()} />
-
       <section
         class="workspace"
         classList={{ [`workspace--${layout()}`]: hasOutput(), "workspace--input-only": !hasOutput() }}
@@ -251,7 +307,8 @@ export function WorkbenchPage() {
             onOptions={setOptions}
             onReset={resetInput}
             onRun={() => void runExtraction()}
-            running={running()} />
+            running={running()}
+            statusText={editorStatusText()} />
         </Show>
         <Show when={hasOutput()}>
           <OutputPane
@@ -280,7 +337,8 @@ export function WorkbenchPage() {
               if (current) void copyText(JSON.stringify(current.metadata, null, 2));
             }}
             onDownload={downloadSelected}
-            onOpenPreview={openResult} />
+            onOpenPreview={openResult}
+            statusText={editorStatusText()} />
         </Show>
       </section>
     </main>

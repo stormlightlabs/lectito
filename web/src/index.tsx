@@ -2,6 +2,7 @@
 import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/solid";
 import { render } from "solid-js/web";
+import "virtual:uno.css";
 import "$styles/style.css";
 import App from "./App.tsx";
 import { defaultLocale, loadCatalog } from "./i18n";

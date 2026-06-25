@@ -1,5 +1,6 @@
-import { createEffect, createSignal, onCleanup } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
 import type { Lang } from "../lib/types";
+import { Icon } from "./Icon";
 
 type CodeMirrorModules = Awaited<ReturnType<typeof loadCodeMirror>>;
 
@@ -37,12 +38,101 @@ function languageExtension(language: Lang, modules: CodeMirrorModules) {
   }
 }
 
-export type CodeEditorProps = { value: string; language: Lang; readonly?: boolean; onInput?: (value: string) => void };
+export type CodeEditorProps = {
+  value: string;
+  language: Lang;
+  readonly?: boolean;
+  statusText?: string;
+  onInput?: (value: string) => void;
+};
+
+type EditorStatus = {
+  bytes: number;
+  chars: number;
+  column: number;
+  language: Lang;
+  line: number;
+  lines: number;
+  readonly: boolean;
+  selected: number;
+};
+
+type EditorActionsMenuProps = {
+  copied: boolean;
+  copyFailed: boolean;
+  wordWrap: boolean;
+  onClip: () => void;
+  onCopy: () => void;
+  onWrap: () => void;
+};
+
+function EditorActionsMenu(props: EditorActionsMenuProps) {
+  return (
+    <details class="overflow-menu overflow-menu--up">
+      <summary class="button button--secondary button--icon" aria-label="Editor actions" title="Editor actions">
+        <Icon kind="more" />
+      </summary>
+      <div class="overflow-menu__panel">
+        <button
+          type="button"
+          classList={{ "is-active": props.wordWrap }}
+          aria-pressed={props.wordWrap}
+          onClick={props.onWrap}>
+          Wrap
+        </button>
+        <button
+          type="button"
+          classList={{ "is-active": !props.wordWrap }}
+          aria-pressed={!props.wordWrap}
+          onClick={props.onClip}>
+          Clip
+        </button>
+        <button
+          type="button"
+          aria-label={props.copied ? "Copied editor contents" : "Copy editor contents"}
+          title={props.copyFailed ? "Copy failed" : "Copy editor contents"}
+          onClick={props.onCopy}>
+          {props.copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+    </details>
+  );
+}
+
+function byteSize(value: string) {
+  return new Blob([value]).size;
+}
+
+function sizeLabel(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function languageLabel(language: Lang) {
+  if (language === "html") return "HTML";
+  if (language === "markdown") return "Markdown";
+  return "Plain text";
+}
+
+function initialStatus(props: CodeEditorProps): EditorStatus {
+  return {
+    bytes: byteSize(props.value),
+    chars: props.value.length,
+    column: 1,
+    language: props.language,
+    line: 1,
+    lines: props.value.split(/\r\n|\r|\n/).length,
+    readonly: Boolean(props.readonly),
+    selected: 0,
+  };
+}
 
 export function CodeEditor(props: CodeEditorProps) {
   const [host, setHost] = createSignal<HTMLDivElement>();
   const [wordWrap, setWordWrap] = createSignal(true);
   const [copyStatus, setCopyStatus] = createSignal<"idle" | "copied" | "failed">("idle");
+  const [status, setStatus] = createSignal<EditorStatus>(initialStatus(props));
   let editorViewModule: CodeMirrorModules["EditorView"] | undefined;
   let wordWrapCompartment: InstanceType<CodeMirrorModules["Compartment"]> | undefined;
   let view: InstanceType<CodeMirrorModules["EditorView"]> | undefined;
@@ -50,6 +140,42 @@ export function CodeEditor(props: CodeEditorProps) {
   let disposed = false;
 
   const wordWrapExtension = () => wordWrap() && editorViewModule ? editorViewModule.lineWrapping : [];
+  const rightStatusItems = createMemo(() => {
+    const current = status();
+    return [
+      languageLabel(current.language),
+      current.readonly ? "Read-only" : "Editable",
+      wordWrap() ? "Wrap On" : "Wrap Off",
+      sizeLabel(current.bytes),
+      `${current.chars.toLocaleString()}ch`,
+      `${current.lines.toLocaleString()}ln`,
+      `${current.line.toLocaleString()}:${current.column.toLocaleString()}`,
+      current.selected > 0 ? `${current.selected.toLocaleString()} selected` : "",
+    ].filter(Boolean);
+  });
+
+  const updateStatus = () => {
+    if (!view) {
+      setStatus(initialStatus(props));
+      return;
+    }
+
+    const state = view.state;
+    const head = state.selection.main.head;
+    const line = state.doc.lineAt(head);
+    const selected = state.selection.ranges.reduce((total, range) => total + Math.abs(range.to - range.from), 0);
+
+    setStatus({
+      bytes: byteSize(state.doc.toString()),
+      chars: state.doc.length,
+      column: head - line.from + 1,
+      language: props.language,
+      line: line.number,
+      lines: state.doc.lines,
+      readonly: Boolean(props.readonly),
+      selected,
+    });
+  };
 
   const resetCopyStatus = () => {
     if (copyStatusTimer) globalThis.clearTimeout(copyStatusTimer);
@@ -93,10 +219,14 @@ export function CodeEditor(props: CodeEditorProps) {
               if (update.docChanged && props.onInput) {
                 props.onInput(update.state.doc.toString());
               }
+              if (update.docChanged || update.selectionSet) {
+                updateStatus();
+              }
             }),
           ],
         }),
       });
+      updateStatus();
     });
   });
 
@@ -112,6 +242,8 @@ export function CodeEditor(props: CodeEditorProps) {
     const current = view.state.doc.toString();
     if (next !== current) {
       view.dispatch({ changes: { from: 0, to: current.length, insert: next } });
+    } else {
+      updateStatus();
     }
   });
 
@@ -123,34 +255,24 @@ export function CodeEditor(props: CodeEditorProps) {
 
   return (
     <div class="code-editor">
-      <div class="code-editor__toolbar" aria-label="Editor controls">
-        <div class="editor-toggle" role="group" aria-label="Word wrap">
-          <button
-            type="button"
-            classList={{ "is-active": wordWrap() }}
-            aria-pressed={wordWrap()}
-            onClick={() => setWordWrap(true)}>
-            Wrap
-          </button>
-          <button
-            type="button"
-            classList={{ "is-active": !wordWrap() }}
-            aria-pressed={!wordWrap()}
-            onClick={() => setWordWrap(false)}>
-            Clip
-          </button>
-        </div>
-        <button
-          type="button"
-          class="editor-copy-button"
-          aria-label={copyStatus() === "copied" ? "Copied editor contents" : "Copy editor contents"}
-          title={copyStatus() === "failed" ? "Copy failed" : "Copy editor contents"}
-          onClick={() => void copyValue()}>
-          <span class="editor-copy-button__icon" aria-hidden="true" />
-          <span aria-live="polite">{copyStatus() === "copied" ? "Copied" : "Copy"}</span>
-        </button>
-      </div>
       <div ref={setHost} class="code-editor__surface" />
+      <div class="code-editor__status" aria-label="Editor status">
+        <Show when={props.statusText}>
+          <strong>{props.statusText}</strong>
+        </Show>
+        <div style={{ display: "flex", flex: 1, "align-items": "center", "justify-content": "end" }}>
+          <Show when={rightStatusItems().length > 0}>
+            <span>{rightStatusItems().join(" / ")}</span>
+          </Show>
+          <EditorActionsMenu
+            copied={copyStatus() === "copied"}
+            copyFailed={copyStatus() === "failed"}
+            wordWrap={wordWrap()}
+            onClip={() => setWordWrap(false)}
+            onCopy={() => void copyValue()}
+            onWrap={() => setWordWrap(true)} />
+        </div>
+      </div>
     </div>
   );
 }

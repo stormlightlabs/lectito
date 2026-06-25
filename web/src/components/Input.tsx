@@ -2,6 +2,7 @@ import { createMemo, createSignal, For, lazy, Show, Suspense } from "solid-js";
 import type { PipelineOptions } from "../lib/types";
 import type { SampleHtml } from "../lib/types";
 import type { CodeEditorProps } from "./CodeEditor";
+import { Icon } from "./Icon";
 import { OptionsPanel } from "./Options";
 import { MotionButton, MotionReveal, MotionSwap } from "./shared/Motion";
 
@@ -14,28 +15,31 @@ function EditorFallback(props: Pick<CodeEditorProps, "readonly">) {
   return <div class="editor-loading">{props.readonly ? "Loading output..." : "Loading editor..."}</div>;
 }
 
-function HtmlEditor(props: { html: string; onHtml: (html: string) => void }) {
+function HtmlEditor(props: { html: string; statusText: string; onHtml: (html: string) => void }) {
   return (
     <Suspense fallback={<EditorFallback />}>
-      <CodeEditor value={props.html} language="html" onInput={props.onHtml} />
+      <CodeEditor value={props.html} language="html" statusText={props.statusText} onInput={props.onHtml} />
     </Suspense>
   );
 }
 
-function HtmlSampleSelect(props: { html: string; samples: SampleHtml[]; onHtml: (html: string) => void }) {
+function InputToolbar(
+  props: {
+    html: string;
+    running: boolean;
+    samples: SampleHtml[];
+    onHtml: (html: string) => void;
+    onReset: () => void;
+    onRun: () => void;
+  },
+) {
   const size = createMemo(() => new Blob([props.html]).size);
-  const sizeLabel = createMemo(() => {
-    const bytes = size();
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  });
+  let fileInput: HTMLInputElement | undefined;
 
-  const importFile = (file?: File) => {
+  const importFile = async (file?: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.addEventListener("load", () => props.onHtml(String(reader.result ?? "")));
-    reader.readAsText(file);
+    props.onHtml(await file.text());
+    if (fileInput) fileInput.value = "";
   };
 
   const pasteHtml = async () => {
@@ -44,50 +48,45 @@ function HtmlSampleSelect(props: { html: string; samples: SampleHtml[]; onHtml: 
   };
 
   return (
-    <div class="sample-row sample-row--html">
-      <div class="sample-row__control">
-        <label for="sample-html">Sample HTML</label>
+    <div class="pane-toolbar pane-toolbar--input">
+      <label class="pane-toolbar__select">
         <select
           id="sample-html"
           onChange={(event) => props.onHtml(props.samples[Number(event.currentTarget.value)]?.html ?? "")}>
+          {/* TODO: we should add a readonly -- Samples -- entry */}
           <For each={props.samples}>{(sample, index) => <option value={index()}>{sample.label}</option>}</For>
         </select>
-      </div>
-      <div class="sample-row__meta">
-        <span>Document size {sizeLabel()}</span>
-        <Show when={size() > 500_000}>
-          <strong>Large input may take longer to parse.</strong>
-        </Show>
-      </div>
-      <div class="sample-row__actions">
+      </label>
+      <div class="pane-toolbar__actions">
         <MotionButton type="button" class="button button--secondary" onClick={() => void pasteHtml()}>
           Paste
         </MotionButton>
-        <label class="button button--secondary">
-          Import
-          <input type="file" accept=".html,.htm,text/html,text/plain" onChange={(event) => importFile(event.currentTarget.files?.[0])} />
-        </label>
-        <MotionButton type="button" class="button button--secondary" onClick={() => props.onHtml("")}>
-          Clear
-        </MotionButton>
-      </div>
-    </div>
-  );
-}
-
-function PaneTitle(props: { running: boolean; onReset: () => void; onRun: () => void }) {
-  return (
-    <div class="pane__header">
-      <div>
-        <p class="eyebrow">Input</p>
-        <h2>Source HTML</h2>
-      </div>
-      <div class="pane__actions">
-        <MotionButton type="button" class="button button--secondary" onClick={props.onReset}>Reset</MotionButton>
         <MotionButton type="button" class="button button--primary" disabled={props.running} onClick={props.onRun}>
+          <Icon kind="convert" />
           {props.running ? "Converting" : "Convert"}
         </MotionButton>
+        <details class="overflow-menu">
+          <summary class="button button--secondary button--icon" aria-label="More input actions" title="More actions">
+            <Icon kind="more" />
+          </summary>
+          <div class="overflow-menu__panel">
+            <MotionButton type="button" onClick={() => fileInput?.click()}>Import HTML</MotionButton>
+            <MotionButton type="button" onClick={props.onReset}>Reset sample</MotionButton>
+            <MotionButton type="button" onClick={() => props.onHtml("")}>Clear editor</MotionButton>
+          </div>
+        </details>
+        <input
+          ref={(element) => {
+            fileInput = element;
+          }}
+          class="visually-hidden-file"
+          type="file"
+          accept=".html,.htm,text/html,text/plain"
+          onChange={(event) => void importFile(event.currentTarget.files?.[0])} />
       </div>
+      <Show when={size() > 500_000}>
+        <p class="pane-toolbar__warning">Large input may take longer to parse.</p>
+      </Show>
     </div>
   );
 }
@@ -101,19 +100,23 @@ type InputPaneProps = {
   onReset: () => void;
   onRun: () => void;
   running: boolean;
+  statusText: string;
 };
 
 function InputMode(
-  props: Pick<
-    InputPaneProps,
-    "html" | "sampleHtml" | "onHtml"
-  >,
+  props: Pick<InputPaneProps, "html" | "sampleHtml" | "statusText" | "onHtml" | "onReset" | "onRun" | "running">,
 ) {
   return (
     <MotionSwap viewKey="html" class="input-mode">
       <div class="html-input">
-        <HtmlSampleSelect html={props.html} samples={props.sampleHtml} onHtml={props.onHtml} />
-        <HtmlEditor html={props.html} onHtml={props.onHtml} />
+        <InputToolbar
+          html={props.html}
+          running={props.running}
+          samples={props.sampleHtml}
+          onHtml={props.onHtml}
+          onReset={props.onReset}
+          onRun={props.onRun} />
+        <HtmlEditor html={props.html} statusText={props.statusText} onHtml={props.onHtml} />
       </div>
     </MotionSwap>
   );
@@ -142,12 +145,15 @@ function AdvancedOptions(props: Pick<InputPaneProps, "options" | "onOptions">) {
 export function InputPane(props: InputPaneProps) {
   return (
     <section class="pane pane--input">
-      <PaneTitle running={props.running} onReset={props.onReset} onRun={props.onRun} />
       <div class="input-stack">
         <InputMode
           html={props.html}
           sampleHtml={props.sampleHtml}
-          onHtml={props.onHtml} />
+          statusText={props.statusText}
+          onHtml={props.onHtml}
+          onReset={props.onReset}
+          onRun={props.onRun}
+          running={props.running} />
         <AdvancedOptions options={props.options} onOptions={props.onOptions} />
       </div>
     </section>
