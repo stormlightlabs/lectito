@@ -94,9 +94,8 @@ export type WorkbenchStore = ReturnType<typeof createWorkbenchStore>;
  * via the settings context). The workbench snapshots them once at creation so
  * a running session is unaffected by later edits in the Settings page.
  *
- * Lightweight view state stays in the URL so views are shareable; layout is
- * also mirrored to localStorage as a quick last-choice hint, but the
- * persisted source of truth lives in the dexie backed settings store.
+ * Lightweight view state stays in the URL so views are shareable; persisted
+ * defaults (options + default layout) live in the Dexie-backed settings store.
  */
 export function createWorkbenchStore(defaults: { options: PipelineOptions; layout: LayoutMode }) {
   const [params, setParams] = useSearchParams();
@@ -126,7 +125,6 @@ export function createWorkbenchStore(defaults: { options: PipelineOptions; layou
       layout: state.layout === defaults.layout ? undefined : state.layout,
       fullscreen: state.fullscreen ? "1" : undefined,
     }, { replace: true });
-    localStorage.setItem("lectito.layout", state.layout);
   });
 
   const statusText = createMemo(() => describeStatus(state.running, state.result));

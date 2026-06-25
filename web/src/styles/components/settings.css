@@ -1,10 +1,11 @@
-/*
+/**
  * Settings renders a form, so we reset the inherited text styling back
- * to body defaults and let the form breathe. */
+ * to body defaults and let the form breathe.
+ */
+
 .settings-page {
     display: grid;
     gap: var(--space-6);
-    max-width: 60rem;
     margin: 0;
     color: var(--ink);
     font-size: var(--text-base);
@@ -112,6 +113,20 @@
     align-items: center;
     padding-top: var(--space-3);
     border-top: 1px solid var(--rule);
+}
+
+.settings-actions__status {
+    font-size: var(--text-sm);
+    font-weight: 640;
+    line-height: var(--line-sm);
+}
+
+.settings-actions__status.is-ok {
+    color: var(--accent-strong);
+}
+
+.settings-actions__status.is-error {
+    color: var(--danger);
 }
 
 @media (max-width: 720px) {

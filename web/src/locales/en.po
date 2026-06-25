@@ -57,6 +57,10 @@ msgstr "cookie banner"
 msgid "Copy what you need"
 msgstr "Copy what you need"
 
+#: src/pages/Settings.tsx:118
+msgid "Could not save. Try again."
+msgstr "Could not save. Try again."
+
 #: src/pages/Landing.tsx:41
 msgid "Extracted"
 msgstr "Extracted"
@@ -112,6 +116,10 @@ msgstr "Read the result"
 #: src/pages/Landing.tsx:26
 msgid "related links"
 msgstr "related links"
+
+#: src/pages/Settings.tsx:126
+msgid "Saved"
+msgstr "Saved"
 
 #: src/pages/Landing.tsx:17
 msgid "site navigation"

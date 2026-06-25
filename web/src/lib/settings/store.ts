@@ -1,6 +1,7 @@
 import { db } from "$lib/db";
 import type { PipelineOptions } from "$lib/types";
 import { defaultOptions, type LayoutMode, layoutModes } from "$lib/workbench/store";
+import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 
 export type Settings = { options: PipelineOptions; layout: LayoutMode };
@@ -34,6 +35,8 @@ export async function saveSettings(settings: Settings): Promise<void> {
   await db.settings.put({ key: SETTINGS_KEY, value: settings, updatedAt: new Date().toISOString() });
 }
 
+export type SaveStatus = "idle" | "saving" | "saved" | "error";
+
 export type SettingsStore = ReturnType<typeof createSettingsStore>;
 
 /**
@@ -44,11 +47,21 @@ export type SettingsStore = ReturnType<typeof createSettingsStore>;
  */
 export function createSettingsStore(initial: Settings) {
   const [state, setState] = createStore<Settings>({ options: { ...initial.options }, layout: initial.layout });
+  const [saveStatus, setSaveStatus] = createSignal<SaveStatus>("idle");
 
   const commit = async (next: Settings) => {
-    await saveSettings(next);
-    setState({ options: { ...next.options }, layout: next.layout });
+    setSaveStatus("saving");
+    try {
+      await saveSettings(next);
+      setState({ options: { ...next.options }, layout: next.layout });
+      setSaveStatus("saved");
+    } catch {
+      setSaveStatus("error");
+    }
   };
 
-  return { state, commit };
+  /** Clear a transient saved/error badge once the user starts editing again.  */
+  const resetSaveStatus = () => setSaveStatus("idle");
+
+  return { state, commit, saveStatus, resetSaveStatus };
 }

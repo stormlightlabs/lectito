@@ -1,7 +1,8 @@
 import { useSettings } from "$lib/settings/context";
 import type { Settings } from "$lib/settings/store";
 import { type LayoutMode } from "$lib/workbench/store";
-import { For } from "solid-js";
+import { Trans } from "@lingui/solid/macro";
+import { For, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import type { PipelineOptions } from "../lib/types";
 import { PageShell } from "./PageShell";
@@ -111,6 +112,21 @@ function SectionHeader(props: { title: string; description: string }) {
   );
 }
 
+function ErrMsg() {
+  return (
+    <span class="settings-actions__status is-error">
+      <Trans>Could not save. Try again.</Trans>
+    </span>
+  );
+}
+
+function OkMsg() {
+  return (
+    <span class="settings-actions__status is-ok">
+      <Trans>Saved</Trans>
+    </span>
+  );
+}
 /**
  * The `draft` signal holds in-flight edits; it is reset to the committed
  * settings on Save or Reset so unsaved edits never reach the workbench.
@@ -122,19 +138,31 @@ export function SettingsPage() {
     layout: settings.state.layout,
   });
 
-  const syncDraft = () =>
+  const syncDraft = () => {
     setDraft(reconcile({ options: { ...settings.state.options }, layout: settings.state.layout }));
+  };
 
-  const dirty = () => JSON.stringify(draft) !== JSON.stringify(settings.state);
+  const isDirty = () => JSON.stringify(draft) !== JSON.stringify(settings.state);
 
-  const updateOption = <Key extends keyof PipelineOptions>(key: Key, value: PipelineOptions[Key]) =>
-    setDraft("options", key, value);
+  const edit = (apply: () => void) => {
+    settings.resetSaveStatus();
+    apply();
+  };
+
+  const updateOption: TOnUpdate = (key, value) => {
+    edit(() => {
+      setDraft("options", key, value);
+    });
+  };
 
   const save = () => {
     void settings.commit({ options: { ...draft.options }, layout: draft.layout });
   };
 
-  const reset = () => syncDraft();
+  const reset = () => {
+    settings.resetSaveStatus();
+    syncDraft();
+  };
 
   return (
     <PageShell eyebrow="Workbench" title="Settings" headerBefore={<WorkbenchTabs />} variant="workbench">
@@ -152,12 +180,24 @@ export function SettingsPage() {
 
         <section class="settings-section">
           <SectionHeader title="Default layout" description="How the workbench arranges the input and output panes." />
-          <LayoutPicker value={draft.layout} onChange={(layout) => setDraft("layout", layout)} />
+          <LayoutPicker value={draft.layout} onChange={(layout) => edit(() => setDraft("layout", layout))} />
         </section>
 
         <div class="settings-actions">
-          <button type="submit" class="button button--primary" disabled={!dirty()} onClick={save}>Save defaults</button>
-          <button type="button" class="button button--secondary" disabled={!dirty()} onClick={reset}>Reset</button>
+          <button
+            type="submit"
+            class="button button--primary"
+            disabled={!isDirty() || settings.saveStatus() === "saving"}
+            onClick={save}>
+            {settings.saveStatus() === "saving" ? "Saving…" : "Save"}
+          </button>
+          <button type="button" class="button button--secondary" disabled={!isDirty()} onClick={reset}>Reset</button>
+          <Show when={settings.saveStatus() === "saved" && !isDirty()}>
+            <OkMsg />
+          </Show>
+          <Show when={settings.saveStatus() === "error"}>
+            <ErrMsg />
+          </Show>
         </div>
       </form>
     </PageShell>
