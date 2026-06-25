@@ -1,3 +1,4 @@
+import { useWorkbench } from "$lib/workbench/context";
 import { createMemo, createSignal, For, lazy, Show, Suspense } from "solid-js";
 import type { InspectTab, OutputTab, PipelineFailure, PipelineMetadata, PipelineResult } from "../lib/types";
 import type { CodeEditorProps } from "./CodeEditor";
@@ -321,69 +322,32 @@ function InspectPanel(
   );
 }
 
-type OutputPaneProps = {
-  tab: OutputTab;
-  result?: PipelineResult | PipelineFailure;
-  onTab: (tab: OutputTab) => void;
-  inspectTab: InspectTab;
-  inspectOpen: boolean;
-  sourceHtml: string;
-  layout: "split" | "wide-output" | "input-collapsed";
-  fullscreen: boolean;
-  onInspectTab: (tab: InspectTab) => void;
-  onToggleInspect: () => void;
-  onLayout: (layout: "split" | "wide-output" | "input-collapsed") => void;
-  onToggleFullscreen: () => void;
-  onCopySelected: () => void;
-  onCopyHtml: () => void;
-  onCopyMetadata: () => void;
-  onDownload: () => void;
-  onOpenPreview: () => void;
-  onSaveRun: () => void;
-  onShareView: () => void;
-  statusText: string;
-};
+function OutputOverflowMenu() {
+  const workbench = useWorkbench();
+  const hasResult = () => Boolean(workbench.resultValue());
 
-function OutputOverflowMenu(
-  props:
-    & Pick<
-      OutputPaneProps,
-      | "fullscreen"
-      | "layout"
-      | "onCopyHtml"
-      | "onCopyMetadata"
-      | "onLayout"
-      | "onOpenPreview"
-      | "onSaveRun"
-      | "onShareView"
-      | "onToggleFullscreen"
-    >
-    & { hasResult: boolean },
-) {
   return (
     <details class="overflow-menu">
       <summary class="button button--secondary button--icon" aria-label="More output actions" title="More actions">
         <Icon kind="more" />
       </summary>
       <div class="overflow-menu__panel">
-        <MotionButton type="button" disabled={!props.hasResult} onClick={props.onCopyHtml}>Copy HTML</MotionButton>
-        <MotionButton type="button" disabled={!props.hasResult} onClick={props.onCopyMetadata}>
+        <MotionButton type="button" disabled={!hasResult()} onClick={workbench.copyHtml}>Copy HTML</MotionButton>
+        <MotionButton type="button" disabled={!hasResult()} onClick={workbench.copyMetadata}>
           Copy metadata
         </MotionButton>
-        <MotionButton type="button" disabled={!props.hasResult} onClick={props.onOpenPreview}>
-          Open preview
-        </MotionButton>
-        <MotionButton type="button" disabled={!props.hasResult} onClick={props.onSaveRun}>Save run</MotionButton>
-        <MotionButton type="button" onClick={props.onShareView}>Share view</MotionButton>
-        <MotionButton type="button" disabled={!props.hasResult} onClick={props.onToggleFullscreen}>
-          {props.fullscreen ? "Exit fullscreen" : "Fullscreen"}
+        <MotionButton type="button" disabled={!hasResult()} onClick={workbench.openResult}>Open preview</MotionButton>
+        <MotionButton type="button" disabled={!hasResult()} onClick={workbench.saveCurrentRun}>Save run</MotionButton>
+        <MotionButton type="button" onClick={workbench.shareView}>Share view</MotionButton>
+        <MotionButton type="button" disabled={!hasResult()} onClick={workbench.toggleFullscreen}>
+          {workbench.state.fullscreen ? "Exit fullscreen" : "Fullscreen"}
         </MotionButton>
         <label>
           <span>Layout</span>
           <select
             aria-label="Layout"
-            value={props.layout}
-            onChange={(event) => props.onLayout(event.currentTarget.value as OutputPaneProps["layout"])}>
+            value={workbench.state.layout}
+            onChange={(event) => workbench.setLayout(event.currentTarget.value as typeof workbench.state.layout)}>
             <option value="split">Split layout</option>
             <option value="wide-output">Wide output</option>
             <option value="input-collapsed">Collapse input</option>
@@ -394,8 +358,8 @@ function OutputOverflowMenu(
   );
 }
 
-export function OutputPane(props: OutputPaneProps) {
-  const resultValue = () => props.result && !("message" in props.result) ? props.result : undefined;
+export function OutputPane() {
+  const workbench = useWorkbench();
   const onKeyDown = (event: KeyboardEvent, tab: OutputTab) => {
     const index = tabs.findIndex((item) => item.id === tab);
     let nextIndex = index;
@@ -407,7 +371,7 @@ export function OutputPane(props: OutputPaneProps) {
 
     if (nextIndex === index) return;
     event.preventDefault();
-    props.onTab(tabs[(nextIndex + tabs.length) % tabs.length].id);
+    workbench.setTab(tabs[(nextIndex + tabs.length) % tabs.length].id);
   };
 
   return (
@@ -423,12 +387,12 @@ export function OutputPane(props: OutputPaneProps) {
                   type="button"
                   id={tabButtonId(tab.id)}
                   role="tab"
-                  aria-selected={props.tab === tab.id}
+                  aria-selected={workbench.state.tab === tab.id}
                   aria-controls={tabPanelId(tab.id)}
-                  tabindex={props.tab === tab.id ? 0 : -1}
-                  classList={{ "is-active": props.tab === tab.id }}
+                  tabindex={workbench.state.tab === tab.id ? 0 : -1}
+                  classList={{ "is-active": workbench.state.tab === tab.id }}
                   onKeyDown={(event) => onKeyDown(event, tab.id)}
-                  onClick={() => props.onTab(tab.id)}>
+                  onClick={() => workbench.setTab(tab.id)}>
                   {tab.label}
                 </MotionButton>
               )}
@@ -439,80 +403,70 @@ export function OutputPane(props: OutputPaneProps) {
             <MotionButton
               type="button"
               class="button button--secondary button--icon"
-              disabled={!props.result || "message" in props.result}
+              disabled={!workbench.state.result || "message" in workbench.state.result}
               aria-label="Inspect"
-              aria-expanded={props.inspectOpen}
+              aria-expanded={workbench.state.inspectOpen}
               title="Inspect"
-              onClick={props.onToggleInspect}>
+              onClick={workbench.toggleInspect}>
               <Icon kind="inspect" />
             </MotionButton>
             <MotionButton
               type="button"
               class="button button--secondary button--icon"
-              disabled={!resultValue()}
+              disabled={!workbench.resultValue()}
               aria-label="Copy selected output"
               title="Copy selected output"
-              onClick={props.onCopySelected}>
+              onClick={workbench.copySelected}>
               <Icon kind="copy" />
             </MotionButton>
             <MotionButton
               type="button"
               class="button button--secondary button--icon"
-              disabled={!resultValue()}
+              disabled={!workbench.resultValue()}
               aria-label="Download"
               title="Download"
-              onClick={props.onDownload}>
+              onClick={workbench.downloadSelected}>
               <Icon kind="download" />
             </MotionButton>
-            <OutputOverflowMenu
-              hasResult={Boolean(resultValue())}
-              fullscreen={props.fullscreen}
-              layout={props.layout}
-              onCopyHtml={props.onCopyHtml}
-              onCopyMetadata={props.onCopyMetadata}
-              onLayout={props.onLayout}
-              onOpenPreview={props.onOpenPreview}
-              onSaveRun={props.onSaveRun}
-              onShareView={props.onShareView}
-              onToggleFullscreen={props.onToggleFullscreen} />
+            <OutputOverflowMenu />
           </div>
           {/* eslint-enable react/jsx-max-depth */}
         </div>
       </div>
 
-      <div class="output-layout" classList={{ "has-inspect": props.inspectOpen }}>
+      <div class="output-layout" classList={{ "has-inspect": workbench.state.inspectOpen }}>
         <Show
-          when={props.result}
+          when={workbench.state.result}
           fallback={<div class="empty">Convert a URL or HTML document to generate output.</div>}>
           {(result) => (
             <Show
               when={!("message" in result())}
-              fallback={<FailureView result={result() as PipelineFailure} statusText={props.statusText} />}>
-              <MotionSwap viewKey={props.tab} class="output-view">
+              fallback={<FailureView result={result() as PipelineFailure} statusText={workbench.statusText()} />}>
+              <MotionSwap viewKey={workbench.state.tab} class="output-view">
                 <div
-                  id={tabPanelId(props.tab)}
+                  id={tabPanelId(workbench.state.tab)}
                   role="tabpanel"
-                  aria-labelledby={tabButtonId(props.tab)}
+                  aria-labelledby={tabButtonId(workbench.state.tab)}
                   class="output-tabpanel">
                   <ResultView
                     result={result() as PipelineResult}
-                    sourceHtml={props.sourceHtml}
-                    statusText={props.statusText}
-                    tab={props.tab} />
+                    sourceHtml={workbench.state.html}
+                    statusText={workbench.statusText()}
+                    tab={workbench.state.tab} />
                 </div>
               </MotionSwap>
-              <MotionReveal show={props.inspectOpen} class="inspect-reveal">
+              <MotionReveal show={workbench.state.inspectOpen} class="inspect-reveal">
                 <InspectPanel
                   result={result() as PipelineResult}
-                  tab={props.inspectTab}
-                  statusText={props.statusText}
-                  onTab={props.onInspectTab} />
+                  tab={workbench.state.inspectTab}
+                  statusText={workbench.statusText()}
+                  onTab={workbench.setInspectTab} />
               </MotionReveal>
             </Show>
           )}
         </Show>
 
-        <Show when={resultValue()}>{(result) => <MetadataSummary result={result()} />}</Show>
+        <Show when={workbench.resultValue()}>{(result) => <MetadataSummary result={result()} />}</Show>
       </div>
     </section>
   );

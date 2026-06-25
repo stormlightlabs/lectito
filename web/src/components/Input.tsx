@@ -1,6 +1,6 @@
+import { useWorkbench } from "$lib/workbench/context";
 import { createMemo, createSignal, For, lazy, Show, Suspense } from "solid-js";
-import type { PipelineOptions } from "../lib/types";
-import type { SampleHtml } from "../lib/types";
+import type { PipelineOptions, SampleHtml } from "../lib/types";
 import type { CodeEditorProps } from "./CodeEditor";
 import { Icon } from "./Icon";
 import { OptionsPanel } from "./Options";
@@ -102,43 +102,7 @@ function InputToolbar(
   );
 }
 
-type InputPaneProps = {
-  html: string;
-  sampleHtml: SampleHtml[];
-  options: PipelineOptions;
-  onHtml: (html: string) => void;
-  onCancel: () => void;
-  onOptions: (options: PipelineOptions) => void;
-  onReset: () => void;
-  onRun: () => void;
-  running: boolean;
-  statusText: string;
-};
-
-function InputMode(
-  props: Pick<
-    InputPaneProps,
-    "html" | "sampleHtml" | "statusText" | "onHtml" | "onCancel" | "onReset" | "onRun" | "running"
-  >,
-) {
-  return (
-    <MotionSwap viewKey="html" class="input-mode">
-      <div class="html-input">
-        <InputToolbar
-          html={props.html}
-          running={props.running}
-          samples={props.sampleHtml}
-          onHtml={props.onHtml}
-          onCancel={props.onCancel}
-          onReset={props.onReset}
-          onRun={props.onRun} />
-        <HtmlEditor html={props.html} statusText={props.statusText} onHtml={props.onHtml} />
-      </div>
-    </MotionSwap>
-  );
-}
-
-function AdvancedOptions(props: Pick<InputPaneProps, "options" | "onOptions">) {
+function AdvancedOptions(props: { options: PipelineOptions; onOptions: (options: PipelineOptions) => void }) {
   const [advancedOpen, setAdvancedOpen] = createSignal(false);
 
   return (
@@ -158,20 +122,26 @@ function AdvancedOptions(props: Pick<InputPaneProps, "options" | "onOptions">) {
   );
 }
 
-export function InputPane(props: InputPaneProps) {
+export function InputPane() {
+  const workbench = useWorkbench();
+
   return (
     <section class="pane pane--input">
       <div class="input-stack">
-        <InputMode
-          html={props.html}
-          sampleHtml={props.sampleHtml}
-          statusText={props.statusText}
-          onHtml={props.onHtml}
-          onCancel={props.onCancel}
-          onReset={props.onReset}
-          onRun={props.onRun}
-          running={props.running} />
-        <AdvancedOptions options={props.options} onOptions={props.onOptions} />
+        <MotionSwap viewKey="html" class="input-mode">
+          <div class="html-input">
+            <InputToolbar
+              html={workbench.state.html}
+              running={workbench.state.running}
+              samples={workbench.sampleHtml}
+              onHtml={workbench.setHtml}
+              onCancel={workbench.cancelRun}
+              onReset={workbench.resetInput}
+              onRun={() => void workbench.runExtraction()} />
+            <HtmlEditor html={workbench.state.html} statusText={workbench.statusText()} onHtml={workbench.setHtml} />
+          </div>
+        </MotionSwap>
+        <AdvancedOptions options={workbench.state.options} onOptions={workbench.setOptions} />
       </div>
     </section>
   );
