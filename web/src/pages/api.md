@@ -5,13 +5,11 @@ returned HTML or article data through your own app.
 
 ## Quick start
 
-Initialize the module once. The exported functions accept strings and small
-option objects, so the browser path stays local.
+Import the package once. The exported functions accept strings and small option
+objects, so the browser path stays local.
 
 ```ts
-import init, { extract } from "lectito-wasm";
-
-await init();
+import { extract } from "@stormlightlabs/lectito";
 
 const article = extract(html, "https://example.com/post", {
   charThreshold: 500,
@@ -39,9 +37,7 @@ Runs article extraction and returns the article plus diagnostic data for
 candidates, fallback behavior, warnings, and timing.
 
 ```ts
-import init, { extractWithDiagnostics } from "lectito-wasm";
-
-await init();
+import { extractWithDiagnostics } from "@stormlightlabs/lectito";
 
 const report = extractWithDiagnostics(html, baseUrl, {
   diagnostics: true,
@@ -57,9 +53,7 @@ Cleans a fragment without a full readability pass. Use it when you already know
 which part of the document you want.
 
 ```ts
-import init, { cleanHtml } from "lectito-wasm";
-
-await init();
+import { cleanHtml } from "@stormlightlabs/lectito";
 
 const cleaned = cleanHtml(fragment, "https://example.com", {
   keepClasses: false,
@@ -71,9 +65,7 @@ const cleaned = cleanHtml(fragment, "https://example.com", {
 Converts cleaned HTML to Markdown for export surfaces.
 
 ```ts
-import init, { htmlToMarkdown } from "lectito-wasm";
-
-await init();
+import { htmlToMarkdown } from "@stormlightlabs/lectito";
 
 const markdown = htmlToMarkdown(article.content);
 ```
@@ -83,9 +75,7 @@ const markdown = htmlToMarkdown(article.content);
 Converts Markdown back to HTML for previews and rendering pipelines.
 
 ```ts
-import init, { markdownToHtml } from "lectito-wasm";
-
-await init();
+import { markdownToHtml } from "@stormlightlabs/lectito";
 
 const previewHtml = markdownToHtml(markdown);
 ```

@@ -81,10 +81,62 @@ finish packaging until `lectito` exists on crates.io.
    cargo publish -p lectito-wasm
    ```
 
+## NPM
+
+Publish to npm when the JavaScript/WebAssembly package should be installable
+with:
+
+```sh
+npm install @stormlightlabs/lectito
+```
+
+The crates.io `lectito-wasm` package and the npm `@stormlightlabs/lectito`
+package are different artifacts. crates.io gets the Rust crate. npm gets the
+generated `wasm-pack` output.
+
+Confirm npm auth before publishing:
+
+```sh
+npm whoami
+npm org ls stormlightlabs
+```
+
+The npm user must belong to the `stormlightlabs` org and have package publish
+rights. Scoped public packages must publish with public access.
+
+Build and inspect the bundler package:
+
+```sh
+pnpm --dir web exec wasm-pack build ../crates/wasm --target bundler --out-dir ../../target/wasm-pack/bundler
+cd target/wasm-pack/bundler
+npm pkg set name=@stormlightlabs/lectito publishConfig.access=public
+npm pack --dry-run
+```
+
+Confirm `package.json` before publishing:
+
+- `name` is `@stormlightlabs/lectito`.
+- `version` matches the Rust release version.
+- `publishConfig.access` is `public`.
+- `license`, `repository`, `homepage`, `types`, and `files` are correct.
+- The tarball includes `lectito_wasm_bg.wasm`, JavaScript glue, and
+  `lectito_wasm.d.ts`.
+
+Publish:
+
+```sh
+npm publish --access public
+```
+
+After publishing, test a fresh install in a temporary project before updating
+docs to describe npm as live.
+
 ## After Publishing
 
 - Confirm crates.io pages render the README for each published crate.
 - Confirm docs.rs builds for each published crate.
+- Confirm npm renders the README and installs `@stormlightlabs/lectito` when
+  publishing the generated wasm package.
 - Confirm installation:
 
   ```sh

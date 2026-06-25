@@ -1,7 +1,15 @@
 # WASM API
 
-`lectito-wasm` exposes Lectito to JavaScript through `wasm-bindgen`. It supports
-browser, web worker, bundler, and Node.js use.
+The npm package `@stormlightlabs/lectito` exposes Lectito to JavaScript through
+`wasm-bindgen`.
+
+It supports browser, web worker, bundler, and Node.js use.
+
+```sh
+npm install @stormlightlabs/lectito
+```
+
+The Rust crate is still named `lectito-wasm`.
 
 ## Build Targets
 
@@ -18,7 +26,7 @@ wasm-pack build crates/wasm --target nodejs
 Bundler builds initialize when imported:
 
 ```ts
-import { extract } from "lectito-wasm";
+import { extract } from "@stormlightlabs/lectito";
 
 const article = extract(html, "https://example.com/post");
 ```
@@ -56,10 +64,7 @@ export function extractWithDiagnostics(
   options?: ReadabilityOptions | null,
 ): ExtractionReport;
 
-export function isProbablyReadable(
-  html: string,
-  options?: ReadableOptions | null,
-): boolean;
+export function isProbablyReadable(html: string, options?: ReadableOptions | null): boolean;
 
 export function cleanHtml(
   html: string,
@@ -69,10 +74,7 @@ export function cleanHtml(
 
 export function htmlToMarkdown(html: string): string;
 
-export function markdownToHtml(
-  markdown: string,
-  options?: MarkdownOptions | null,
-): string;
+export function markdownToHtml(markdown: string, options?: MarkdownOptions | null): string;
 ```
 
 ## Types

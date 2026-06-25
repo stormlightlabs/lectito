@@ -28,4 +28,3 @@
 - [Article](reference/article.md)
 - [Options](reference/options.md)
 - [Site Profiles](reference/site-profiles.md)
-- [Publishing](reference/publishing.md)
