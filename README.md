@@ -1,19 +1,27 @@
-# Lectito
+![Lectito banner](./.github/assets/banner.png)
 
-Lectito is a Rust implementation of Mozilla Readability.
+![MPL 2.0 License](https://img.shields.io/badge/License-MPL%202.0-orange?logo=mozilla&logoColor=orange)
 
-The workspace has three publishable crates:
+This is the source code for Lectito, containing the library, CLI, & documentation.
 
-- `lectito`: Rust library crate, imported as `lectito`
-- `lectito-cli`: command-line package that installs the `lectito` binary
-- `lectito-wasm`: JavaScript and WebAssembly bindings, imported as
-  `lectito_wasm` from Rust
+## What is Lectito?
 
-The API service and fixture helpers are workspace-only crates and are not
-published.
+Lectito is a library and command-line tool to extract readable content from HTML.
+It's an augmented, Rust implementation of the Mozilla Readability algorithm.
 
-Run the local corpus helper with:
+<!-- TODO: docs.rs & book link -->
 
-```sh
-cargo run -p lectito-fixtures --bin corpus -- sample-name
-```
+Learn more by reading the [docs](/TODO.md) and the [book](/TODO.md)
+
+## Quick Start
+
+_coming soon_
+
+### Local Development
+
+With an up to date [Rust toolchain](https://rustup.rs/), clone the repo and
+then check out the [local dev guide](/DEVELOPMENT.md).
+
+## License
+
+[MPL 2.0](https://www.mozilla.org/MPL/2.0/)
