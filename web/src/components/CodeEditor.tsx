@@ -138,11 +138,21 @@ function initialStatus(props: CodeEditorProps): EditorStatus {
   };
 }
 
+/**
+ * NOTE: `view` is assigned asynchronously (after the CodeMirror import resolves),
+ * so it is not reactive on its own.
+ *
+ * `viewReady` makes that assignment observable, letting the prop-sync effect re-run
+ * once the editor exists and flush any `props.value` update that arrived during the
+ * import gap.
+ */
 export function CodeEditor(props: CodeEditorProps) {
   const [host, setHost] = createSignal<HTMLDivElement>();
   const [wordWrap, setWordWrap] = createSignal(true);
   const [copyStatus, setCopyStatus] = createSignal<"idle" | "copied" | "failed">("idle");
   const [status, setStatus] = createSignal<EditorStatus>(initialStatus(props));
+  const [viewReady, setViewReady] = createSignal(false);
+
   let editorViewModule: CodeMirrorModules["EditorView"] | undefined;
   let wordWrapCompartment: InstanceType<CodeMirrorModules["Compartment"]> | undefined;
   let view: InstanceType<CodeMirrorModules["EditorView"]> | undefined;
@@ -236,17 +246,21 @@ export function CodeEditor(props: CodeEditorProps) {
           ],
         }),
       });
+      setViewReady(true);
       updateStatus();
     });
   });
 
   createEffect(() => {
     wordWrap();
-    if (!view || !wordWrapCompartment) return;
-    view.dispatch({ effects: wordWrapCompartment.reconfigure(wordWrapExtension()) });
+    if (!viewReady() || !wordWrapCompartment) return;
+    view?.dispatch({ effects: wordWrapCompartment.reconfigure(wordWrapExtension()) });
   });
 
   createEffect(() => {
+    // Re-run on both `props.value` changes and the view becoming ready, so an
+    // update that landed before the CodeMirror import resolved is not lost.
+    viewReady();
     if (!view) return;
     const next = props.value;
     const current = view.state.doc.toString();
@@ -261,6 +275,8 @@ export function CodeEditor(props: CodeEditorProps) {
     disposed = true;
     if (copyStatusTimer) globalThis.clearTimeout(copyStatusTimer);
     view?.destroy();
+    view = undefined;
+    setViewReady(false);
   });
 
   return (
