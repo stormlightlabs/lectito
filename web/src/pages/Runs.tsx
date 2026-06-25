@@ -5,12 +5,14 @@ import { PageShell } from "./PageShell";
 import { WorkbenchTabs } from "./WorkbenchTabs";
 
 export function RunsPage() {
-  const [runs, setRuns] = createSignal(listSavedRuns());
+  const [runs, setRuns] = createSignal<Awaited<ReturnType<typeof listSavedRuns>>>([]);
 
-  onMount(() => setRuns(listSavedRuns()));
+  onMount(() => {
+    void listSavedRuns().then(setRuns);
+  });
 
   return (
-    <PageShell eyebrow="Workbench" title="Runs" headerBefore={<WorkbenchTabs />}>
+    <PageShell eyebrow="Workbench" title="Runs" headerBefore={<WorkbenchTabs />} variant="workbench">
       <Show when={runs().length > 0} fallback={<p>No saved runs yet.</p>}>
         <div class="run-list">
           <For each={runs()}>

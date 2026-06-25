@@ -19,21 +19,23 @@
     --shadow-thin: 0 1px 0 rgb(23 23 23 / 0.04);
 
     --font-ui: "Mozilla Text Variable", "Mozilla Text", ui-sans-serif, system-ui, sans-serif;
-    --font-display: "Mozilla Headline Variable", "Mozilla Headline", ui-sans-serif, system-ui, sans-serif;
+    --font-display:
+        "Mozilla Headline Variable", "Mozilla Headline", ui-sans-serif, system-ui, sans-serif;
     --font-article: "Zilla Slab", Georgia, serif;
     --font-code: "Martian Mono Variable", "Martian Mono", "SFMono-Regular", Consolas, monospace;
 
     --text-xs: 0.75rem;
-    --line-xs: 1rem;
     --text-sm: 0.875rem;
-    --line-sm: 1.25rem;
     --text-base: 1rem;
-    --line-base: 1.5rem;
     --text-lg: 1.125rem;
-    --line-lg: 1.75rem;
     --text-xl: 1.375rem;
-    --line-xl: 1.85rem;
     --text-display: 2rem;
+
+    --line-xs: 1rem;
+    --line-sm: 1.25rem;
+    --line-base: 1.5rem;
+    --line-lg: 1.75rem;
+    --line-xl: 1.85rem;
     --line-display: 2.25rem;
 
     --space-1: 0.25rem;

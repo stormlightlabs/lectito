@@ -148,7 +148,7 @@ export function CodeEditor(props: CodeEditorProps) {
       wordWrap() ? "Wrap On" : "Wrap Off",
       sizeLabel(current.bytes),
       `${current.chars.toLocaleString()}ch`,
-      `${current.lines.toLocaleString()}ln`,
+      `${current.lines.toLocaleString()}Ln`,
       `${current.line.toLocaleString()}:${current.column.toLocaleString()}`,
       current.selected > 0 ? `${current.selected.toLocaleString()} selected` : "",
     ].filter(Boolean);

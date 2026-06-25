@@ -3,7 +3,7 @@ import { WorkbenchTabs } from "./WorkbenchTabs";
 
 export function SamplesPage() {
   return (
-    <PageShell eyebrow="Workbench" title="Sample gallery" headerBefore={<WorkbenchTabs />}>
+    <PageShell eyebrow="Workbench" title="Sample gallery" headerBefore={<WorkbenchTabs />} variant="workbench">
       <p>Browse fixtures and known article extraction cases.</p>
     </PageShell>
   );

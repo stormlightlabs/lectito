@@ -28,6 +28,7 @@
     "@lingui/core": "^6.0.0",
     "@lingui/solid": "^6.0.0",
     "@solidjs/router": "0.16.1",
+    "dexie": "^4.4.4",
     "dompurify": "^3.4.5",
     "reasonable-colors": "^0.4.0",
     "solid-js": "^1.9.12",

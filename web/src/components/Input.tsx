@@ -29,6 +29,7 @@ function InputToolbar(
     running: boolean;
     samples: SampleHtml[];
     onHtml: (html: string) => void;
+    onCancel: () => void;
     onReset: () => void;
     onRun: () => void;
   },
@@ -65,6 +66,16 @@ function InputToolbar(
           <Icon kind="convert" />
           {props.running ? "Converting" : "Convert"}
         </MotionButton>
+        <Show when={props.running}>
+          <MotionButton
+            type="button"
+            class="button button--secondary button--icon"
+            aria-label="Cancel"
+            title="Cancel"
+            onClick={props.onCancel}>
+            <Icon kind="cancel" />
+          </MotionButton>
+        </Show>
         <details class="overflow-menu">
           <summary class="button button--secondary button--icon" aria-label="More input actions" title="More actions">
             <Icon kind="more" />
@@ -96,6 +107,7 @@ type InputPaneProps = {
   sampleHtml: SampleHtml[];
   options: PipelineOptions;
   onHtml: (html: string) => void;
+  onCancel: () => void;
   onOptions: (options: PipelineOptions) => void;
   onReset: () => void;
   onRun: () => void;
@@ -104,7 +116,10 @@ type InputPaneProps = {
 };
 
 function InputMode(
-  props: Pick<InputPaneProps, "html" | "sampleHtml" | "statusText" | "onHtml" | "onReset" | "onRun" | "running">,
+  props: Pick<
+    InputPaneProps,
+    "html" | "sampleHtml" | "statusText" | "onHtml" | "onCancel" | "onReset" | "onRun" | "running"
+  >,
 ) {
   return (
     <MotionSwap viewKey="html" class="input-mode">
@@ -114,6 +129,7 @@ function InputMode(
           running={props.running}
           samples={props.sampleHtml}
           onHtml={props.onHtml}
+          onCancel={props.onCancel}
           onReset={props.onReset}
           onRun={props.onRun} />
         <HtmlEditor html={props.html} statusText={props.statusText} onHtml={props.onHtml} />
@@ -151,6 +167,7 @@ export function InputPane(props: InputPaneProps) {
           sampleHtml={props.sampleHtml}
           statusText={props.statusText}
           onHtml={props.onHtml}
+          onCancel={props.onCancel}
           onReset={props.onReset}
           onRun={props.onRun}
           running={props.running} />

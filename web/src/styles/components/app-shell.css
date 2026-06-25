@@ -51,7 +51,8 @@
 }
 
 .app-shell--workbench .app-header--workbench,
-.app-shell--workbench .workspace {
+.app-shell--workbench .workspace,
+.app-shell--workbench .workbench-page {
     grid-column: 2;
 }
 
@@ -77,21 +78,6 @@
     justify-content: space-between;
     gap: var(--space-6);
     align-items: end;
-}
-
-.command-bar {
-    min-width: 0;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: end;
-    gap: var(--space-2);
-    align-items: center;
-}
-
-.command-bar__rule {
-    width: 1px;
-    height: 1.75rem;
-    background: var(--rule);
 }
 
 .app-header h1 {
@@ -285,7 +271,8 @@
 
     .app-shell--workbench .workbench-tabs,
     .app-shell--workbench .app-header--workbench,
-    .app-shell--workbench .workspace {
+    .app-shell--workbench .workspace,
+    .app-shell--workbench .workbench-page {
         grid-column: 1;
         grid-row: auto;
     }
@@ -311,10 +298,6 @@
     .app-header__main {
         display: grid;
         gap: var(--space-3);
-    }
-
-    .command-bar {
-        justify-content: start;
     }
 
     .app-footer__inner {

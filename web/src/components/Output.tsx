@@ -334,11 +334,13 @@ type OutputPaneProps = {
   onToggleInspect: () => void;
   onLayout: (layout: "split" | "wide-output" | "input-collapsed") => void;
   onToggleFullscreen: () => void;
-  onCopyMarkdown: () => void;
+  onCopySelected: () => void;
   onCopyHtml: () => void;
   onCopyMetadata: () => void;
   onDownload: () => void;
   onOpenPreview: () => void;
+  onSaveRun: () => void;
+  onShareView: () => void;
   statusText: string;
 };
 
@@ -346,7 +348,15 @@ function OutputOverflowMenu(
   props:
     & Pick<
       OutputPaneProps,
-      "fullscreen" | "layout" | "onCopyHtml" | "onCopyMetadata" | "onLayout" | "onOpenPreview" | "onToggleFullscreen"
+      | "fullscreen"
+      | "layout"
+      | "onCopyHtml"
+      | "onCopyMetadata"
+      | "onLayout"
+      | "onOpenPreview"
+      | "onSaveRun"
+      | "onShareView"
+      | "onToggleFullscreen"
     >
     & { hasResult: boolean },
 ) {
@@ -363,6 +373,8 @@ function OutputOverflowMenu(
         <MotionButton type="button" disabled={!props.hasResult} onClick={props.onOpenPreview}>
           Open preview
         </MotionButton>
+        <MotionButton type="button" disabled={!props.hasResult} onClick={props.onSaveRun}>Save run</MotionButton>
+        <MotionButton type="button" onClick={props.onShareView}>Share view</MotionButton>
         <MotionButton type="button" disabled={!props.hasResult} onClick={props.onToggleFullscreen}>
           {props.fullscreen ? "Exit fullscreen" : "Fullscreen"}
         </MotionButton>
@@ -438,10 +450,10 @@ export function OutputPane(props: OutputPaneProps) {
               type="button"
               class="button button--secondary button--icon"
               disabled={!resultValue()}
-              aria-label="Copy Markdown"
-              title="Copy Markdown"
-              onClick={props.onCopyMarkdown}>
-              <Icon kind="markdown" />
+              aria-label="Copy selected output"
+              title="Copy selected output"
+              onClick={props.onCopySelected}>
+              <Icon kind="copy" />
             </MotionButton>
             <MotionButton
               type="button"
@@ -460,6 +472,8 @@ export function OutputPane(props: OutputPaneProps) {
               onCopyMetadata={props.onCopyMetadata}
               onLayout={props.onLayout}
               onOpenPreview={props.onOpenPreview}
+              onSaveRun={props.onSaveRun}
+              onShareView={props.onShareView}
               onToggleFullscreen={props.onToggleFullscreen} />
           </div>
           {/* eslint-enable react/jsx-max-depth */}

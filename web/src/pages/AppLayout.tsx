@@ -2,7 +2,7 @@ import { A, useLocation } from "@solidjs/router";
 import { For } from "solid-js";
 import type { ParentProps } from "solid-js";
 
-const NAV_ITEMS = [{ href: "/", label: "Home" }, { href: "/workbench", label: "Workbench" }, {
+const NAV_ITEMS = [{ href: "/", label: "Home" }, { href: "/workbench", label: "App" }, {
   href: "/api",
   label: "API",
 }] as const;
@@ -33,8 +33,9 @@ export function AppLayout(props: ParentProps) {
         <div class="app-footer__inner">
           <span>Lectito</span>
           <nav aria-label="Footer">
-            <A href="/workbench">Workbench</A>
+            <A href="/workbench">App</A>
             <A href="/api">API</A>
+            <a href="https://github.com/stormlightlabs/lectito" target="_blank">Code</a>
           </nav>
         </div>
       </footer>

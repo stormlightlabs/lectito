@@ -13,11 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/pages/Landing.tsx:29
+#: src/pages/Landing.tsx:30
 msgid "ad slot"
 msgstr "ad slot"
 
-#: src/pages/Landing.tsx:69
+#: src/pages/Landing.tsx:72
 msgid "Add a page"
 msgstr "Add a page"
 
@@ -25,11 +25,11 @@ msgstr "Add a page"
 #~ msgid "After / article"
 #~ msgstr "After / article"
 
-#: src/pages/Landing.tsx:20
+#: src/pages/Landing.tsx:21
 msgid "article body"
 msgstr "article body"
 
-#: src/pages/Landing.tsx:114
+#: src/pages/Landing.tsx:117
 msgid "Article extraction"
 msgstr "Article extraction"
 
@@ -45,31 +45,31 @@ msgstr "Article extraction"
 #~ msgid "Clean up the document before read it."
 #~ msgstr "Clean up the document before read it."
 
-#: src/pages/Landing.tsx:134
+#: src/pages/Landing.tsx:137
 msgid "Clean up the document before you read it."
 msgstr "Clean up the document before you read it."
 
-#: src/pages/Landing.tsx:13
+#: src/pages/Landing.tsx:14
 msgid "cookie banner"
 msgstr "cookie banner"
 
-#: src/pages/Landing.tsx:85
+#: src/pages/Landing.tsx:88
 msgid "Copy what you need"
 msgstr "Copy what you need"
 
-#: src/pages/Landing.tsx:38
+#: src/pages/Landing.tsx:41
 msgid "Extracted"
 msgstr "Extracted"
 
-#: src/pages/Landing.tsx:117
+#: src/pages/Landing.tsx:120
 msgid "Focus on what matters."
 msgstr "Focus on what matters."
 
-#: src/pages/Landing.tsx:32
+#: src/pages/Landing.tsx:33
 msgid "footer links"
 msgstr "footer links"
 
-#: src/pages/Landing.tsx:120
+#: src/pages/Landing.tsx:123
 msgid "Lectito is a tool that removes cruft to make the web more readable."
 msgstr "Lectito is a tool that removes cruft to make the web more readable."
 
@@ -77,23 +77,23 @@ msgstr "Lectito is a tool that removes cruft to make the web more readable."
 #~ msgid "Lectito removes navigation, ads, sidebars, and footers so you can read or export the article body."
 #~ msgstr "Lectito removes navigation, ads, sidebars, and footers so you can read or export the article body."
 
-#: src/pages/Landing.tsx:41
+#: src/pages/Landing.tsx:44
 msgid "On Reading the Web"
 msgstr "On Reading the Web"
 
-#: src/pages/Landing.tsx:99
+#: src/pages/Landing.tsx:102
 msgid "Open the workbench"
 msgstr "Open the workbench"
 
-#: src/pages/Landing.tsx:10
+#: src/pages/Landing.tsx:11
 msgid "Original"
 msgstr "Original"
 
-#: src/pages/Landing.tsx:72
+#: src/pages/Landing.tsx:75
 msgid "Paste HTML or enter a URL. Lectito finds the article and removes the surrounding chrome."
 msgstr "Paste HTML or enter a URL. Lectito finds the article and removes the surrounding chrome."
 
-#: src/pages/Landing.tsx:80
+#: src/pages/Landing.tsx:83
 msgid "Preview the cleaned article before you copy anything out of the workbench."
 msgstr "Preview the cleaned article before you copy anything out of the workbench."
 
@@ -101,23 +101,23 @@ msgstr "Preview the cleaned article before you copy anything out of the workbenc
 #~ msgid "Read the API notes"
 #~ msgstr "Read the API notes"
 
-#: src/pages/Landing.tsx:102
+#: src/pages/Landing.tsx:105
 msgid "Read the Docs"
 msgstr "Read the Docs"
 
-#: src/pages/Landing.tsx:77
+#: src/pages/Landing.tsx:80
 msgid "Read the result"
 msgstr "Read the result"
 
-#: src/pages/Landing.tsx:25
+#: src/pages/Landing.tsx:26
 msgid "related links"
 msgstr "related links"
 
-#: src/pages/Landing.tsx:16
+#: src/pages/Landing.tsx:17
 msgid "site navigation"
 msgstr "site navigation"
 
-#: src/pages/Landing.tsx:44
+#: src/pages/Landing.tsx:47
 msgid "The article body remains. The page chrome is gone."
 msgstr "The article body remains. The page chrome is gone."
 
@@ -125,10 +125,10 @@ msgstr "The article body remains. The page chrome is gone."
 #~ msgid "Turn a web page into an article."
 #~ msgstr "Turn a web page into an article."
 
-#: src/pages/Landing.tsx:88
+#: src/pages/Landing.tsx:91
 msgid "Use Markdown, clean HTML, metadata, or diagnostics from the same run."
 msgstr "Use Markdown, clean HTML, metadata, or diagnostics from the same run."
 
-#: src/pages/Landing.tsx:131
+#: src/pages/Landing.tsx:134
 msgid "Workbench"
 msgstr "Workbench"

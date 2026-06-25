@@ -50,6 +50,9 @@ importers:
       '@solidjs/router':
         specifier: 0.16.1
         version: 0.16.1(solid-js@1.9.13)
+      dexie:
+        specifier: ^4.4.4
+        version: 4.4.4
       dompurify:
         specifier: ^3.4.5
         version: 3.4.5
@@ -1215,6 +1218,9 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
+
+  dexie@4.4.4:
+    resolution: {integrity: sha512-jIwsYI8Os2hgnqc6O49YwFDKGc5v5QjGx0wPVp543ip1F53VFAKMLthV2pQosQcVTv3eAskTWYspOx195PM0FQ==}
 
   doctrine@2.1.0:
     resolution: {integrity: sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw==}
@@ -3556,6 +3562,8 @@ snapshots:
   destr@2.0.5: {}
 
   detect-libc@2.1.2: {}
+
+  dexie@4.4.4: {}
 
   doctrine@2.1.0:
     dependencies:

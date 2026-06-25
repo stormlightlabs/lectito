@@ -1,3 +1,4 @@
+import { Icon } from "$components/Icon";
 import { Trans } from "@lingui/solid/macro";
 import { A } from "@solidjs/router";
 import type { ParentProps } from "solid-js";
@@ -32,7 +33,9 @@ function ExtractionDemo() {
           <Trans>footer links</Trans>
         </div>
       </div>
-      <div class="landing-demo__arrow" aria-hidden="true">/</div>
+      <div class="landing-demo__arrow" aria-hidden="true">
+        <Icon kind="arrow-right" />
+      </div>
       <div class="landing-demo__pane landing-demo__pane--result">
         <p class="landing-demo__label">
           <Trans>Extracted</Trans>

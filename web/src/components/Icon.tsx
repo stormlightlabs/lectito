@@ -17,7 +17,8 @@ export type IconKind =
   | "preview"
   | "reset"
   | "save"
-  | "share";
+  | "share"
+  | "arrow-right";
 
 type IconProps = { kind: IconKind };
 
@@ -74,6 +75,9 @@ export function Icon(props: IconProps) {
       </Match>
       <Match when={props.kind === "share"}>
         <span class="icon i-ph-link-simple" aria-hidden="true" />
+      </Match>
+      <Match when={props.kind === "arrow-right"}>
+        <span class="icon i-ph-arrow-right-bold" aria-hidden="true" />
       </Match>
     </Switch>
   );
