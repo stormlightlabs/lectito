@@ -35,14 +35,14 @@ function isLayoutMode(value: unknown): value is LayoutMode {
   return layoutModes.includes(value as LayoutMode);
 }
 
-function shareView() {
-  void navigator.clipboard?.writeText(globalThis.location.href);
-}
-
 function describeStatus(running: boolean, result?: PipelineResult | PipelineFailure): string {
   if (running) return "Converting";
   if (!result) return "Waiting";
   return "message" in result ? "Error" : "Ready";
+}
+
+function shareView() {
+  void navigator.clipboard?.writeText(globalThis.location.href);
 }
 
 function selectedOutput(result: PipelineResult, tab: OutputTab): SelectedOutput {
@@ -87,36 +87,31 @@ export type WorkbenchState = {
   running: boolean;
 };
 
-function readStoredLayout(): LayoutMode {
-  return isLayoutMode(localStorage.getItem("lectito.layout"))
-    ? localStorage.getItem("lectito.layout") as LayoutMode
-    : "split";
-}
-
 export type WorkbenchStore = ReturnType<typeof createWorkbenchStore>;
 
 /**
- * Persisted layout wins over the URL so a user's last choice survives reloads
- * even when the link no longer carries `?layout=`.
+ * `defaults` are the user's saved settings (loaded at bootstrap and provided
+ * via the settings context). The workbench snapshots them once at creation so
+ * a running session is unaffected by later edits in the Settings page.
  *
- * We keep lightweight workbench view state in the URL and persist layout locally.
+ * Lightweight view state stays in the URL so views are shareable; layout is
+ * also mirrored to localStorage as a quick last-choice hint, but the
+ * persisted source of truth lives in the dexie backed settings store.
  */
-export function createWorkbenchStore() {
+export function createWorkbenchStore(defaults: { options: PipelineOptions; layout: LayoutMode }) {
   const [params, setParams] = useSearchParams();
   const initialTab = isOutputTab(params.tab) ? params.tab : "markdown";
   const initialInspectTab = isInspectTab(params.inspect) ? params.inspect : "metadata";
-  const initialLayout = isLayoutMode(params.layout) ? params.layout : "split";
-  const storedLayout = readStoredLayout();
+  const initialLayout = isLayoutMode(params.layout) ? params.layout : defaults.layout;
 
   const [state, setState] = createStore<WorkbenchState>({
     html: sampleHtml,
-    options: defaultOptions,
+    options: { ...defaults.options },
     result: undefined,
     tab: initialTab,
     inspectTab: initialInspectTab,
     inspectOpen: params.inspectOpen === "1",
-
-    layout: storedLayout === "split" ? initialLayout : storedLayout,
+    layout: initialLayout,
     fullscreen: params.fullscreen === "1",
     running: false,
   });
@@ -128,7 +123,7 @@ export function createWorkbenchStore() {
       tab: state.tab === "markdown" ? undefined : state.tab,
       inspect: state.inspectTab === "metadata" ? undefined : state.inspectTab,
       inspectOpen: state.inspectOpen ? "1" : undefined,
-      layout: state.layout === "split" ? undefined : state.layout,
+      layout: state.layout === defaults.layout ? undefined : state.layout,
       fullscreen: state.fullscreen ? "1" : undefined,
     }, { replace: true });
     localStorage.setItem("lectito.layout", state.layout);

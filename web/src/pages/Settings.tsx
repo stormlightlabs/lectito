@@ -1,13 +1,11 @@
-import { defaultOptions, type LayoutMode } from "$lib/workbench/store";
+import { useSettings } from "$lib/settings/context";
+import type { Settings } from "$lib/settings/store";
+import { type LayoutMode } from "$lib/workbench/store";
 import { For } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore, reconcile } from "solid-js/store";
 import type { PipelineOptions } from "../lib/types";
 import { PageShell } from "./PageShell";
 import { WorkbenchTabs } from "./WorkbenchTabs";
-
-type Settings = { options: PipelineOptions; layout: LayoutMode };
-
-const defaultSettings: Settings = { options: defaultOptions, layout: "split" };
 
 const layoutLabels: Array<{ value: LayoutMode; label: string; hint: string }> = [
   { value: "split", label: "Split", hint: "Input and output side by side." },
@@ -15,14 +13,12 @@ const layoutLabels: Array<{ value: LayoutMode; label: string; hint: string }> = 
   { value: "input-collapsed", label: "Collapse input", hint: "Hide the editor after converting." },
 ];
 
-type OptionFieldProps = {
-  options: PipelineOptions;
-  onUpdate: <Key extends keyof PipelineOptions>(key: Key, value: PipelineOptions[Key]) => void;
-};
+type TOnUpdate = <Key extends keyof PipelineOptions>(key: Key, value: PipelineOptions[Key]) => void;
+
+type OptionFieldProps = { options: PipelineOptions; onUpdate: TOnUpdate };
 
 function OptionsFields(props: OptionFieldProps) {
-  const update = <Key extends keyof PipelineOptions>(key: Key, value: PipelineOptions[Key]) =>
-    props.onUpdate(key, value);
+  const update: TOnUpdate = (key, value) => props.onUpdate(key, value);
 
   return (
     <div class="option-groups">
@@ -115,18 +111,30 @@ function SectionHeader(props: { title: string; description: string }) {
   );
 }
 
+/**
+ * The `draft` signal holds in-flight edits; it is reset to the committed
+ * settings on Save or Reset so unsaved edits never reach the workbench.
+ */
 export function SettingsPage() {
-  const [settings, setSettings] = createStore<Settings>(structuredClone(defaultSettings));
-  const dirty = () => JSON.stringify(settings) !== JSON.stringify(defaultSettings);
+  const settings = useSettings();
+  const [draft, setDraft] = createStore<Settings>({
+    options: { ...settings.state.options },
+    layout: settings.state.layout,
+  });
+
+  const syncDraft = () =>
+    setDraft(reconcile({ options: { ...settings.state.options }, layout: settings.state.layout }));
+
+  const dirty = () => JSON.stringify(draft) !== JSON.stringify(settings.state);
 
   const updateOption = <Key extends keyof PipelineOptions>(key: Key, value: PipelineOptions[Key]) =>
-    setSettings("options", key, value);
+    setDraft("options", key, value);
 
   const save = () => {
-    console.info("save settings", settings);
+    void settings.commit({ options: { ...draft.options }, layout: draft.layout });
   };
 
-  const reset = () => setSettings(structuredClone(defaultSettings));
+  const reset = () => syncDraft();
 
   return (
     <PageShell eyebrow="Workbench" title="Settings" headerBefore={<WorkbenchTabs />} variant="workbench">
@@ -139,12 +147,12 @@ export function SettingsPage() {
           <SectionHeader
             title="Extraction defaults"
             description="Starting values for the advanced options panel in the workbench." />
-          <OptionsFields options={settings.options} onUpdate={updateOption} />
+          <OptionsFields options={draft.options} onUpdate={updateOption} />
         </section>
 
         <section class="settings-section">
           <SectionHeader title="Default layout" description="How the workbench arranges the input and output panes." />
-          <LayoutPicker value={settings.layout} onChange={(layout) => setSettings("layout", layout)} />
+          <LayoutPicker value={draft.layout} onChange={(layout) => setDraft("layout", layout)} />
         </section>
 
         <div class="settings-actions">

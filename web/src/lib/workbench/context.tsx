@@ -1,4 +1,5 @@
 import { sampleHtmlFixtures } from "$lib/sample";
+import { useSettings } from "$lib/settings/context";
 import type { WorkbenchStore } from "$lib/workbench/store";
 import { createWorkbenchStore } from "$lib/workbench/store";
 import { createContext, useContext } from "solid-js";
@@ -9,7 +10,8 @@ export type WorkbenchContextValue = WorkbenchStore & { sampleHtml: typeof sample
 const WorkbenchContext = createContext<WorkbenchContextValue>();
 
 export function WorkbenchProvider(props: ParentProps) {
-  const store = createWorkbenchStore();
+  const settings = useSettings();
+  const store = createWorkbenchStore(settings.state);
   const value: WorkbenchContextValue = { ...store, sampleHtml: sampleHtmlFixtures };
   return <WorkbenchContext.Provider value={value}>{props.children}</WorkbenchContext.Provider>;
 }
