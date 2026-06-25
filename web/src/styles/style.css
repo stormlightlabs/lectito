@@ -14,4 +14,5 @@
 @import "./components/panes.css";
 @import "./components/editor.css";
 @import "./components/output.css";
+@import "./components/settings.css";
 @import "./components/prose.css";

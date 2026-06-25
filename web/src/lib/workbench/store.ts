@@ -6,7 +6,13 @@ import { useSearchParams } from "@solidjs/router";
 import { createEffect, createMemo } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 
-const defaultOptions: PipelineOptions = {
+export const layoutModes = ["split", "wide-output", "input-collapsed"] as const;
+
+export type LayoutMode = typeof layoutModes[number];
+
+type SelectedOutput = { value: string; extension: string; type: string };
+
+export const defaultOptions: PipelineOptions = {
   baseUrl: "",
   contentSelector: "",
   charThreshold: 0,
@@ -16,9 +22,6 @@ const defaultOptions: PipelineOptions = {
 
 const outputTabs: Set<OutputTab> = new Set(["markdown", "preview", "cleaned", "compare"]);
 const inspectTabs: Set<InspectTab> = new Set(["metadata", "diagnostics", "sanitized"]);
-const layoutModes = ["split", "wide-output", "input-collapsed"] as const;
-
-export type LayoutMode = typeof layoutModes[number];
 
 function isOutputTab(value: unknown): value is OutputTab {
   return outputTabs.has(value as OutputTab);
@@ -41,8 +44,6 @@ function describeStatus(running: boolean, result?: PipelineResult | PipelineFail
   if (!result) return "Waiting";
   return "message" in result ? "Error" : "Ready";
 }
-
-type SelectedOutput = { value: string; extension: string; type: string };
 
 function selectedOutput(result: PipelineResult, tab: OutputTab): SelectedOutput {
   switch (tab) {
@@ -94,6 +95,12 @@ function readStoredLayout(): LayoutMode {
 
 export type WorkbenchStore = ReturnType<typeof createWorkbenchStore>;
 
+/**
+ * Persisted layout wins over the URL so a user's last choice survives reloads
+ * even when the link no longer carries `?layout=`.
+ *
+ * We keep lightweight workbench view state in the URL and persist layout locally.
+ */
 export function createWorkbenchStore() {
   const [params, setParams] = useSearchParams();
   const initialTab = isOutputTab(params.tab) ? params.tab : "markdown";
@@ -108,8 +115,7 @@ export function createWorkbenchStore() {
     tab: initialTab,
     inspectTab: initialInspectTab,
     inspectOpen: params.inspectOpen === "1",
-    // Persisted layout wins over the URL so a user's last choice survives reloads
-    // even when the link no longer carries `?layout=`.
+
     layout: storedLayout === "split" ? initialLayout : storedLayout,
     fullscreen: params.fullscreen === "1",
     running: false,
@@ -117,7 +123,6 @@ export function createWorkbenchStore() {
 
   let runId = 0;
 
-  // Keep lightweight workbench view state in the URL and persist layout locally.
   createEffect(() => {
     setParams({
       tab: state.tab === "markdown" ? undefined : state.tab,
