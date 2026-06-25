@@ -564,7 +564,7 @@ impl<'a> StandardSiteRenderer<'a> {
             .and_then(Value::as_array)
             .into_iter()
             .flatten()
-            .filter_map(|facet| RichTextRange::from_value(facet))
+            .filter_map(RichTextRange::from_value)
             .collect::<Vec<_>>();
         ranges.sort_by_key(|range| (range.start, range.end));
 

@@ -17,13 +17,19 @@ Use the library through the `lectito` crate name:
 use lectito::{extract, ReadabilityOptions};
 
 fn main() -> Result<(), lectito::Error> {
-    let html = r#"<article><h1>Title</h1><p>Article text.</p></article>"#;
-    let options = ReadabilityOptions::default();
-    let article = extract(html, Some("https://example.com/post"), &options)?;
+    let html = r#"
+        <article>
+            <h1>Readable HTML in Rust</h1>
+            <p>Lectito extracts the article body and removes page chrome.</p>
+            <p>It returns cleaned HTML, Markdown, plain text, and metadata.</p>
+        </article>
+    "#;
 
-    if let Some(article) = article {
-        println!("{}", article.markdown);
-    }
+    let options = ReadabilityOptions { char_threshold: 0, ..Default::default() };
+    let article = extract(html, Some("https://example.com/post"), &options)?
+        .expect("example article should be readable");
+
+    println!("{}", article.markdown);
 
     Ok(())
 }

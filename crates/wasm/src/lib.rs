@@ -11,11 +11,13 @@ static INIT: Once = Once::new();
 #[wasm_bindgen(typescript_custom_section)]
 const TS_TYPES: &'static str = include_str!("types.d.ts");
 
+/// Initializes panic reporting for the generated WebAssembly module.
 #[wasm_bindgen(start)]
 pub fn start() {
     init();
 }
 
+/// Extracts an article and returns the JavaScript `Article` shape.
 #[wasm_bindgen(js_name = extract, skip_typescript)]
 pub fn extract_js(html: &str, base_url: Option<String>, options: Option<JsValue>) -> Result<JsValue, JsValue> {
     init();
@@ -24,6 +26,7 @@ pub fn extract_js(html: &str, base_url: Option<String>, options: Option<JsValue>
     serde_wasm_bindgen::to_value(&article).map_err(js_error)
 }
 
+/// Extracts an article and returns diagnostics with the JavaScript result.
 #[wasm_bindgen(js_name = extractWithDiagnostics, skip_typescript)]
 pub fn extract_with_diagnostics_js(
     html: &str, base_url: Option<String>, options: Option<JsValue>,
@@ -34,6 +37,7 @@ pub fn extract_with_diagnostics_js(
     serde_wasm_bindgen::to_value(&report).map_err(js_error)
 }
 
+/// Checks whether HTML appears to contain readable article content.
 #[wasm_bindgen(js_name = isProbablyReadable, skip_typescript)]
 pub fn is_probably_readable_js(html: &str, options: Option<JsValue>) -> Result<bool, JsValue> {
     init();
@@ -41,6 +45,7 @@ pub fn is_probably_readable_js(html: &str, options: Option<JsValue>) -> Result<b
     lectito::is_probably_readable(html, &options).map_err(js_error)
 }
 
+/// Cleans article HTML and returns the selected content as a string or null.
 #[wasm_bindgen(js_name = cleanHtml, skip_typescript)]
 pub fn clean_html_js(html: &str, base_url: Option<String>, options: Option<JsValue>) -> Result<JsValue, JsValue> {
     init();
@@ -49,12 +54,14 @@ pub fn clean_html_js(html: &str, base_url: Option<String>, options: Option<JsVal
     serde_wasm_bindgen::to_value(&html).map_err(js_error)
 }
 
+/// Converts HTML to Markdown using Lectito's article-oriented renderer.
 #[wasm_bindgen(js_name = htmlToMarkdown, skip_typescript)]
 pub fn html_to_markdown_js(html: &str) -> String {
     init();
     lectito::html_to_markdown(html)
 }
 
+/// Renders Markdown to HTML using Lectito's Markdown options.
 #[wasm_bindgen(js_name = markdownToHtml, skip_typescript)]
 pub fn markdown_to_html_js(markdown: &str, options: Option<JsValue>) -> Result<String, JsValue> {
     init();

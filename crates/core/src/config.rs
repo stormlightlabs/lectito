@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+/// Controls how much media remains in extracted article HTML and Markdown.
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum MediaRetention {
@@ -18,6 +19,7 @@ pub enum MediaRetention {
 }
 
 impl MediaRetention {
+    /// Returns the stable string form used by CLI flags and serialized options.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::None => "none",
@@ -52,8 +54,9 @@ impl FromStr for MediaRetention {
 
 /// Options for full article extraction.
 ///
-/// Defaults are intended for article pages. Set only the fields that solve a
-/// specific input problem.
+/// Defaults are intended for article pages.
+///
+/// Set only the fields that solve a specific input problem.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ReadabilityOptions {
     /// Reject documents above this element count before extraction work starts.

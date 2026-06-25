@@ -4,6 +4,7 @@ pub fn word_count(text: &str) -> usize {
         .count()
 }
 
+/// Escapes text for safe insertion into HTML text or attribute contexts.
 pub fn escape_html(value: &str) -> String {
     value
         .replace('&', "&amp;")

@@ -1169,6 +1169,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "lectito-basic-example"
+version = "0.0.0"
+dependencies = [
+ "lectito",
+]
+
+[[package]]
 name = "lectito-cli"
 version = "0.1.0"
 dependencies = [

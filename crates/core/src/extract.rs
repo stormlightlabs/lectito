@@ -940,7 +940,7 @@ fn enforce_element_limit(document: &Html, limit: Option<usize>) -> Result<()> {
         Some(limit) => {
             let selector = patterns::selector("*");
             let actual = document.select(&selector).count();
-            if actual > limit { Err(Error::MaxElemsExceeded { actual, limit }) } else { Ok(()) }
+            if actual > limit { Err(Error::max_elems_exceeded(actual, limit)) } else { Ok(()) }
         }
         None => Ok(()),
     }

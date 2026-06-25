@@ -50,9 +50,7 @@ fn append_text_content(node: &NodeRef, output: &mut String) {
         append_text_content(&child, output);
     }
 
-    if tag == "br" {
-        ensure_line_break(output);
-    } else if block {
+    if tag == "br" || block {
         ensure_line_break(output);
     }
 }

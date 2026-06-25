@@ -337,19 +337,18 @@ fn host_matches(pattern: &str, subdomains: bool, host: &str) -> bool {
 }
 
 fn parse_toml_profile(name: &str, source: &str, bundled: bool) -> Result<SiteProfile> {
-    let profile: TomlSiteProfile = toml::from_str(source)
-        .map_err(|error| Error::InvalidSiteProfile { name: name.to_string(), message: error.to_string() })?;
+    let profile: TomlSiteProfile = toml::from_str(source).map_err(|error| Error::invalid_site_profile(name, error))?;
     if profile.hosts.is_empty() {
-        return Err(Error::InvalidSiteProfile {
-            name: name.to_string(),
-            message: "profile must define at least one host".to_string(),
-        });
+        return Err(Error::invalid_site_profile(
+            name,
+            "profile must define at least one host",
+        ));
     }
     if profile.content_roots.is_empty() {
-        return Err(Error::InvalidSiteProfile {
-            name: name.to_string(),
-            message: "profile must define at least one content root".to_string(),
-        });
+        return Err(Error::invalid_site_profile(
+            name,
+            "profile must define at least one content root",
+        ));
     }
 
     Ok(SiteProfile {
