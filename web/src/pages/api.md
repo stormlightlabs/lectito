@@ -55,7 +55,9 @@ API from a server.
 Use these exports when you already have HTML, such as pasted markup, a browser
 extension capture, a fixture, or server-fetched content.
 
-### `extractWithDiagnostics(html, baseUrl?, options?)`
+### `extractWithDiagnostics`
+
+Params: `html, baseUrl?, options?`
 
 Runs article extraction and returns the article plus diagnostic data for
 candidates, fallback behavior, warnings, and timing.
@@ -71,7 +73,9 @@ console.log(report.article?.content);
 console.log(report.diagnostics);
 ```
 
-### `cleanHtml(html, baseUrl?, options?)`
+### `cleanHtml`
+
+Params: `html, baseUrl?, options?`
 
 Cleans a fragment without a full readability pass. Use it when you already know
 which part of the document you want.
@@ -84,7 +88,9 @@ const cleaned = cleanHtml(fragment, "https://example.com", {
 });
 ```
 
-### `htmlToMarkdown(html)`
+### `htmlToMarkdown`
+
+Params: `html`
 
 Converts cleaned HTML to Markdown for export surfaces.
 
@@ -94,7 +100,9 @@ import { htmlToMarkdown } from "@stormlightlabs/lectito";
 const markdown = htmlToMarkdown(article.content);
 ```
 
-### `markdownToHtml(markdown)`
+### `markdownToHtml`
+
+Params: `markdown`
 
 Converts Markdown back to HTML for previews and rendering pipelines.
 
@@ -165,3 +173,10 @@ fetch.
   }
 }
 ```
+
+## Credits
+
+The editor theme in the [app](/workbench) comes from [tinted-theming](https://tinted-theming.github.io/tinted-gallery/)
+and was written by [NNB](https://github.com/NNBnh).
+
+The typography and the core inspiration for this library comes from [Mozilla](https://github.com/mozilla/readability)

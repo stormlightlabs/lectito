@@ -6,14 +6,14 @@ type CodeMirrorModules = Awaited<ReturnType<typeof loadCodeMirror>>;
 
 async function loadCodeMirror() {
   const [
-    { catppuccinLatte },
+    { daOnePaperLightCodeMirrorTheme },
     { indentWithTab },
     { html },
     { markdown },
     { Compartment, EditorState },
     { EditorView, keymap, lineNumbers },
   ] = await Promise.all([
-    import("@catppuccin/codemirror"),
+    import("$lib/codemirror-theme"),
     import("@codemirror/commands"),
     import("@codemirror/lang-html"),
     import("@codemirror/lang-markdown"),
@@ -21,7 +21,17 @@ async function loadCodeMirror() {
     import("@codemirror/view"),
   ]);
 
-  return { catppuccinLatte, indentWithTab, html, markdown, Compartment, EditorState, EditorView, keymap, lineNumbers };
+  return {
+    daOnePaperLightCodeMirrorTheme,
+    indentWithTab,
+    html,
+    markdown,
+    Compartment,
+    EditorState,
+    EditorView,
+    keymap,
+    lineNumbers,
+  };
 }
 
 function languageExtension(language: Lang, modules: CodeMirrorModules) {
@@ -211,7 +221,7 @@ export function CodeEditor(props: CodeEditorProps) {
             modules.lineNumbers(),
             modules.keymap.of([modules.indentWithTab]),
             languageExtension(props.language, modules),
-            modules.catppuccinLatte,
+            modules.daOnePaperLightCodeMirrorTheme,
             wordWrapCompartment.of(wordWrapExtension()),
             modules.EditorView.editable.of(!props.readonly),
             modules.EditorState.readOnly.of(Boolean(props.readonly)),

@@ -111,7 +111,7 @@
     align-self: start;
     display: grid;
     gap: var(--space-1);
-    border-inline-end: 1px solid var(--rule);
+    border: 1px solid var(--rule);
     background: var(--paper-raised);
     box-shadow: var(--shadow-thin);
 }

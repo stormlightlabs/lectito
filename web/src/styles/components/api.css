@@ -11,8 +11,8 @@
     gap: var(--space-3);
     align-items: center;
     border-bottom: 1px solid var(--rule);
-    margin-bottom: var(--space-6);
-    padding-bottom: var(--space-3);
+    margin-bottom: var(--space-3);
+    padding: var(--space-3) var(--space-1);
 }
 
 .api-page__bar .eyebrow {
@@ -28,11 +28,9 @@
 
 .api-toc {
     position: sticky;
-    top: 6rem;
+    top: 1rem;
     display: grid;
     gap: var(--space-1);
-    border-left: 1px solid var(--rule);
-    padding-left: var(--space-3);
 }
 
 .api-toc p {

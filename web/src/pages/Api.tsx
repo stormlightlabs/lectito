@@ -1,3 +1,4 @@
+import { Icon } from "$components/Icon";
 import { type MarkdownBlock, parseMarkdown, type TocItem } from "$lib/markdown";
 import { createMemo, createSignal, For, type JSX } from "solid-js";
 import apiMarkdown from "./api.md?raw";
@@ -37,8 +38,11 @@ function CopyButton(props: { value: string; label: string }) {
     timer = globalThis.setTimeout(() => setCopied(false), 1400);
   };
 
-  return <button type="button" class="api-copy" onClick={() => void copy()}>{copied() ? "Copied" : props.label}
-  </button>;
+  return (
+    <button type="button" class="api-copy" onClick={() => void copy()} title={copied() ? "Copied" : props.label}>
+      <Icon kind="copy" />
+    </button>
+  );
 }
 
 function MarkdownDocument(props: { blocks: MarkdownBlock[] }) {
@@ -85,6 +89,7 @@ function MarkdownDocument(props: { blocks: MarkdownBlock[] }) {
 
 export function ApiPage() {
   const blocks = () => parseMarkdown(apiMarkdown);
+  // TODO: handle "``"/'code' headings
   const toc = createMemo(() => {
     const b = blocks();
     return b.filter((block): block is Extract<MarkdownBlock, { kind: "heading" }> =>
@@ -94,12 +99,12 @@ export function ApiPage() {
 
   return (
     <main class="api-page">
-      <header class="api-page__bar">
-        <p class="eyebrow">API docs</p>
-        <CopyButton value={apiMarkdown.trim()} label="Copy Markdown" />
-      </header>
       <div class="api-body">
         <nav class="api-toc" aria-label="API contents">
+          <header class="api-page__bar">
+            <p class="eyebrow">API docs</p>
+            <CopyButton value={apiMarkdown.trim()} label="Copy Markdown" />
+          </header>
           <p>Docs</p>
           <For each={toc()}>
             {(item) => <a classList={{ "is-nested": item.depth > 2 }} href={`#${item.id}`}>{item.text}</a>}
