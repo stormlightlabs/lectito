@@ -11,7 +11,7 @@ It's an augmented, Rust implementation of the Mozilla Readability algorithm.
 
 <!-- TODO: docs.rs & book link -->
 
-Learn more by reading the [docs](/TODO.md) and the [book](/TODO.md)
+Learn more by reading the [docs](https://docs.rs/lectito) and the [book](https://lectito.stormlightlabs.org/)
 
 ## Quick Start
 
