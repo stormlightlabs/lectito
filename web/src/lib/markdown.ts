@@ -1,3 +1,22 @@
+/**
+ * Tiny Markdown parser for `api.md`.
+ *
+ * This is not a CommonMark parser.
+ *
+ * Keep the input to the small subset rendered by `Api.tsx`:
+ *
+ * - headings with one to three `#` markers
+ * - paragraphs separated by blank lines; wrapped paragraph lines are joined
+ * - flat unordered lists where every item starts with `- `
+ * - fenced code blocks with an optional word-like language tag
+ * - inline code spans and Markdown links inside text blocks
+ *
+ * Nested lists, blockquotes, tables, emphasis, images, ordered lists, HTML, and
+ * wrapped list items are treated as plain paragraph text or split into separate
+ * blocks.
+ */
+
+/** Supported Markdown blocks */
 export type MarkdownBlock =
   | { kind: "heading"; depth: number; text: string; id: string }
   | { kind: "paragraph"; text: string }

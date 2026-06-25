@@ -42,8 +42,12 @@ msgstr "Article extraction"
 #~ msgstr "Check the article before you use it."
 
 #: src/pages/Landing.tsx:134
-msgid "Clean up the document before read it."
-msgstr "Clean up the document before read it."
+#~ msgid "Clean up the document before read it."
+#~ msgstr "Clean up the document before read it."
+
+#: src/pages/Landing.tsx:134
+msgid "Clean up the document before you read it."
+msgstr "Clean up the document before you read it."
 
 #: src/pages/Landing.tsx:13
 msgid "cookie banner"

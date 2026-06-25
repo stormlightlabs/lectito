@@ -20,6 +20,30 @@ console.log(article?.title);
 console.log(article?.markdown);
 ```
 
+## Packages and docs
+
+Use the package that matches where extraction runs:
+
+The [book](https://lectito.stormlightlabs.org/) covers concepts, CLI usage,
+configuration, diagnostics, and reference material.
+
+Rust users can install the [lectito crate](https://crates.io/crates/lectito)
+for server-side or native extraction. API docs live on
+[docs.rs](https://docs.rs/lectito).
+
+The command-line tool is published as
+[lectito-cli](https://crates.io/crates/lectito-cli).
+
+Install it with `cargo install lectito-cli`; the binary is `lectito`.
+
+JavaScript apps use
+[@stormlightlabs/lectito](https://www.npmx.dev/package/@stormlightlabs/lectito)
+for the WASM bindings. Use it when your app already has HTML in the browser or
+in Node.
+
+The [source repository](https://github.com/stormlightlabs/lectito) has issues,
+examples, and local development notes.
+
 ## Browser workbench
 
 The workbench does not fetch arbitrary URLs from the browser. It accepts HTML

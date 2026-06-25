@@ -131,7 +131,7 @@ export function LandingPage() {
             <Trans>Workbench</Trans>
           </p>
           <h2 id="landing-capabilities-title">
-            <Trans>Clean up the document before read it.</Trans>
+            <Trans>Clean up the document before you read it.</Trans>
           </h2>
         </div>
         <CapabilityGrid />
