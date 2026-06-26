@@ -68,3 +68,6 @@ api-fmt-check:
 
 api-docker-build:
     docker build -f crates/api/Dockerfile -t lectito-api .
+
+hurl *args:
+    bash scripts/api.sh {{ args }}
