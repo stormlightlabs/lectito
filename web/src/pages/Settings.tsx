@@ -168,7 +168,8 @@ export function SettingsPage() {
     <PageShell eyebrow="Workbench" title="Settings" headerBefore={<WorkbenchTabs />} variant="workbench">
       <form class="settings-page" onSubmit={(event) => event.preventDefault()}>
         <p class="settings-page__intro">
-          These defaults apply to new workbench sessions. Changes here do not alter runs you have already saved.
+          <Trans>These defaults apply to new workbench sessions.</Trans>
+          <Trans>Changes here do not alter runs you have already saved.</Trans>
         </p>
 
         <section class="settings-section">

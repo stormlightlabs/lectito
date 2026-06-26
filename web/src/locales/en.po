@@ -37,6 +37,10 @@ msgstr "Article extraction"
 #~ msgid "Before / as served"
 #~ msgstr "Before / as served"
 
+#: src/pages/Settings.tsx:172
+msgid "Changes here do not alter runs you have already saved."
+msgstr "Changes here do not alter runs you have already saved."
+
 #: src/pages/Landing.tsx:135
 #~ msgid "Check the article before you use it."
 #~ msgstr "Check the article before you use it."
@@ -61,6 +65,10 @@ msgstr "Copy what you need"
 msgid "Could not save. Try again."
 msgstr "Could not save. Try again."
 
+#: src/pages/Samples.tsx:35
+msgid "Curated HTML fixtures exercising specific extraction capabilities."
+msgstr "Curated HTML fixtures exercising specific extraction capabilities."
+
 #: src/pages/Landing.tsx:41
 msgid "Extracted"
 msgstr "Extracted"
@@ -81,6 +89,18 @@ msgstr "Lectito is a tool that removes cruft to make the web more readable."
 #~ msgid "Lectito removes navigation, ads, sidebars, and footers so you can read or export the article body."
 #~ msgstr "Lectito removes navigation, ads, sidebars, and footers so you can read or export the article body."
 
+#: src/pages/Run.tsx:29
+msgid "Loading saved run."
+msgstr "Loading saved run."
+
+#: src/pages/Samples.tsx:52
+msgid "No samples match."
+msgstr "No samples match."
+
+#: src/pages/Runs.tsx:21
+msgid "No saved runs yet."
+msgstr "No saved runs yet."
+
 #: src/pages/Landing.tsx:44
 msgid "On Reading the Web"
 msgstr "On Reading the Web"
@@ -93,9 +113,17 @@ msgstr "Open the workbench"
 msgid "Original"
 msgstr "Original"
 
+#: src/pages/Workbench.tsx:15
+msgid "Paste HTML here."
+msgstr "Paste HTML here."
+
 #: src/pages/Landing.tsx:75
 msgid "Paste HTML or enter a URL. Lectito finds the article and removes the surrounding chrome."
 msgstr "Paste HTML or enter a URL. Lectito finds the article and removes the surrounding chrome."
+
+#: src/pages/Samples.tsx:36
+msgid "Pick one to load it in the workbench."
+msgstr "Pick one to load it in the workbench."
 
 #: src/pages/Landing.tsx:83
 msgid "Preview the cleaned article before you copy anything out of the workbench."
@@ -121,6 +149,10 @@ msgstr "related links"
 msgid "Saved"
 msgstr "Saved"
 
+#: src/pages/Samples.tsx:40
+msgid "Search samples"
+msgstr "Search samples"
+
 #: src/pages/Landing.tsx:17
 msgid "site navigation"
 msgstr "site navigation"
@@ -129,6 +161,18 @@ msgstr "site navigation"
 msgid "The article body remains. The page chrome is gone."
 msgstr "The article body remains. The page chrome is gone."
 
+#: src/pages/NotFound.tsx:8
+msgid "The requested page does not exist."
+msgstr "The requested page does not exist."
+
+#: src/pages/Settings.tsx:171
+msgid "These defaults apply to new workbench sessions."
+msgstr "These defaults apply to new workbench sessions."
+
+#: src/pages/Run.tsx:36
+msgid "This saved run was not found in local history."
+msgstr "This saved run was not found in local history."
+
 #: src/pages/Landing.tsx:116
 #~ msgid "Turn a web page into an article."
 #~ msgstr "Turn a web page into an article."
@@ -136,6 +180,10 @@ msgstr "The article body remains. The page chrome is gone."
 #: src/pages/Landing.tsx:91
 msgid "Use Markdown, clean HTML, metadata, or diagnostics from the same run."
 msgstr "Use Markdown, clean HTML, metadata, or diagnostics from the same run."
+
+#: src/pages/Workbench.tsx:16
+msgid "Use the <0>API docs</0> for server-side URL extraction."
+msgstr "Use the <0>API docs</0> for server-side URL extraction."
 
 #: src/pages/Landing.tsx:134
 msgid "Workbench"

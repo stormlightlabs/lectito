@@ -10,7 +10,6 @@ type PageShellProps = {
 
 export function PageShell(props: PageShellProps) {
   const isWorkbench = () => props.variant === "workbench";
-
   return (
     <main classList={{ "app-shell": true, "app-shell--workbench": isWorkbench() }}>
       {isWorkbench() && props.headerBefore}

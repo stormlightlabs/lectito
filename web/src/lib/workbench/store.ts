@@ -1,7 +1,7 @@
 import { extractHtmlWithWasm } from "$lib/clients/wasm";
-import { findSample } from "$lib/samples";
 import { saveRun } from "$lib/runs";
 import { sampleHtml } from "$lib/sample";
+import { findSample } from "$lib/samples";
 import type { InspectTab, OutputTab, PipelineFailure, PipelineOptions, PipelineResult } from "$lib/types";
 import { useSearchParams } from "@solidjs/router";
 import { createEffect, createMemo } from "solid-js";

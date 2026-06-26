@@ -1,4 +1,5 @@
 import { type GallerySample, gallerySamples, sampleCategories, type SampleCategory } from "$lib/samples";
+import { Trans } from "@lingui/solid/macro";
 import { useNavigate } from "@solidjs/router";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { PageShell } from "./PageShell";
@@ -31,17 +32,26 @@ export function SamplesPage() {
     <PageShell eyebrow="Workbench" title="Sample gallery" headerBefore={<WorkbenchTabs />} variant="workbench">
       <div class="sample-gallery">
         <p class="sample-gallery__intro">
-          Curated HTML fixtures exercising specific extraction capabilities. Pick one to load it in the workbench.
+          <Trans>Curated HTML fixtures exercising specific extraction capabilities.</Trans>
+          <Trans>Pick one to load it in the workbench.</Trans>
         </p>
         <label class="sample-gallery__search">
-          <span class="sr-only">Search samples</span>
+          <span class="sr-only">
+            <Trans>Search samples</Trans>
+          </span>
           <input
             type="search"
             placeholder="Search by name or capability…"
             value={query()}
             onInput={(e) => setQuery(e.currentTarget.value)} />
         </label>
-        <Show when={grouped().length > 0} fallback={<p class="sample-gallery__empty">No samples match.</p>}>
+        <Show
+          when={grouped().length > 0}
+          fallback={
+            <p class="sample-gallery__empty">
+              <Trans>No samples match.</Trans>
+            </p>
+          }>
           <For each={grouped()}>
             {(group) => (
               <section class="sample-gallery__group">

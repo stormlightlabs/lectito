@@ -1,6 +1,7 @@
 import { InputPane } from "$components/Input";
 import { OutputPane } from "$components/Output";
 import { useWorkbench, WorkbenchProvider } from "$lib/workbench/context";
+import { Trans } from "@lingui/solid/macro";
 import { A } from "@solidjs/router";
 import { Show } from "solid-js";
 import { WorkbenchTabs } from "./WorkbenchTabs";
@@ -11,7 +12,10 @@ function WorkbenchHeader() {
       <div class="app-header__main">
         <p class="eyebrow">Workbench</p>
         <p class="app-header__note">
-          Paste HTML here. Use the <A href="/api">API docs</A> for server-side URL extraction.
+          <Trans>Paste HTML here.</Trans>
+          <Trans>
+            Use the <A href="/api">API docs</A> for server-side URL extraction.
+          </Trans>
         </p>
       </div>
     </header>

@@ -1,4 +1,5 @@
 import { getSavedRun } from "$lib/runs";
+import { Trans } from "@lingui/solid/macro";
 import { useParams } from "@solidjs/router";
 import { createEffect, createSignal, Show } from "solid-js";
 import { PageShell } from "./PageShell";
@@ -21,8 +22,20 @@ export function RunPage() {
 
   return (
     <PageShell eyebrow="Workbench" title={`Run ${params.id}`} headerBefore={<WorkbenchTabs />} variant="workbench">
-      <Show when={loaded()} fallback={<p>Loading saved run.</p>}>
-        <Show when={run()} fallback={<p>This saved run was not found in local history.</p>}>
+      <Show
+        when={loaded()}
+        fallback={
+          <p>
+            <Trans>Loading saved run.</Trans>
+          </p>
+        }>
+        <Show
+          when={run()}
+          fallback={
+            <p>
+              <Trans>This saved run was not found in local history.</Trans>
+            </p>
+          }>
           {(savedRun) => (
             <div class="run-detail">
               <section>

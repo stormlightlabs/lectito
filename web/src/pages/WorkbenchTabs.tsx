@@ -14,7 +14,6 @@ const tabs = [
 
 export function WorkbenchTabs() {
   const location = useLocation();
-
   return (
     <nav class="workbench-tabs" role="tablist" aria-label="Workbench sections" aria-orientation="vertical">
       <For each={tabs}>

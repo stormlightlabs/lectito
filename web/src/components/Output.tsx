@@ -1,5 +1,5 @@
-import { useWorkbench } from "$lib/workbench/context";
 import { renderMath } from "$lib/math";
+import { useWorkbench } from "$lib/workbench/context";
 import { createMemo, createSignal, For, lazy, onMount, Show, Suspense } from "solid-js";
 import type { InspectTab, OutputTab, PipelineFailure, PipelineMetadata, PipelineResult } from "../lib/types";
 import type { CodeEditorProps } from "./CodeEditor";

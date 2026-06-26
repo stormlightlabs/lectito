@@ -1,4 +1,5 @@
 import { listSavedRuns } from "$lib/runs";
+import { Trans } from "@lingui/solid/macro";
 import { A } from "@solidjs/router";
 import { createSignal, For, onMount, Show } from "solid-js";
 import { PageShell } from "./PageShell";
@@ -13,7 +14,13 @@ export function RunsPage() {
 
   return (
     <PageShell eyebrow="Workbench" title="Runs" headerBefore={<WorkbenchTabs />} variant="workbench">
-      <Show when={runs().length > 0} fallback={<p>No saved runs yet.</p>}>
+      <Show
+        when={runs().length > 0}
+        fallback={
+          <p>
+            <Trans>No saved runs yet.</Trans>
+          </p>
+        }>
         <div class="run-list">
           <For each={runs()}>
             {(run) => (
