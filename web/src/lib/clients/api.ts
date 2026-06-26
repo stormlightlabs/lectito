@@ -1,13 +1,7 @@
-import type {
-  ApiErrorResponse,
-  ExtractUrlResponse,
-  PipelineFailure,
-  PipelineResult,
-  UrlExtractionRequest,
-} from "../types";
+import type { ApiErrorResponse, ExtractionRequest, ExtractResponse, PipelineFailure, PipelineResult } from "../types";
 import { articleResult, emptyToNull, failure } from "./shared";
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) || "http://localhost:3000";
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) || "/api";
 
 async function errorMessage(response: Response): Promise<string> {
   try {
@@ -18,7 +12,7 @@ async function errorMessage(response: Response): Promise<string> {
   }
 }
 
-export async function extractUrlWithApi(request: UrlExtractionRequest): Promise<PipelineResult | PipelineFailure> {
+export async function extractUrlWithApi(request: ExtractionRequest): Promise<PipelineResult | PipelineFailure> {
   const start = performance.now();
   const trimmedUrl = request.url.trim();
 
@@ -27,7 +21,7 @@ export async function extractUrlWithApi(request: UrlExtractionRequest): Promise<
   }
 
   try {
-    const response = await fetch(`${apiBaseUrl.replace(/\/+$/, "")}/v1/extract-url`, {
+    const response = await fetch(`${apiBaseUrl.replace(/\/+$/, "")}/v1/extract`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -45,7 +39,7 @@ export async function extractUrlWithApi(request: UrlExtractionRequest): Promise<
       return failure(await errorMessage(response), "url", start);
     }
 
-    const data = await response.json() as ExtractUrlResponse;
+    const data = await response.json() as ExtractResponse;
     if (!data.article || data.article.length === 0 || data.article.content.trim().length === 0) {
       return failure("No readable article was found for this URL.", "url", start);
     }

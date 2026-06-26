@@ -2,6 +2,26 @@ use lectito::{MarkdownOptions, MediaRetention, ReadabilityOptions, ReadableOptio
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+#[derive(Clone, Copy, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "kebab-case")]
+enum MediaRetentionDto {
+    None,
+    Conservative,
+    Article,
+    All,
+}
+
+impl From<MediaRetentionDto> for MediaRetention {
+    fn from(value: MediaRetentionDto) -> Self {
+        match value {
+            MediaRetentionDto::None => Self::None,
+            MediaRetentionDto::Conservative => Self::Conservative,
+            MediaRetentionDto::Article => Self::Article,
+            MediaRetentionDto::All => Self::All,
+        }
+    }
+}
+
 #[derive(Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct HealthResponse {
@@ -10,7 +30,7 @@ pub struct HealthResponse {
 
 #[derive(Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ExtractUrlRequest {
+pub struct ExtractRequest {
     pub url: String,
     #[serde(default)]
     pub options: Option<ReadabilityOptionsDto>,
@@ -20,7 +40,7 @@ pub struct ExtractUrlRequest {
 
 #[derive(Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ExtractUrlResponse {
+pub struct ExtractResponse {
     pub article: Option<ArticleDto>,
     #[schema(value_type = Option<Object>)]
     pub diagnostics: Option<serde_json::Value>,
@@ -30,7 +50,7 @@ pub struct ExtractUrlResponse {
 
 #[derive(Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ReadableRequest {
+pub struct EvaluateRequest {
     pub url: String,
     #[serde(default)]
     pub options: Option<ReadableOptionsDto>,
@@ -38,13 +58,13 @@ pub struct ReadableRequest {
 
 #[derive(Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ReadableResponse {
+pub struct EvaluateResponse {
     pub readable: bool,
 }
 
 #[derive(Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct MarkdownRequest {
+pub struct TransformRequest {
     pub html: String,
     #[serde(default)]
     pub options: Option<MarkdownOptionsDto>,
@@ -52,7 +72,7 @@ pub struct MarkdownRequest {
 
 #[derive(Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct MarkdownResponse {
+pub struct TransformResponse {
     pub markdown: String,
 }
 
@@ -162,26 +182,6 @@ impl ReadabilityOptionsDto {
             options.media_retention = value.into();
         }
         options
-    }
-}
-
-#[derive(Clone, Copy, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "kebab-case")]
-enum MediaRetentionDto {
-    None,
-    Conservative,
-    Article,
-    All,
-}
-
-impl From<MediaRetentionDto> for MediaRetention {
-    fn from(value: MediaRetentionDto) -> Self {
-        match value {
-            MediaRetentionDto::None => Self::None,
-            MediaRetentionDto::Conservative => Self::Conservative,
-            MediaRetentionDto::Article => Self::Article,
-            MediaRetentionDto::All => Self::All,
-        }
     }
 }
 

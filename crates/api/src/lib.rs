@@ -22,8 +22,8 @@ mod models;
 
 use error::{ApiError, ErrorCode};
 use models::{
-    ArticleDto, ErrorResponse, ExtractUrlRequest, ExtractUrlResponse, HealthResponse, MarkdownOptionsDto,
-    MarkdownRequest, MarkdownResponse, ReadabilityOptionsDto, ReadableOptionsDto, ReadableRequest, ReadableResponse,
+    ArticleDto, ErrorResponse, EvaluateRequest, EvaluateResponse, ExtractRequest, ExtractResponse, HealthResponse,
+    MarkdownOptionsDto, ReadabilityOptionsDto, ReadableOptionsDto, TransformRequest, TransformResponse,
 };
 
 #[derive(Clone)]
@@ -203,9 +203,9 @@ pub fn app(config: Config) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/openapi.json", get(openapi))
-        .route("/v1/extract-url", post(extract_url))
-        .route("/v1/readable", post(readable))
-        .route("/v1/markdown", post(markdown))
+        .route("/v1/extract", post(extract))
+        .route("/v1/evaluate", post(evaluate))
+        .route("/v1/transform", post(transform))
         .with_state(state)
         .layer(TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, timeout))
         .layer(RequestBodyLimitLayer::new(config.max_body_bytes))
@@ -272,36 +272,36 @@ async fn openapi() -> Json<utoipa::openapi::OpenApi> {
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(healthz, extract_url, readable, markdown),
+    paths(healthz, extract, evaluate, transform),
     components(schemas(
         ArticleDto,
         ErrorResponse,
-        ExtractUrlRequest,
-        ExtractUrlResponse,
+        EvaluateRequest,
+        EvaluateResponse,
+        ExtractRequest,
+        ExtractResponse,
         HealthResponse,
         MarkdownOptionsDto,
-        MarkdownRequest,
-        MarkdownResponse,
         ReadabilityOptionsDto,
         ReadableOptionsDto,
-        ReadableRequest,
-        ReadableResponse
+        TransformRequest,
+        TransformResponse
     ))
 )]
 struct ApiDoc;
 
 #[utoipa::path(
     post,
-    path = "/v1/extract-url",
-    request_body = ExtractUrlRequest,
+    path = "/v1/extract",
+    request_body = ExtractRequest,
     responses(
-        (status = 200, description = "Extracted article", body = ExtractUrlResponse),
+        (status = 200, description = "Extracted article", body = ExtractResponse),
         (status = 400, description = "Structured API error", body = ErrorResponse)
     )
 )]
-async fn extract_url(
-    State(state): State<AppState>, Json(request): Json<ExtractUrlRequest>,
-) -> Result<Json<ExtractUrlResponse>, ApiError> {
+async fn extract(
+    State(state): State<AppState>, Json(request): Json<ExtractRequest>,
+) -> Result<Json<ExtractResponse>, ApiError> {
     let started = Instant::now();
     let options = request.options.unwrap_or_default().into_options();
     let fetched = state.fetch_url(&request.url).await?;
@@ -309,7 +309,7 @@ async fn extract_url(
         .map_err(|err| ApiError::core(ErrorCode::ExtractFailed, err))?;
 
     let article = report.article.map(ArticleDto::from);
-    Ok(Json(ExtractUrlResponse {
+    Ok(Json(ExtractResponse {
         article,
         diagnostics: request
             .diagnostics
@@ -320,40 +320,40 @@ async fn extract_url(
 
 #[utoipa::path(
     post,
-    path = "/v1/readable",
-    request_body = ReadableRequest,
+    path = "/v1/evaluate",
+    request_body = EvaluateRequest,
     responses(
-        (status = 200, description = "Readability result", body = ReadableResponse),
+        (status = 200, description = "Readability result", body = EvaluateResponse),
         (status = 400, description = "Structured API error", body = ErrorResponse)
     )
 )]
-async fn readable(
-    State(state): State<AppState>, Json(request): Json<ReadableRequest>,
-) -> Result<Json<ReadableResponse>, ApiError> {
+async fn evaluate(
+    State(state): State<AppState>, Json(request): Json<EvaluateRequest>,
+) -> Result<Json<EvaluateResponse>, ApiError> {
     let options = request.options.unwrap_or_default().into_options();
     let fetched = state.fetch_url(&request.url).await?;
     let readable = lectito::is_probably_readable(&fetched.html, &options)
         .map_err(|err| ApiError::core(ErrorCode::ExtractFailed, err))?;
-    Ok(Json(ReadableResponse { readable }))
+    Ok(Json(EvaluateResponse { readable }))
 }
 
 #[utoipa::path(
     post,
-    path = "/v1/markdown",
-    request_body = MarkdownRequest,
+    path = "/v1/transform",
+    request_body = TransformRequest,
     responses(
-        (status = 200, description = "Markdown result", body = MarkdownResponse),
+        (status = 200, description = "Markdown result", body = TransformResponse),
         (status = 400, description = "Structured API error", body = ErrorResponse)
     )
 )]
-async fn markdown(headers: HeaderMap, Json(request): Json<MarkdownRequest>) -> Result<Response, ApiError> {
+async fn transform(headers: HeaderMap, Json(request): Json<TransformRequest>) -> Result<Response, ApiError> {
     let _options: MarkdownOptions = request.options.unwrap_or_default().into();
     let markdown = lectito::html_to_markdown(&request.html);
 
     if accepts_markdown(&headers) {
         Ok(([(header::CONTENT_TYPE, "text/markdown; charset=utf-8")], markdown).into_response())
     } else {
-        Ok(Json(MarkdownResponse { markdown }).into_response())
+        Ok(Json(TransformResponse { markdown }).into_response())
     }
 }
 
@@ -458,10 +458,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn markdown_returns_json_by_default() {
+    async fn transform_returns_json_by_default() {
         let response = app(test_config())
             .oneshot(json_request(
-                "/v1/markdown",
+                "/v1/transform",
                 json!({ "html": "<h1>Hello</h1><p>Body</p>" }),
             ))
             .await
@@ -473,12 +473,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn markdown_returns_plain_markdown_when_requested() {
+    async fn transform_returns_plain_markdown_when_requested() {
         let response = app(test_config())
             .oneshot(
                 Request::builder()
                     .method(Method::POST)
-                    .uri("/v1/markdown")
+                    .uri("/v1/transform")
                     .header(header::CONTENT_TYPE, "application/json")
                     .header(header::ACCEPT, "text/markdown")
                     .body(Body::from(r#"{ "html": "<h1>Hello</h1><p>Body</p>" }"#))
@@ -493,11 +493,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn extract_url_smoke() {
+    async fn extract_smoke() {
         let source = html_server().await;
         let response = app(test_config())
             .oneshot(json_request(
-                "/v1/extract-url",
+                "/v1/extract",
                 json!({ "url": source, "options": { "charThreshold": 20 }, "diagnostics": true }),
             ))
             .await
@@ -512,11 +512,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn readable_smoke() {
+    async fn evaluate_smoke() {
         let source = html_server().await;
         let response = app(test_config())
             .oneshot(json_request(
-                "/v1/readable",
+                "/v1/evaluate",
                 json!({ "url": source, "options": { "minContentLength": 20, "minScore": 0.0 } }),
             ))
             .await

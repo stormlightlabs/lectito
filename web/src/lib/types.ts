@@ -48,9 +48,9 @@ export type SavedRun = {
   result: PipelineResult;
 };
 
-export type UrlExtractionRequest = { url: string; options: PipelineOptions };
+export type ExtractionRequest = { url: string; options: PipelineOptions };
 
-export type ExtractUrlResponse = { article?: Article | null; diagnostics?: unknown; elapsedMs: number };
+export type ExtractResponse = { article?: Article | null; diagnostics?: unknown; elapsedMs: number };
 
 export type ApiErrorResponse = { error?: { code?: string; message?: string }; message?: string };
 

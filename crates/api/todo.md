@@ -20,9 +20,9 @@ The Cloudflare Worker should strip the `/api` prefix before forwarding:
 
 - `/api/healthz` -> `/healthz`
 - `/api/openapi.json` -> `/openapi.json`
-- `/api/v1/extract-url` -> `/v1/extract-url`
-- `/api/v1/readable` -> `/v1/readable`
-- `/api/v1/markdown` -> `/v1/markdown`
+- `/api/v1/extract` -> `/v1/extract`
+- `/api/v1/evaluate` -> `/v1/evaluate`
+- `/api/v1/transform` -> `/v1/transform`
 
 Move the current web `/api` docs page before this goes live. Good targets are
 `/api-docs` or a page under `/docs`.
@@ -73,9 +73,9 @@ const apiBaseUrl =
 - Add smoke checks for:
   - `/api/healthz`
   - `/api/openapi.json`
-  - `/api/v1/markdown`
-  - `/api/v1/readable`
-  - `/api/v1/extract-url`
+  - `/api/v1/transform`
+  - `/api/v1/evaluate`
+  - `/api/v1/extract`
 
 ## Later
 
