@@ -1,4 +1,5 @@
 import { extractHtmlWithWasm } from "$lib/clients/wasm";
+import { findSample } from "$lib/samples";
 import { saveRun } from "$lib/runs";
 import { sampleHtml } from "$lib/sample";
 import type { InspectTab, OutputTab, PipelineFailure, PipelineOptions, PipelineResult } from "$lib/types";
@@ -102,9 +103,11 @@ export function createWorkbenchStore(defaults: { options: PipelineOptions; layou
   const initialTab = isOutputTab(params.tab) ? params.tab : "markdown";
   const initialInspectTab = isInspectTab(params.inspect) ? params.inspect : "metadata";
   const initialLayout = isLayoutMode(params.layout) ? params.layout : defaults.layout;
+  const sampleParam = Array.isArray(params.sample) ? params.sample[0] : params.sample;
+  const initialHtml = findSample(sampleParam)?.html ?? sampleHtml;
 
   const [state, setState] = createStore<WorkbenchState>({
-    html: sampleHtml,
+    html: initialHtml,
     options: { ...defaults.options },
     result: undefined,
     tab: initialTab,

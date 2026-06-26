@@ -28,5 +28,5 @@ The web app has two primary flows:
 ## Implementation Order
 
 - [x] Back run history with Dexie.js.
-- [ ] Add the sample gallery.
+- [x] Add the sample gallery.
 - [ ] Add `/workbench/settings` persistence.

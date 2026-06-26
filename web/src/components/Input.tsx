@@ -1,6 +1,7 @@
 import { useWorkbench } from "$lib/workbench/context";
-import { createMemo, createSignal, For, lazy, Show, Suspense } from "solid-js";
-import type { PipelineOptions, SampleHtml } from "../lib/types";
+import { A } from "@solidjs/router";
+import { createMemo, createSignal, lazy, Show, Suspense } from "solid-js";
+import type { PipelineOptions } from "../lib/types";
 import type { CodeEditorProps } from "./CodeEditor";
 import { Icon } from "./Icon";
 import { OptionsPanel } from "./Options";
@@ -27,7 +28,6 @@ function InputToolbar(
   props: {
     html: string;
     running: boolean;
-    samples: SampleHtml[];
     onHtml: (html: string) => void;
     onCancel: () => void;
     onReset: () => void;
@@ -50,14 +50,7 @@ function InputToolbar(
 
   return (
     <div class="pane-toolbar pane-toolbar--input">
-      <label class="pane-toolbar__select">
-        <select
-          id="sample-html"
-          onChange={(event) => props.onHtml(props.samples[Number(event.currentTarget.value)]?.html ?? "")}>
-          {/* TODO: we should add a readonly -- Samples -- entry */}
-          <For each={props.samples}>{(sample, index) => <option value={index()}>{sample.label}</option>}</For>
-        </select>
-      </label>
+      <A href="/workbench/samples" class="button button--secondary">Samples</A>
       <div class="pane-toolbar__actions">
         <MotionButton type="button" class="button button--secondary" onClick={() => void pasteHtml()}>
           Paste
@@ -133,7 +126,6 @@ export function InputPane() {
             <InputToolbar
               html={workbench.state.html}
               running={workbench.state.running}
-              samples={workbench.sampleHtml}
               onHtml={workbench.setHtml}
               onCancel={workbench.cancelRun}
               onReset={workbench.resetInput}

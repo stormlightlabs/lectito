@@ -72,6 +72,7 @@
     min-height: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
     overflow: hidden;
 }
 

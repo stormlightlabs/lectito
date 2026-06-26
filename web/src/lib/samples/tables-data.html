@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Hermitian matrix table fixture</title>
+  <meta name="description" content="Representative Wikipedia-style data table with MathML fallback images.">
+</head>
+<body>
+  <header><nav>Navigation chrome should be ignored.</nav></header>
+  <main>
+    <article>
+      <h1>Hermitian matrix table fixture</h1>
+      <p>
+        This fixture models the Hermitian matrix article, where explanatory
+        prose is mixed with accessible math and compact data tables.
+      </p>
+      <p>
+        The example matrix uses entries that are mirrored across the diagonal,
+        and the table below should remain as tabular data in Markdown.
+      </p>
+      <table class="wikitable">
+        <caption>Sample Hermitian matrix entries</caption>
+        <thead>
+          <tr><th>Entry</th><th>Value</th><th>Conjugate</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>A<sub>12</sub></th>
+            <td>3 + 2i</td>
+            <td>3 - 2i</td>
+          </tr>
+          <tr>
+            <th>A<sub>21</sub></th>
+            <td>3 - 2i</td>
+            <td>3 + 2i</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Wikipedia math often includes an image fallback carrying the original
+        TeX in an alt attribute:
+        <span class="mwe-math-element">
+          <img alt="{\displaystyle A_{kj}={\overline {A_{jk}}}}"
+            src="https://wikimedia.org/api/rest_v1/media/math/render/svg/example">
+        </span>.
+      </p>
+    </article>
+  </main>
+</body>
+</html>

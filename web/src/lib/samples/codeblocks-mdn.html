@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>MDN code block normalization</title>
+    </head>
+    <body>
+        <main>
+            <article>
+                <h1>MDN code block normalization</h1>
+                <p>
+                    This sample models MDN reference pages that place highlighted code behind
+                    language labels and classes such as js notranslate.
+                </p>
+                <div class="code-example">
+                    <div class="example-header">
+                        <span class="language-name">JavaScript</span>
+                    </div>
+                    <pre
+                        class="brush: js notranslate"
+                    ><code>const proxy = new Proxy(target, handler);
+proxy.message;</code></pre>
+                </div>
+                <p>
+                    The extractor should preserve the preformatted code while dropping the sibling
+                    language label from the readable article output.
+                </p>
+            </article>
+        </main>
+    </body>
+</html>

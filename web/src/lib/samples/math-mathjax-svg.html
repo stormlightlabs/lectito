@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>MathJax SVG fixture</title>
+  <meta name="description" content="Representative MathJax SVG output with assistive MathML.">
+</head>
+<body>
+  <main>
+    <article>
+      <h1>MathJax SVG fixture</h1>
+      <p>
+        MathJax rendered output may wrap assistive MathML in an SVG container.
+        The semantic MathML should become compact TeX-like Markdown.
+      </p>
+      <mjx-container jax="SVG" display="true">
+        <svg aria-hidden="true"></svg>
+        <mjx-assistive-mml>
+          <math display="block">
+            <mfrac>
+              <mrow><mi>a</mi><mo>+</mo><mi>b</mi></mrow>
+              <mi>c</mi>
+            </mfrac>
+          </math>
+        </mjx-assistive-mml>
+      </mjx-container>
+      <p>
+        The source page uses MathJax demos to compare TeX and MathML input
+        modes with rendered output.
+      </p>
+    </article>
+  </main>
+</body>
+</html>

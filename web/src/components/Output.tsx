@@ -1,5 +1,6 @@
 import { useWorkbench } from "$lib/workbench/context";
-import { createMemo, createSignal, For, lazy, Show, Suspense } from "solid-js";
+import { renderMath } from "$lib/math";
+import { createMemo, createSignal, For, lazy, onMount, Show, Suspense } from "solid-js";
 import type { InspectTab, OutputTab, PipelineFailure, PipelineMetadata, PipelineResult } from "../lib/types";
 import type { CodeEditorProps } from "./CodeEditor";
 import { Icon } from "./Icon";
@@ -92,6 +93,11 @@ function CompareView(props: { result: PipelineResult; sourceHtml: string; status
 function ResultView(props: { result: PipelineResult; sourceHtml: string; statusText: string; tab: OutputTab }) {
   const [readerSize, setReaderSize] = createSignal("regular");
   const [readerWidth, setReaderWidth] = createSignal("measure");
+  let previewRef: HTMLElement | undefined;
+
+  onMount(() => {
+    if (previewRef) void renderMath(previewRef);
+  });
 
   return (
     <Show
@@ -137,6 +143,7 @@ function ResultView(props: { result: PipelineResult; sourceHtml: string; statusT
           </button>
         </div>
         <article
+          ref={(el: HTMLElement) => (previewRef = el)}
           class="preview prose"
           classList={{ "is-large": readerSize() === "large", "is-wide": readerWidth() === "wide" }}
           innerHTML={props.result.previewHtml}

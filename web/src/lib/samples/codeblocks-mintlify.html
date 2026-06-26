@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Mintlify code block normalization</title>
+    </head>
+    <body>
+        <article>
+            <h1>Mintlify code block normalization</h1>
+            <p>
+                This sample represents documentation pages that wrap highlighted code with copy
+                controls, filename chrome, language labels, and line numbers. The extractor should
+                keep the article prose and the code sample while markdown conversion removes the
+                surrounding interface text.
+            </p>
+            <div class="code-block not-prose">
+                <div class="code-header">
+                    <span class="filename">client.ts</span>
+                    <button aria-label="Copy code">Copy</button>
+                </div>
+                <pre
+                    data-language="TypeScript"
+                    class="language-ts"
+                ><code><span class="line"><span class="line-number">1</span><span class="token keyword">export</span> async function loadArticle(url: string) {</span>
+<span class="line"><span class="line-number">2</span>  return client.extract({ url });</span>
+<span class="line"><span class="line-number">3</span>}</span></code></pre>
+            </div>
+            <p>
+                The paragraph after the code block gives the readability scorer enough natural
+                language context to select the article rather than the navigation or code toolbar.
+                It also verifies that prose after a code sample remains in the extracted content.
+            </p>
+        </article>
+    </body>
+</html>

@@ -93,7 +93,3 @@ export type Article = {
   domain?: string | null;
   favicon?: string | null;
 };
-
-export type SampleUrl = { label: string; url: string };
-
-export type SampleHtml = { label: string; html: string };

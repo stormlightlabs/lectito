@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>CodeMirror code block normalization</title>
+    </head>
+    <body>
+        <main>
+            <article>
+                <h1>CodeMirror code block normalization</h1>
+                <p>
+                    This sample covers editor-shaped code markup, where each visible source line is
+                    represented by a CodeMirror line container instead of a native pre element.
+                    Markdown conversion should join those visual lines into a single typed fenced
+                    code block.
+                </p>
+                <div class="cm-editor">
+                    <div class="cm-gutters">
+                        <div class="cm-gutterElement">1</div>
+                        <div class="cm-gutterElement">2</div>
+                    </div>
+                    <div class="cm-content language-python" role="textbox" aria-label="Code">
+                        <div class="cm-line">
+                            <span class="cm-keyword">def</span> clean_html(source):
+                        </div>
+                        <div class="cm-line">return extractor.clean(source)</div>
+                    </div>
+                </div>
+                <p>
+                    The surrounding article text makes this a realistic extraction target and
+                    ensures CodeMirror gutters are ignored rather than leaking line numbers into the
+                    markdown output.
+                </p>
+            </article>
+        </main>
+    </body>
+</html>

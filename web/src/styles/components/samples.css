@@ -1,0 +1,97 @@
+.sample-gallery {
+    display: grid;
+    gap: var(--space-5);
+}
+
+.sample-gallery__intro {
+    margin: 0;
+    color: var(--ink-muted);
+    font-size: var(--text-sm);
+    line-height: var(--line-sm);
+}
+
+.sample-gallery__search input {
+    width: 100%;
+    max-width: 28rem;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-2);
+    background: var(--field);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+}
+
+.sample-gallery__search input:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}
+
+.sample-gallery__empty {
+    margin: 0;
+    color: var(--ink-muted);
+    font-size: var(--text-sm);
+}
+
+.sample-gallery__group {
+    display: grid;
+    gap: var(--space-3);
+}
+
+.sample-gallery__heading {
+    margin: 0;
+    color: var(--ink);
+    font-size: var(--text-sm);
+    font-weight: 720;
+    letter-spacing: 0.04em;
+    line-height: var(--line-sm);
+    text-transform: uppercase;
+}
+
+.sample-gallery__cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: var(--space-3);
+}
+
+.sample-card {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-2);
+    background: var(--paper-raised);
+    text-align: left;
+    cursor: pointer;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
+}
+
+.sample-card:hover {
+    border-color: var(--rule-strong);
+    background: var(--paper-muted);
+}
+
+.sample-card:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.sample-card__label {
+    color: var(--ink);
+    font-size: var(--text-base);
+    font-weight: 680;
+}
+
+.sample-card__description {
+    color: var(--ink-muted);
+    font-size: var(--text-sm);
+    line-height: var(--line-sm);
+}
+
+@media (max-width: 640px) {
+    .sample-gallery__cards {
+        grid-template-columns: 1fr;
+    }
+}

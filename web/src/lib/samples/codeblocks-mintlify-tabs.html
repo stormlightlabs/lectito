@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Mintlify tabbed code docs</title>
+    </head>
+    <body class="antialiased">
+        <nav>
+            <a href="/docs">Docs</a>
+            <a href="/api">API</a>
+            <a href="/changelog">Changelog</a>
+        </nav>
+        <main id="content-container">
+            <h1>Mintlify tabbed code docs</h1>
+            <p>
+                This sample models app documentation pages with copy-page controls, orphan tab
+                labels, and a focused main content root.
+            </p>
+            <button aria-label="Copy page"><svg></svg>Copy page</button>
+            <div role="tablist">
+                <button role="tab">JavaScript</button>
+                <button role="tab">Python</button>
+            </div>
+            <section>
+                <pre
+                    data-language="ts"
+                ><code>export const snippet = await client.extract(url);</code></pre>
+            </section>
+            <p>
+                The useful prose and code panel should remain after cleanup removes the surrounding
+                application controls.
+            </p>
+        </main>
+    </body>
+</html>
