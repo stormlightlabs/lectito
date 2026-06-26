@@ -1,5 +1,11 @@
 export type AppMode = "url" | "html";
 
+export type OutputTab = "markdown" | "preview" | "cleaned" | "compare";
+
+export type InspectTab = "metadata" | "diagnostics" | "sanitized";
+
+export type Lang = "html" | "markdown" | "plain" | "json";
+
 export type PipelineOptions = {
   baseUrl: string;
   contentSelector: string;
@@ -87,12 +93,6 @@ export type Article = {
   domain?: string | null;
   favicon?: string | null;
 };
-
-export type OutputTab = "markdown" | "preview" | "cleaned" | "compare";
-
-export type InspectTab = "metadata" | "diagnostics" | "sanitized";
-
-export type Lang = "html" | "markdown" | "plain";
 
 export type SampleUrl = { label: string; url: string };
 

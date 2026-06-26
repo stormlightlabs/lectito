@@ -90,6 +90,7 @@ const theme = EditorView.theme({
   },
   ".cm-diagnostic-error": { borderLeftColor: daOnePaper.base08 },
   ".cm-diagnostic-warning": { borderLeftColor: daOnePaper.base09 },
+  ".cm-foldGutter": { backgroundColor: "var(--paper-muted)" },
 }, { dark: false });
 
 const highlightStyle = HighlightStyle.define([

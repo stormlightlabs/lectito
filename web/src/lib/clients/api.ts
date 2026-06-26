@@ -1,7 +1,7 @@
 import type { ApiErrorResponse, ExtractionRequest, ExtractResponse, PipelineFailure, PipelineResult } from "../types";
 import { articleResult, emptyToNull, failure } from "./shared";
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) || "/api";
+export const apiBaseUrl = ((import.meta.env.VITE_API_BASE_URL as string | undefined) || "/api").replace(/\/+$/, "");
 
 async function errorMessage(response: Response): Promise<string> {
   try {
@@ -21,7 +21,7 @@ export async function extractUrlWithApi(request: ExtractionRequest): Promise<Pip
   }
 
   try {
-    const response = await fetch(`${apiBaseUrl.replace(/\/+$/, "")}/v1/extract`, {
+    const response = await fetch(`${apiBaseUrl}/v1/extract`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

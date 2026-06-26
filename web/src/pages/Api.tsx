@@ -1,7 +1,11 @@
 import { Icon } from "$components/Icon";
+import { JsonViewer } from "$components/JsonViewer";
+import { apiBaseUrl } from "$lib/clients/api";
 import { type MarkdownBlock, parseMarkdown, type TocItem } from "$lib/markdown";
-import { createMemo, createSignal, For, type JSX } from "solid-js";
+import { createMemo, createSignal, For, type JSX, Show } from "solid-js";
 import apiMarkdown from "./api.md?raw";
+
+type ApiView = "docs" | "spec";
 
 function renderInline(text: string): Array<string | JSX.Element> {
   const parts: Array<string | JSX.Element> = [];
@@ -27,7 +31,7 @@ function renderInline(text: string): Array<string | JSX.Element> {
   return parts;
 }
 
-function CopyButton(props: { value: string; label: string }) {
+function CopyButton(props: { value: string; label: string; showLabel?: boolean }) {
   const [copied, setCopied] = createSignal(false);
   let timer: number | undefined;
 
@@ -41,6 +45,9 @@ function CopyButton(props: { value: string; label: string }) {
   return (
     <button type="button" class="api-copy" onClick={() => void copy()} title={copied() ? "Copied" : props.label}>
       <Icon kind="copy" />
+      <Show when={props.showLabel}>
+        <span>{copied() ? "Copied" : props.label}</span>
+      </Show>
     </button>
   );
 }
@@ -87,9 +94,45 @@ function MarkdownDocument(props: { blocks: MarkdownBlock[] }) {
   );
 }
 
+function ApiViewToggle(props: { view: ApiView; onView: (view: ApiView) => void }) {
+  const tabs: Array<{ id: ApiView; label: string }> = [{ id: "docs", label: "Documentation" }, {
+    id: "spec",
+    label: "OpenAPI spec",
+  }];
+
+  return (
+    <div class="api-tabs" role="tablist" aria-label="API view">
+      <For each={tabs}>
+        {(tab) => (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={props.view === tab.id}
+            classList={{ "is-active": props.view === tab.id }}
+            onClick={() => props.onView(tab.id)}>
+            {tab.label}
+          </button>
+        )}
+      </For>
+    </div>
+  );
+}
+
+function DocsToc(props: { items: TocItem[] }) {
+  return (
+    <nav class="api-toc" aria-label="API contents">
+      <p>Docs</p>
+      <For each={props.items}>
+        {(item) => <a classList={{ "is-nested": item.depth > 2 }} href={`#${item.id}`}>{item.text}</a>}
+      </For>
+    </nav>
+  );
+}
+
+// TODO: handle "``"/'code' headings
 export function ApiPage() {
+  const [view, setView] = createSignal<ApiView>("docs");
   const blocks = () => parseMarkdown(apiMarkdown);
-  // TODO: handle "``"/'code' headings
   const toc = createMemo(() => {
     const b = blocks();
     return b.filter((block): block is Extract<MarkdownBlock, { kind: "heading" }> =>
@@ -99,19 +142,21 @@ export function ApiPage() {
 
   return (
     <main class="api-page">
-      <div class="api-body">
-        <nav class="api-toc" aria-label="API contents">
-          <header class="api-page__bar">
-            <p class="eyebrow">API docs</p>
-            <CopyButton value={apiMarkdown.trim()} label="Copy Markdown" />
-          </header>
-          <p>Docs</p>
-          <For each={toc()}>
-            {(item) => <a classList={{ "is-nested": item.depth > 2 }} href={`#${item.id}`}>{item.text}</a>}
-          </For>
-        </nav>
-        <MarkdownDocument blocks={blocks()} />
-      </div>
+      <header class="api-page__bar">
+        <p class="eyebrow">API docs</p>
+        <div class="api-page__bar-actions">
+          <Show when={view() === "docs"}>
+            <CopyButton value={apiMarkdown.trim()} label="Copy Markdown" showLabel />
+          </Show>
+          <ApiViewToggle view={view()} onView={setView} />
+        </div>
+      </header>
+      <Show when={view() === "docs"} fallback={<JsonViewer src={`${apiBaseUrl}/openapi.json`} />}>
+        <div class="api-body">
+          <DocsToc items={toc()} />
+          <MarkdownDocument blocks={blocks()} />
+        </div>
+      </Show>
     </main>
   );
 }

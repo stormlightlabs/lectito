@@ -19,6 +19,33 @@
     margin: 0;
 }
 
+.api-tabs {
+    display: flex;
+    gap: var(--space-1);
+    align-items: center;
+}
+
+.api-tabs button {
+    min-height: 1.875rem;
+    padding: 0 var(--space-2);
+    color: var(--ink-muted);
+    border: 1px solid transparent;
+    border-radius: var(--radius-2);
+    background: transparent;
+    font-size: var(--text-sm);
+    font-weight: 640;
+}
+
+.api-tabs button:hover {
+    color: var(--ink);
+}
+
+.api-tabs button.is-active {
+    border-color: var(--rule-strong);
+    color: var(--ink);
+    background: var(--paper-muted);
+}
+
 .api-body {
     display: grid;
     grid-template-columns: 15rem minmax(0, 1fr);
@@ -117,15 +144,18 @@
 }
 
 .api-copy {
-    min-height: 1.625rem;
+    min-height: 1.875rem;
+    padding: 0 var(--space-2);
     border: 1px solid var(--rule-strong);
     border-radius: var(--radius-2);
-    padding: 0 var(--space-2);
     color: var(--ink);
     background: var(--paper-raised);
     font-size: var(--text-xs);
     font-weight: 720;
     line-height: var(--line-xs);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
 }
 
 .api-copy:hover {
@@ -166,4 +196,50 @@
         border-left: 0;
         padding: 0 0 var(--space-4);
     }
+}
+
+.api-page__bar-actions {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+.json-viewer {
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: calc(100svh - 10rem);
+}
+
+.json-viewer__bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 var(--space-1) var(--space-2);
+}
+
+.json-viewer__link {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+    color: var(--ink-soft);
+    font-size: var(--text-sm);
+    font-weight: 640;
+    text-decoration: none;
+}
+
+.json-viewer__link:hover {
+    color: var(--ink);
+}
+
+.json-viewer__status {
+    display: grid;
+    place-items: center;
+    min-height: 12rem;
+    color: var(--ink-muted);
+    font-size: var(--text-sm);
+    font-weight: 680;
+}
+
+.json-viewer__status--error {
+    color: var(--ink);
 }

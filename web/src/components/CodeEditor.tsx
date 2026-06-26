@@ -10,6 +10,9 @@ async function loadCodeMirror() {
     { indentWithTab },
     { html },
     { markdown },
+    { json },
+    { codeFolding, foldGutter },
+    { search, searchKeymap },
     { Compartment, EditorState },
     { EditorView, keymap, lineNumbers },
   ] = await Promise.all([
@@ -17,6 +20,9 @@ async function loadCodeMirror() {
     import("@codemirror/commands"),
     import("@codemirror/lang-html"),
     import("@codemirror/lang-markdown"),
+    import("@codemirror/lang-json"),
+    import("@codemirror/language"),
+    import("@codemirror/search"),
     import("@codemirror/state"),
     import("@codemirror/view"),
   ]);
@@ -26,6 +32,11 @@ async function loadCodeMirror() {
     indentWithTab,
     html,
     markdown,
+    json,
+    codeFolding,
+    foldGutter,
+    search,
+    searchKeymap,
     Compartment,
     EditorState,
     EditorView,
@@ -42,6 +53,9 @@ function languageExtension(language: Lang, modules: CodeMirrorModules) {
     case "markdown": {
       return modules.markdown();
     }
+    case "json": {
+      return modules.json();
+    }
     case "plain": {
       return [];
     }
@@ -54,6 +68,10 @@ export type CodeEditorProps = {
   readonly?: boolean;
   statusText?: string;
   onInput?: (value: string) => void;
+  /** Enable code folding (collapsible regions) + a fold gutter. */
+  fold?: boolean;
+  /** Enable the search panel and find keymap (Ctrl/Cmd+F). */
+  search?: boolean;
 };
 
 type EditorStatus = {
@@ -144,7 +162,8 @@ function initialStatus(props: CodeEditorProps): EditorStatus {
  *
  * `viewReady` makes that assignment observable, letting the prop-sync effect re-run
  * once the editor exists and flush any `props.value` update that arrived during the
- * import gap.
+ * import gap. We re-run on both `props.value` changes and the view becoming ready, so
+ * an update that landed before the CodeMirror import resolved is not lost.
  */
 export function CodeEditor(props: CodeEditorProps) {
   const [host, setHost] = createSignal<HTMLDivElement>();
@@ -231,6 +250,8 @@ export function CodeEditor(props: CodeEditorProps) {
             modules.lineNumbers(),
             modules.keymap.of([modules.indentWithTab]),
             languageExtension(props.language, modules),
+            props.fold ? [modules.codeFolding(), modules.foldGutter()] : [],
+            props.search ? [modules.search(), modules.keymap.of(modules.searchKeymap)] : [],
             modules.daOnePaperLightCodeMirrorTheme,
             wordWrapCompartment.of(wordWrapExtension()),
             modules.EditorView.editable.of(!props.readonly),
@@ -258,8 +279,6 @@ export function CodeEditor(props: CodeEditorProps) {
   });
 
   createEffect(() => {
-    // Re-run on both `props.value` changes and the view becoming ready, so an
-    // update that landed before the CodeMirror import resolved is not lost.
     viewReady();
     if (!view) return;
     const next = props.value;
