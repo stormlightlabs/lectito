@@ -8,18 +8,18 @@
   - [x] Adapt the DuckDuckGo HTML search client and parser from `gremlin`
   - [x] Return title, URL, and snippet.
   - [x] Cap results to a small limit, probably 10 but make configurable.
-- [ ] Expose a `read_article` tool:
-  - [ ] Fetch a public `http` or `https` URL.
-  - [ ] Reject private-network targets by default.
-  - [ ] Enforce redirect, timeout, and response-size limits.
-  - [ ] Check for HTML-like content types.
-  - [ ] Run `lectito::extract_with_diagnostics` directly.
-  - [ ] Return title, byline, site name, published time, final URL, excerpt,
+- [x] Expose a `read_article` tool:
+  - [x] Fetch a public `http` or `https` URL.
+  - [x] Reject private-network targets by default.
+  - [x] Enforce redirect, timeout, and response-size limits.
+  - [x] Check for HTML-like content types.
+  - [x] Run `lectito::extract_with_diagnostics` directly.
+  - [x] Return title, byline, site name, published time, final URL, excerpt,
         content length, truncation state, and content.
-  - [ ] Support `format`, `offset`, and `maxChars` arguments.
+  - [x] Support `format`, `offset`, and `maxChars` arguments.
 - [x] Return both text content and structured content from MCP tool calls.
 - [x] Report malformed requests as protocol errors.
-- [ ] Report fetch, extraction, and unreadable-page failures as tool results with
+- [x] Report fetch, extraction, and unreadable-page failures as tool results with
       `isError: true`.
 - [x] Keep logs on stderr so stdout contains only MCP messages.
 - [x] Do not add persistence, browser rendering, summaries, caching, or extra
