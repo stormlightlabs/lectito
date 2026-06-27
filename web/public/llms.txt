@@ -28,5 +28,5 @@ when URL fetching is required.
 
 ## Optional
 
-- [Rust And CLI Documentation](https://lectito.stormlightlabs.org/llms.txt): Rust library, CLI, diagnostics, and configuration references.
+- [Rust And CLI Documentation](https://lectito.stormlightlabs.org/llms.txt): Rust library, CLI, optional PDF output, diagnostics, and configuration references.
 - [Source Repository](https://github.com/stormlightlabs/lectito): Source code, issues, and local development notes.

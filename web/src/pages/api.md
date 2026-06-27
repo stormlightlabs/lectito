@@ -35,6 +35,8 @@ The command-line tool is published as
 [lectito-cli](https://crates.io/crates/lectito-cli).
 
 Install it with `cargo install lectito-cli`; the binary is `lectito`.
+Install it with `cargo install lectito-cli --features pdf` when you want to output
+to pdf: `lectito --format pdf --output article.pdf`.
 
 JavaScript apps use
 [@stormlightlabs/lectito](https://www.npmx.dev/package/@stormlightlabs/lectito)
@@ -54,6 +56,8 @@ API from a server.
 
 Use these exports when you already have HTML, such as pasted markup, a browser
 extension capture, a fixture, or server-fetched content.
+
+The WASM package returns HTML, Markdown, text, metadata, and diagnostics.
 
 ### `extractWithDiagnostics`
 

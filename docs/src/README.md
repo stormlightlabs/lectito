@@ -17,6 +17,9 @@ It returns:
 - page metadata
 - extraction diagnostics
 
+The CLI can also generate PDF files when installed with its optional `pdf`
+feature.
+
 Lectito is parser-first. The core API accepts HTML and an optional base URL. URL
 fetching exists in the CLI for convenience, but the library does not require
 network access.

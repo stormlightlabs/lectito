@@ -30,15 +30,30 @@ from the fetched HTML.
 Output formats:
 
 Use HTML, text, or JSON when Markdown is not the right output for the next
-tool.
+tool. Use PDF when you need a simple file for reading or sharing and you have
+installed the CLI with `--features pdf`.
 
 ```sh
 lectito article.html --format html
 lectito article.html --format text
 lectito article.html --format json --pretty
+lectito article.html --format pdf --output article.pdf
 lectito article.html --frontmatter=false
 lectito article.html --output article.md
 ```
+
+PDF output is an optional CLI feature:
+
+```sh
+cargo install lectito-cli --features pdf
+cargo run -p lectito-cli --features pdf -- article.html \
+  --format pdf \
+  --output article.pdf
+```
+
+The PDF renderer converts the extracted article Markdown into a readable PDF
+with built-in fonts. It covers common Markdown blocks such as headings, lists,
+code blocks, tables, blockquotes, and footnotes.
 
 Useful options:
 

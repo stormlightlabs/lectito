@@ -49,15 +49,15 @@
   - [x] Check that the PDF renderer returns bytes starting with `%PDF`.
   - [x] Cover common Markdown blocks in the PDF parser tests.
   - [x] Keep non-PDF builds compiling without PDF dependencies.
-- [ ] Update docs.
-  - [ ] Document installation with `cargo install lectito-cli --features pdf`.
-  - [ ] Add `pdf` to CLI output-format docs as an optional feature.
-  - [ ] Mention that PDF manipulation tools are out of scope for now.
+- [x] Update docs.
+  - [x] Document installation with `cargo install lectito-cli --features pdf`.
+  - [x] Add `pdf` to CLI output-format docs as an optional feature.
+  - [x] Mention that PDF manipulation tools are out of scope for now.
 - [x] Verify the CLI after the Rust changes.
   - [x] Run `cargo test -p lectito-cli`.
   - [x] Run `cargo test -p lectito-cli --features pdf`.
   - [x] Run `cargo run -p lectito-cli --features pdf -- https://render.com/docs \
-        --format pdf -o .sandbox/render/pdf/render-docs.pdf`.
+    --format pdf -o .sandbox/render/pdf/render-docs.pdf`.
 
 ## Release Prep
 
@@ -66,6 +66,8 @@
   - `lectito-cli`
   - `lectito-wasm`
   - Keep `lectito-api` and `lectito-fixtures` unpublished.
+- Keep `release.md` current with the version bump checklist for every workspace
+  crate.
 - Add a Rust CI workflow for:
   - `cargo fmt --check` & `cargo check --workspace`
   - `cargo test --workspace`

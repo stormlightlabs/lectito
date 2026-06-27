@@ -22,6 +22,14 @@ cargo install lectito-cli
 lectito https://example.com/article --format markdown
 ```
 
+Install the optional PDF feature when you want the CLI to write extracted
+articles as PDFs:
+
+```sh
+cargo install lectito-cli --features pdf
+lectito https://example.com/article --format pdf --output article.pdf
+```
+
 Use the Rust library when your application already has HTML:
 
 ```rust
@@ -70,6 +78,9 @@ lectito = "0.1"
 
 ```sh
 cargo install lectito-cli
+
+# With PDF output
+cargo install lectito-cli --features pdf
 ```
 
 ### Local Development

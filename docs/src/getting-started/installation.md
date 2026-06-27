@@ -33,10 +33,22 @@ Install the CLI from crates.io:
 cargo install lectito-cli
 ```
 
+Install with PDF output enabled:
+
+```sh
+cargo install lectito-cli --features pdf
+```
+
 For local development against this workspace:
 
 ```sh
 cargo install --path crates/cli
+```
+
+Use the same feature flag for local PDF testing:
+
+```sh
+cargo install --path crates/cli --features pdf
 ```
 
 The binary is named `lectito`.

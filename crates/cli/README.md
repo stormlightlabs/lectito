@@ -9,6 +9,13 @@ Install it from crates.io:
 cargo install lectito-cli
 ```
 
+Install with the optional PDF renderer when you need want to export as PDF
+with `--format pdf`:
+
+```sh
+cargo install lectito-cli --features pdf
+```
+
 Example commands:
 
 ```sh
@@ -16,6 +23,7 @@ lectito article.html
 lectito https://example.com/article --format json --pretty
 lectito at://did:plc:abc123/site.standard.document/xyz
 lectito article.html --format html
+lectito article.html --format pdf --output article.pdf
 lectito readable article.html
 lectito inspect article.html
 lectito article.html --timeout 10
@@ -31,6 +39,14 @@ HTML.
 
 Markdown with TOML frontmatter is the default output.
 
-Use `--format html`, `--format text`, or `--format json` when another format fits better.
+Use `--format html`, `--format text`, or `--format json` when another format
+fits better.
+Use `--format pdf` after installing with `--features pdf`. PDF output writes
+generated PDF bytes, so prefer `--output article.pdf` unless piping to a tool
+that accepts PDF data on stdin.
 Use `--frontmatter=false` to omit Markdown frontmatter.
 Use `--inspect` or `--diagnostic-format pretty` when tuning extraction for a page.
+
+The PDF feature converts the extracted article Markdown into a readable PDF
+with built-in fonts. It does not edit existing PDFs, merge files, extract pages,
+or expose low-level PDF manipulation commands.
