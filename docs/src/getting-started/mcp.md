@@ -21,6 +21,18 @@ For agent workflow instructions, see the
 
 ## Build
 
+Install the published MCP server with Cargo:
+
+```sh
+cargo install lectito-mcp
+```
+
+The binary will be available as:
+
+```text
+lectito-mcp
+```
+
 Build the release binary from the repository root:
 
 ```sh
@@ -73,14 +85,22 @@ configuration lives in `~/.codex/config.toml`, or in a trusted repo-local
 The simplest install is:
 
 ```sh
+codex mcp add lectito -- lectito-mcp
+```
+
+If you are using a local checkout instead of the Cargo-installed binary, point
+Codex at the built executable:
+
+```sh
 codex mcp add lectito -- /path/to/lectito/target/release/lectito-mcp
 ```
 
-For a checked-in project config, add a table like this:
+For a checked-in project config with the Cargo-installed binary, add a table
+like this:
 
 ```toml
 [mcp_servers.lectito]
-command = "/path/to/lectito/target/release/lectito-mcp"
+command = "lectito-mcp"
 startup_timeout_sec = 10
 tool_timeout_sec = 60
 
@@ -110,7 +130,7 @@ flags.
 
 ```sh
 claude mcp add --transport stdio lectito \
-  -- /path/to/lectito/target/release/lectito-mcp
+  -- lectito-mcp
 ```
 
 To share the setup with a project, create `.mcp.json` in the repo:
@@ -120,7 +140,7 @@ To share the setup with a project, create `.mcp.json` in the repo:
   "mcpServers": {
     "lectito": {
       "type": "stdio",
-      "command": "/path/to/lectito/target/release/lectito-mcp",
+      "command": "lectito-mcp",
       "env": {
         "LECTITO_MCP_MAX_SEARCH_RESULTS": "10",
         "LECTITO_MCP_DEFAULT_SEARCH_RESULTS": "5"

@@ -1,10 +1,48 @@
 # Release Checklist
 
-This repo publishes three crates:
+This repo publishes four crates:
 
 - `lectito`: Rust library crate.
 - `lectito-cli`: Cargo package that installs the `lectito` binary.
+- `lectito-mcp`: Cargo package that installs the `lectito-mcp` stdio server.
 - `lectito-wasm`: Rust crate for JavaScript and WebAssembly bindings.
+
+## Version Checklist
+
+Choose the target version before changing manifests:
+
+```text
+target version: 0.x.y
+```
+
+Workspace crates:
+
+| Package                 | Publish | Version source              | Release action                         |
+| ----------------------- | ------- | --------------------------- | -------------------------------------- |
+| `lectito`               | yes     | `workspace.package.version` | Publish first.                         |
+| `lectito-cli`           | yes     | `workspace.package.version` | Publish after `lectito` is available.  |
+| `lectito-api`           | no      | `workspace.package.version` | Keep in sync for deployed builds.      |
+| `lectito-fixtures`      | no      | `workspace.package.version` | Keep in sync for workspace tests.      |
+| `lectito-mcp`           | yes     | `workspace.package.version` | Publish after `lectito` is available.  |
+| `lectito-wasm`          | yes     | `workspace.package.version` | Publish after `lectito` is available.  |
+| `lectito-basic-example` | no      | `0.0.0`                     | Leave unchanged unless it is packaged. |
+
+Version bump steps:
+
+1. Update `workspace.package.version` in `Cargo.toml`.
+2. Update `lectito` dependency versions in `crates/cli/Cargo.toml`:
+   runtime dependency and build dependency.
+3. Update the `lectito` dependency version in `crates/mcp/Cargo.toml`.
+4. Update the `lectito` dependency version in `crates/wasm/Cargo.toml`.
+5. Leave unpublished path-only dependencies in `lectito-api`, and
+   `lectito-fixtures` as path dependencies.
+6. Run `cargo check --workspace` once after manifest edits so `Cargo.lock`
+   records the new package versions.
+7. Confirm README install snippets and docs mention any new feature flags for
+   the release. For this release, confirm `lectito-cli --features pdf`.
+8. If publishing npm, make the generated package version match the Cargo
+   target version before `npm pack` and `npm publish`.
+9. Record any intentionally skipped package in the release notes.
 
 ## Before Publishing
 
@@ -19,6 +57,7 @@ This repo publishes three crates:
   cargo test --workspace
   cargo doc --no-deps -p lectito
   cargo doc --no-deps -p lectito-cli
+  cargo doc --no-deps -p lectito-mcp
   cargo doc --no-deps -p lectito-wasm
   ```
 
@@ -43,6 +82,7 @@ This repo publishes three crates:
   ```sh
   cargo package --allow-dirty --list -p lectito
   cargo package --allow-dirty --list -p lectito-cli
+  cargo package --allow-dirty --list -p lectito-mcp
   cargo package --allow-dirty --list -p lectito-wasm
   ```
 
@@ -50,8 +90,8 @@ This repo publishes three crates:
 
 Publish the library crate before crates that depend on it.
 
-Cargo verifies registry dependencies, so `lectito-cli` and `lectito-wasm` cannot
-finish packaging until `lectito` exists on crates.io.
+Cargo verifies registry dependencies, so `lectito-cli`, `lectito-mcp`, and
+`lectito-wasm` cannot finish packaging until `lectito` exists on crates.io.
 
 1. Dry-run the library crate:
 
@@ -74,7 +114,14 @@ finish packaging until `lectito` exists on crates.io.
    cargo publish -p lectito-cli
    ```
 
-5. Dry-run and publish the wasm package:
+5. Dry-run and publish the MCP package:
+
+   ```sh
+   cargo publish --dry-run -p lectito-mcp
+   cargo publish -p lectito-mcp
+   ```
+
+6. Dry-run and publish the wasm package:
 
    ```sh
    cargo publish --dry-run -p lectito-wasm
@@ -140,8 +187,12 @@ docs to describe npm as live.
 - Confirm installation:
 
   ```sh
-  cargo install lectito-cli
+  cargo install --force lectito-cli
   lectito --help
+  cargo install --force lectito-cli --features pdf
+  lectito --help
+  cargo install --force lectito-mcp
+  printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | lectito-mcp
   ```
 
 - Confirm the generated docs link to the expected public API.

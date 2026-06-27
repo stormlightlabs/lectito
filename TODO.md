@@ -64,6 +64,7 @@
 - Keep package metadata current for the public crates:
   - `lectito`
   - `lectito-cli`
+  - `lectito-mcp`
   - `lectito-wasm`
   - Keep `lectito-api` and `lectito-fixtures` unpublished.
 - Keep `release.md` current with the version bump checklist for every workspace

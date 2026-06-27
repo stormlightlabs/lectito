@@ -1133,7 +1133,7 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "lectito"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "comrak",
  "kuchiki",
@@ -1150,7 +1150,7 @@ dependencies = [
 
 [[package]]
 name = "lectito-api"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "axum",
  "http",
@@ -1177,7 +1177,7 @@ dependencies = [
 
 [[package]]
 name = "lectito-cli"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1196,7 +1196,7 @@ dependencies = [
 
 [[package]]
 name = "lectito-fixtures"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1208,7 +1208,7 @@ dependencies = [
 
 [[package]]
 name = "lectito-mcp"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "lectito",
  "reqwest",
@@ -1222,7 +1222,7 @@ dependencies = [
 
 [[package]]
 name = "lectito-wasm"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",

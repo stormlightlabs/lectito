@@ -55,13 +55,25 @@ and when to use another approved search mechanism.
 
 ## Pair With MCP
 
-Build the MCP server from the same checkout:
+Install the MCP server:
+
+```sh
+cargo install lectito-mcp
+```
+
+Then configure your MCP-capable agent with:
+
+```text
+lectito-mcp
+```
+
+For local development, build the MCP server from the same checkout:
 
 ```sh
 cargo build -p lectito-mcp --release
 ```
 
-Then configure your MCP-capable agent with:
+and point your agent at:
 
 ```text
 /path/to/lectito/target/release/lectito-mcp

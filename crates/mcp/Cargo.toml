@@ -3,12 +3,15 @@ name = "lectito-mcp"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Local stdio MCP server for Lectito article search and reading."
 repository.workspace = true
 homepage.workspace = true
-publish = false
+readme = "README.md"
+keywords = ["readability", "article", "mcp", "search", "cli"]
+categories = ["command-line-utilities", "text-processing"]
 
 [dependencies]
-lectito = { path = "../core" }
+lectito = { path = "../core", version = "0.2.0" }
 reqwest = { version = "0.13.3", default-features = false, features = ["charset", "http2", "rustls"] }
 scraper.workspace = true
 serde = { version = "1.0", features = ["derive"] }

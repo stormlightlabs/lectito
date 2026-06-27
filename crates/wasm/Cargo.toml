@@ -15,7 +15,7 @@ name = "lectito_wasm"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-lectito = { path = "../core", version = "0.1.0" }
+lectito = { path = "../core", version = "0.2.0" }
 console_error_panic_hook = "0.1"
 js-sys = "0.3"
 serde = { version = "1.0", features = ["derive"] }

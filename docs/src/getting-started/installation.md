@@ -69,6 +69,17 @@ For local fixture inspection, run the unpublished workspace helper:
 cargo run -p lectito-fixtures --bin lectito-fixture -- sample-name
 ```
 
+## MCP Server
+
+Install the stdio MCP server from crates.io:
+
+```sh
+cargo install lectito-mcp
+```
+
+The binary is named `lectito-mcp`. Use it from MCP clients that support local
+stdio servers.
+
 ## License
 
 Lectito is licensed under MPL-2.0.

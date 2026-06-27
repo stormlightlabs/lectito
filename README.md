@@ -83,6 +83,12 @@ cargo install lectito-cli
 cargo install lectito-cli --features pdf
 ```
 
+### MCP Server
+
+```sh
+cargo install lectito-mcp
+```
+
 ### Local Development
 
 With an up to date [Rust toolchain](https://rustup.rs/), clone the repo and

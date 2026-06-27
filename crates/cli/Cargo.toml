@@ -21,7 +21,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
-lectito = { path = "../core", version = "0.1.0" }
+lectito = { path = "../core", version = "0.2.0" }
 owo-colors = "4.2"
 pdf-writer = { version = "0.14", optional = true }
 pulldown-cmark = { version = "0.13", optional = true }
@@ -33,6 +33,6 @@ sitemap = "0.4.1"
 
 [build-dependencies]
 clap = { version = "4.5", features = ["derive"] }
-lectito = { path = "../core", version = "0.1.0" }
+lectito = { path = "../core", version = "0.2.0" }
 clap_mangen = "0.3"
 shell-escape = "0.1"

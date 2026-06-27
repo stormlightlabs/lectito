@@ -11,7 +11,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 license = "MPL-2.0"
 repository = "https://github.com/stormlightlabs/lectito"
@@ -19,7 +19,7 @@ homepage = "https://github.com/stormlightlabs/lectito"
 
 [workspace.dependencies]
 thiserror = "2.0.18"
-regex = "1.10"
+regex = "1.12"
 scraper = "0.27.0"
 
 
