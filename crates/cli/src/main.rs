@@ -21,6 +21,8 @@ mod cli;
 mod echo;
 mod fetch;
 mod llms;
+#[cfg(feature = "pdf")]
+mod pdf;
 mod utils;
 
 fn main() -> ExitCode {
@@ -62,18 +64,43 @@ fn run_extract(args: ExtractArgs, color: bool) -> Result<ExitCode> {
         eprintln!("lectito: extraction timed out after {}s", args.timeout);
         return Ok(ExitCode::from(3));
     };
-    let output = echo::render_article(
-        report.article.as_ref(),
-        echo::RenderOptions::new(args.format, args.pretty, input.base_url(), args.frontmatter),
-    )?;
-
-    match args.output {
-        Some(path) => {
-            fs::write(&path, output).with_context(|| format!("failed to write {}", path.display()))?;
+    #[cfg(feature = "pdf")]
+    let wrote_article = if matches!(args.format, cli::OutputFormat::Pdf) {
+        let output = match report.article.as_ref() {
+            Some(article) => pdf::markdown_to_pdf(&article.markdown).context("failed to render PDF")?,
+            None => Vec::new(),
+        };
+        match args.output.as_ref() {
+            Some(path) => {
+                fs::write(path, output).with_context(|| format!("failed to write {}", path.display()))?;
+            }
+            None => {
+                io::stdout()
+                    .write_all(&output)
+                    .context("failed to write PDF to stdout")?;
+            }
         }
-        None => {
-            if !output.is_empty() {
-                println!("{output}");
+        true
+    } else {
+        false
+    };
+    #[cfg(not(feature = "pdf"))]
+    let wrote_article = false;
+
+    if !wrote_article {
+        let output = echo::render_article(
+            report.article.as_ref(),
+            echo::RenderOptions::new(args.format, args.pretty, input.base_url(), args.frontmatter),
+        )?;
+
+        match args.output.as_ref() {
+            Some(path) => {
+                fs::write(path, output).with_context(|| format!("failed to write {}", path.display()))?;
+            }
+            None => {
+                if !output.is_empty() {
+                    println!("{output}");
+                }
             }
         }
     }

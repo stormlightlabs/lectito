@@ -27,34 +27,36 @@
 
 ## PDF CLI Feature
 
-- [ ] Add an optional `pdf` feature to `crates/cli`.
-  - [ ] Keep `default = []`.
-  - [ ] Add optional `pdf-writer` and `pulldown-cmark` dependencies.
-- [ ] Port only the Markdown-to-PDF path from `picopdf`.
-  - [ ] Copy the parser, styler, layout, and renderer code into a small
+- [x] Add an optional `pdf` feature to `crates/cli`.
+  - [x] Keep `default = []`.
+  - [x] Add optional `pdf-writer` and `pulldown-cmark` dependencies.
+- [x] Port only the Markdown-to-PDF path from `picopdf`.
+  - [x] Copy the parser, styler, layout, and renderer code into a small
         `crates/cli/src/pdf` module.
-  - [ ] Start with built-in PDF fonts & leave custom font flags out of the first version.
-- [ ] Expose PDF as an extract output format.
-  - [ ] Add `OutputFormat::Pdf` behind `#[cfg(feature = "pdf")]`.
-  - [ ] Update `--format` help text when the feature is enabled.
-  - [ ] Reuse the extracted article Markdown as the PDF source.
-- [ ] Write PDF output as bytes.
-  - [ ] Keep string formats on the existing `echo::render_article` path.
-  - [ ] Write PDF bytes to `--output` with `fs::write`.
-  - [ ] Write PDF bytes to stdout with `io::stdout().write_all`.
-  - [ ] Preserve the current `--inspect` and `--diagnostic-format` behavior.
-- [ ] Add focused tests.
-  - [ ] Check that `--format pdf` parses with `--features pdf`.
-  - [ ] Check that the PDF renderer returns bytes starting with `%PDF`.
-  - [ ] Keep non-PDF builds compiling without PDF dependencies.
+  - [x] Start with built-in PDF fonts and leave custom font flags out of the
+        first version.
+- [x] Expose PDF as an extract output format.
+  - [x] Add `OutputFormat::Pdf` behind `#[cfg(feature = "pdf")]`.
+  - [x] Update `--format` help text when the feature is enabled.
+  - [x] Reuse the extracted article Markdown as the PDF source.
+- [x] Write PDF output as bytes.
+  - [x] Keep string formats on the existing `echo::render_article` path.
+  - [x] Write PDF bytes to `--output` with `fs::write`.
+  - [x] Write PDF bytes to stdout with `io::stdout().write_all`.
+  - [x] Preserve the current `--inspect` and `--diagnostic-format` behavior.
+- [x] Add focused tests.
+  - [x] Check that `--format pdf` parses with `--features pdf`.
+  - [x] Check that the PDF renderer returns bytes starting with `%PDF`.
+  - [x] Keep non-PDF builds compiling without PDF dependencies.
 - [ ] Update docs.
   - [ ] Document installation with `cargo install lectito-cli --features pdf`.
   - [ ] Add `pdf` to CLI output-format docs as an optional feature.
   - [ ] Mention that PDF manipulation tools are out of scope for now.
-- [ ] Verify the CLI after the Rust changes.
-  - [ ] Run `cargo test -p lectito-cli`.
-  - [ ] Run `cargo test -p lectito-cli --features pdf`.
-  - [ ] Run `cargo run -p lectito-cli --features pdf -- article.html --format pdf -o /tmp/article.pdf`.
+- [x] Verify the CLI after the Rust changes.
+  - [x] Run `cargo test -p lectito-cli`.
+  - [x] Run `cargo test -p lectito-cli --features pdf`.
+  - [x] Run `cargo run -p lectito-cli --features pdf -- https://render.com/docs \
+        --format pdf -o .sandbox/render/pdf/render-docs.pdf`.
 
 ## Release Prep
 

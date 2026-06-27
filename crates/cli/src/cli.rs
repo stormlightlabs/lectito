@@ -39,6 +39,9 @@ pub enum OutputFormat {
     Markdown,
     /// Print extracted plain text.
     Text,
+    /// Print generated PDF bytes.
+    #[cfg(feature = "pdf")]
+    Pdf,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -63,7 +66,7 @@ pub struct ExtractArgs {
     #[arg(long)]
     pub base_url: Option<String>,
 
-    /// Output format: markdown, html, text, or json.
+    /// Output format: markdown, html, text, json, or pdf.
     #[arg(long, value_enum, default_value = "markdown")]
     pub format: OutputFormat,
 
@@ -389,6 +392,14 @@ mod tests {
     fn format_defaults_to_markdown() {
         let cli = Cli::try_parse_from(["lectito", "article.html"]).expect("root args should parse");
         assert!(matches!(cli.extract.format, OutputFormat::Markdown));
+    }
+
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn pdf_format_parses_when_enabled() {
+        let cli = Cli::try_parse_from(["lectito", "article.html", "--format", "pdf"])
+            .expect("PDF format should parse when the pdf feature is enabled");
+        assert!(matches!(cli.extract.format, OutputFormat::Pdf));
     }
 
     #[test]

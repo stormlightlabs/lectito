@@ -12,6 +12,7 @@ categories = ["command-line-utilities", "text-processing"]
 
 [features]
 default = []
+pdf = ["dep:pdf-writer", "dep:pulldown-cmark"]
 
 [[bin]]
 name = "lectito"
@@ -22,6 +23,8 @@ anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 lectito = { path = "../core", version = "0.1.0" }
 owo-colors = "4.2"
+pdf-writer = { version = "0.14", optional = true }
+pulldown-cmark = { version = "0.13", optional = true }
 reqwest = { version = "0.13.3", features = ["blocking"] }
 scraper.workspace = true
 serde = { version = "1.0", features = ["derive"] }

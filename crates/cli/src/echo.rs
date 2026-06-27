@@ -211,6 +211,8 @@ pub fn render_article(article: Option<&Article>, opts: RenderOptions) -> Result<
             Some(article) => Ok(article.text_content.clone()),
             None => Ok(String::new()),
         },
+        #[cfg(feature = "pdf")]
+        OutputFormat::Pdf => anyhow::bail!("PDF output is rendered as bytes"),
     }
 }
 
