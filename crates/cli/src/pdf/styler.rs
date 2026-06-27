@@ -61,6 +61,50 @@ impl Style {
             is_monospace: false,
         }
     }
+
+    fn block_quote() -> Self {
+        Self {
+            font_size: 12.0,
+            line_height: 16.0,
+            margin_top: 6.0,
+            margin_bottom: 6.0,
+            is_bold: false,
+            is_monospace: false,
+        }
+    }
+
+    fn rule() -> Self {
+        Self {
+            font_size: 10.0,
+            line_height: 12.0,
+            margin_top: 8.0,
+            margin_bottom: 8.0,
+            is_bold: false,
+            is_monospace: true,
+        }
+    }
+
+    fn table_row() -> Self {
+        Self {
+            font_size: 9.0,
+            line_height: 12.0,
+            margin_top: 1.0,
+            margin_bottom: 1.0,
+            is_bold: false,
+            is_monospace: true,
+        }
+    }
+
+    fn note() -> Self {
+        Self {
+            font_size: 10.0,
+            line_height: 14.0,
+            margin_top: 4.0,
+            margin_bottom: 4.0,
+            is_bold: false,
+            is_monospace: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -84,9 +128,36 @@ pub fn apply_styles(nodes: Vec<Node>) -> Vec<StyledBlock> {
             Node::CodeBlock(code) => {
                 StyledBlock { content: code, style: Style::code_block(), is_code_block: true, keep_with_next: false }
             }
-            Node::ListItem(text) => StyledBlock {
-                content: format!("- {text}"),
+            Node::ListItem { marker, text } => StyledBlock {
+                content: format!("{marker} {text}"),
                 style: Style::list_item(),
+                is_code_block: false,
+                keep_with_next: false,
+            },
+            Node::BlockQuote(text) => StyledBlock {
+                content: format!("> {text}"),
+                style: Style::block_quote(),
+                is_code_block: false,
+                keep_with_next: false,
+            },
+            Node::Rule => StyledBlock {
+                content: "-".repeat(60),
+                style: Style::rule(),
+                is_code_block: false,
+                keep_with_next: false,
+            },
+            Node::TableRow(text) => {
+                StyledBlock { content: text, style: Style::table_row(), is_code_block: false, keep_with_next: false }
+            }
+            Node::Definition { term, details } => StyledBlock {
+                content: format!("{term}: {details}"),
+                style: Style::paragraph(),
+                is_code_block: false,
+                keep_with_next: false,
+            },
+            Node::Footnote { label, text } => StyledBlock {
+                content: format!("[^{label}]: {text}"),
+                style: Style::note(),
                 is_code_block: false,
                 keep_with_next: false,
             },

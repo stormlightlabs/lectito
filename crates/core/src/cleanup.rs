@@ -349,7 +349,12 @@ fn is_trailing_page_chrome(node: &NodeRef) -> bool {
     }
 
     let link_count = dom::select_nodes(node, "a").len();
-    if !matches!(tag.as_str(), "ul" | "ol" | "li") && link_count >= 3 && link_density(node) > 0.45 && text_len < 1500 {
+    if !is_list_card_body(node)
+        && !matches!(tag.as_str(), "ul" | "ol" | "li")
+        && link_count >= 3
+        && link_density(node) > 0.45
+        && text_len < 1500
+    {
         return true;
     }
 
@@ -738,10 +743,25 @@ fn clean_conditionally(root: &NodeRef, options: &ReadabilityOptions, flags: Extr
                         || (embed_count == 1 && content_length < 75)
                         || embed_count > 1)));
 
-        if should_remove {
+        if should_remove && !is_list_card_body(&node) {
             node.detach();
         }
     }
+}
+
+fn is_list_card_body(node: &NodeRef) -> bool {
+    let content_length = dom::inner_text(node).chars().count();
+    if !matches!(dom::node_name(node).as_str(), "div" | "section") || content_length < 40 {
+        return false;
+    }
+
+    let Some(parent) = node.parent() else {
+        return false;
+    };
+
+    dom::node_name(&parent) == "li"
+        && !dom::select_nodes(node, "p").is_empty()
+        && !dom::select_nodes(node, "a").is_empty()
 }
 
 fn has_media_descendant(node: &NodeRef) -> bool {

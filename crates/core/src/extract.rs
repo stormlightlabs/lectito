@@ -2227,6 +2227,47 @@ mod tests {
     }
 
     #[test]
+    fn keeps_docs_landing_list_card_bodies() {
+        let article = extract(
+            r#"
+            <html><head><title>Docs + Quickstarts</title></head><body>
+                <main>
+                    <article>
+                        <h1>Docs + Quickstarts</h1>
+                        <p>Start here to create, configure, and operate useful services with Render.</p>
+                        <section>
+                            <h2>Create</h2>
+                            <ul>
+                                <li>
+                                    <div><svg></svg></div>
+                                    <div>
+                                        <h3>Deploy services</h3>
+                                        <p>Connect your repo and ship with every push.</p>
+                                        <ul>
+                                            <li><a href="/docs/deploys">How deploys work</a></li>
+                                            <li><a href="/docs/service-types">Service types</a></li>
+                                            <li><a href="/docs/language-support">Language runtimes</a></li>
+                                        </ul>
+                                    </div>
+                                </li>
+                            </ul>
+                        </section>
+                    </article>
+                </main>
+            </body></html>
+            "#,
+            Some("https://render.com/docs"),
+            &ReadabilityOptions { char_threshold: 0, ..Default::default() },
+        )
+        .unwrap()
+        .unwrap();
+
+        assert!(article.text_content.contains("Deploy services"));
+        assert!(article.text_content.contains("Connect your repo"));
+        assert!(article.markdown.contains("How deploys work"), "{}", article.markdown);
+    }
+
+    #[test]
     fn removes_live_doc_site_chrome() {
         let article = extract(
             r#"

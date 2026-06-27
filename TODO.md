@@ -31,8 +31,8 @@
   - [x] Keep `default = []`.
   - [x] Add optional `pdf-writer` and `pulldown-cmark` dependencies.
 - [x] Port only the Markdown-to-PDF path from `picopdf`.
-  - [x] Copy the parser, styler, layout, and renderer code into a small
-        `crates/cli/src/pdf` module.
+  - [x] Add a `pulldown-cmark` event adapter plus styler, layout, and renderer
+        code in a small `crates/cli/src/pdf` module.
   - [x] Start with built-in PDF fonts and leave custom font flags out of the
         first version.
 - [x] Expose PDF as an extract output format.
@@ -47,6 +47,7 @@
 - [x] Add focused tests.
   - [x] Check that `--format pdf` parses with `--features pdf`.
   - [x] Check that the PDF renderer returns bytes starting with `%PDF`.
+  - [x] Cover common Markdown blocks in the PDF parser tests.
   - [x] Keep non-PDF builds compiling without PDF dependencies.
 - [ ] Update docs.
   - [ ] Document installation with `cargo install lectito-cli --features pdf`.
