@@ -28,6 +28,8 @@ Use the library when an application already has HTML.
 
 - [CLI Usage](https://lectito.stormlightlabs.org/getting-started/cli-usage.html): URL, file, stdin, readable checks, inspect, and output flags.
 - [llms.txt](https://lectito.stormlightlabs.org/getting-started/llms-txt.html): Fetch, parse, expand, and generate LLM context files with the CLI.
+- [MCP Server](https://lectito.stormlightlabs.org/getting-started/mcp.html): Install the `lectito-mcp` article search and reading server for Codex, Claude Code, and Pi.
+- [Article Reader Skill](https://lectito.stormlightlabs.org/getting-started/article-reader-skill.html): Use the checked-in article-reading SKILL.md and source links for agent setup.
 
 ## Concepts
 

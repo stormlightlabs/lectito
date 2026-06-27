@@ -20,6 +20,11 @@
 - [How It Works](concepts/how-it-works.md)
 - [Diagnostics](concepts/diagnostics.md)
 
+# Agents
+
+- [MCP Server](getting-started/mcp.md)
+- [Article Reader Skill](getting-started/article-reader-skill.md)
+
 # Reference
 
 - [API Overview](reference/api-overview.md)
