@@ -1,0 +1,32 @@
+# Lectito Web App And JavaScript APIs
+
+> Browser workbench, WebAssembly bindings, and HTTP API documentation for
+> Lectito's web-facing surfaces.
+
+Use this file when working with the hosted web app, the WASM package, or the
+HTTP API. For Rust crate or CLI usage, prefer the docs site's `llms.txt`.
+
+The browser/WASM path expects HTML that is already available to the app. It
+does not fetch arbitrary URLs from the browser. Use the HTTP API from a server
+when URL fetching is required.
+
+## Web App
+
+- [Workbench](/workbench): Paste or load HTML, run extraction, inspect output, and copy Markdown, HTML, text, metadata, or diagnostics.
+- [Samples](/workbench/samples): Curated HTML examples for extraction behavior and UI testing.
+- [API Page](/api): Web-facing API and package usage notes.
+
+## WASM Package
+
+- [WASM README](/lectito-wasm/README.md): Package notes for the bundled browser/WebAssembly build.
+- [WASM TypeScript Definitions](/lectito-wasm/lectito_wasm.d.ts): Exported functions and TypeScript types for `extract`, `extractWithDiagnostics`, `isProbablyReadable`, `cleanHtml`, `htmlToMarkdown`, and `markdownToHtml`.
+- [WASM Package Metadata](/lectito-wasm/package.json): Package name, module entry point, and generated file list.
+
+## HTTP API
+
+- [API Documentation](/api): URL extraction, HTML transformation, request examples, and error handling for web clients.
+
+## Optional
+
+- [Rust And CLI Documentation](https://lectito.stormlightlabs.org/llms.txt): Rust library, CLI, diagnostics, and configuration references.
+- [Source Repository](https://github.com/stormlightlabs/lectito): Source code, issues, and local development notes.

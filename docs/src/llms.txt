@@ -1,0 +1,43 @@
+# Lectito Rust Documentation
+
+> Rust library and CLI documentation for extracting readable article content
+> from HTML.
+
+Lectito is a Rust implementation of Mozilla Readability. The `lectito` crate
+does not fetch pages. Pass HTML from a crawler, browser, cache, fixture, or
+your own HTTP client, plus an optional base URL for resolving relative links.
+
+Use the CLI when you want article extraction from a URL, file, AT URI, or stdin.
+Use the library when an application already has HTML.
+
+## Start Here
+
+- [Installation](https://lectito.stormlightlabs.org/getting-started/installation.html): Install the Rust crate, CLI, and related packages.
+- [Quick Start](https://lectito.stormlightlabs.org/getting-started/quick-start.html): Minimal library, CLI, and output examples.
+- [Basic Usage](https://lectito.stormlightlabs.org/library/basic-usage.html): Core extraction flow for Rust callers.
+
+## Rust Library
+
+- [Configuration](https://lectito.stormlightlabs.org/library/configuration.html): Readability options and common tuning cases.
+- [Output Formats](https://lectito.stormlightlabs.org/library/output-formats.html): HTML, Markdown, plain text, JSON, and diagnostics output.
+- [Rust Crate API](https://lectito.stormlightlabs.org/reference/crate-api.html): Public crate functions and common call patterns.
+- [Article](https://lectito.stormlightlabs.org/reference/article.html): Extracted article fields and metadata.
+- [Options](https://lectito.stormlightlabs.org/reference/options.html): `ReadabilityOptions`, `ReadableOptions`, and media retention reference.
+
+## CLI And Context
+
+- [CLI Usage](https://lectito.stormlightlabs.org/getting-started/cli-usage.html): URL, file, stdin, readable checks, inspect, and output flags.
+- [llms.txt](https://lectito.stormlightlabs.org/getting-started/llms-txt.html): Fetch, parse, expand, and generate LLM context files with the CLI.
+
+## Concepts
+
+- [How It Works](https://lectito.stormlightlabs.org/concepts/how-it-works.html): Extraction phases and readability scoring model.
+- [Diagnostics](https://lectito.stormlightlabs.org/concepts/diagnostics.html): Root selection, cleanup counts, recovery, and debugging output.
+- [Site Profiles](https://lectito.stormlightlabs.org/reference/site-profiles.html): URL-scoped extraction hints for difficult sites.
+
+## Optional
+
+- [API Overview](https://lectito.stormlightlabs.org/reference/api-overview.html): High-level package and surface overview.
+- [WASM API](https://lectito.stormlightlabs.org/reference/wasm-api.html): JavaScript and WebAssembly bindings.
+- [GitHub Repository](https://github.com/stormlightlabs/lectito): Source, issues, fixtures, and development notes.
+- [docs.rs crate docs](https://docs.rs/lectito): Generated Rust API documentation.
