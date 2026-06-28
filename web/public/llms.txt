@@ -14,7 +14,7 @@ when URL fetching is required.
 
 - [Workbench](/workbench): Paste or load HTML, run extraction, inspect output, and copy Markdown, HTML, text, metadata, or diagnostics.
 - [Samples](/workbench/samples): Curated HTML examples for extraction behavior and UI testing.
-- [API Page](/api): Web-facing API and package usage notes.
+- [API Page](/api-docs): Web-facing API and package usage notes.
 
 ## WASM Package
 
@@ -24,9 +24,9 @@ when URL fetching is required.
 
 ## HTTP API
 
-- [API Documentation](/api): URL extraction, HTML transformation, request examples, and error handling for web clients.
+- [API Documentation](/api-docs): URL extraction, HTML transformation, request examples, and error handling for web clients.
 
 ## Optional
 
-- [Rust And CLI Documentation](https://lectito.stormlightlabs.org/llms.txt): Rust library, CLI, optional PDF output, diagnostics, and configuration references.
+- [Rust And CLI Documentation](https://lectito.stormlightlabs.org/docs/llms.txt): Rust library, CLI, optional PDF output, diagnostics, and configuration references.
 - [Source Repository](https://github.com/stormlightlabs/lectito): Source code, issues, and local development notes.

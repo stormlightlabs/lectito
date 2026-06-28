@@ -14,7 +14,7 @@ function WorkbenchHeader() {
         <p class="app-header__note">
           <Trans>Paste HTML here.</Trans>
           <Trans>
-            Use the <A href="/api">API docs</A> for server-side URL extraction.
+            Use the <A href="/api-docs">API docs</A> for server-side URL extraction.
           </Trans>
         </p>
       </div>

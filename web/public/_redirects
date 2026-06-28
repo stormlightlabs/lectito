@@ -1,0 +1,6 @@
+# Keep these rewrites narrow. `/api/*` is owned by the Cloudflare API proxy.
+
+/docs /docs/ 301
+/workbench /index.html 200
+/workbench/* /index.html 200
+/api-docs /index.html 200

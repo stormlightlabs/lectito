@@ -24,7 +24,7 @@ console.log(article?.markdown);
 
 Use the package that matches where extraction runs:
 
-The [book](https://lectito.stormlightlabs.org/) covers concepts, CLI usage,
+The [book](https://lectito.stormlightlabs.org/docs/) covers concepts, CLI usage,
 configuration, diagnostics, and reference material.
 
 Rust users can install the [lectito crate](https://crates.io/crates/lectito)
@@ -50,7 +50,7 @@ examples, and local development notes.
 ## Browser workbench
 
 The workbench does not fetch arbitrary URLs from the browser. It accepts HTML
-that you paste, import, or capture elsewhere. For URL extraction, use the Render
+that you paste, import, or capture elsewhere. For URL extraction, use the hosted
 API from a server.
 
 ## WASM functions
@@ -154,7 +154,7 @@ URL extraction belongs on the server. The server can fetch the page, follow
 redirects, handle headers, and return article data to the browser.
 
 ```bash
-curl -X POST https://api.lectito.dev/v1/extract-url \
+curl -X POST https://lectito.stormlightlabs.org/api/v1/extract \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://example.com/post",

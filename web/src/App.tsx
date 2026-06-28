@@ -18,7 +18,7 @@ export default function App() {
       <Route path="/workbench/runs/:id" component={RunPage} />
       <Route path="/workbench/samples" component={SamplesPage} />
       <Route path="/workbench/settings" component={SettingsPage} />
-      <Route path="/api" component={ApiPage} />
+      <Route path="/api-docs" component={ApiPage} />
       <Route path="*404" component={NotFoundPage} />
     </Router>
   );

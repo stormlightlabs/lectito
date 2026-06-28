@@ -2,10 +2,11 @@ import { A, useLocation } from "@solidjs/router";
 import { For } from "solid-js";
 import type { ParentProps } from "solid-js";
 
-const NAV_ITEMS = [{ href: "/", label: "Home" }, { href: "/workbench", label: "App" }, {
-  href: "/api",
-  label: "API",
-}] as const;
+const NAV_ITEMS = [
+  { href: "/", label: "Home" },
+  { href: "/workbench", label: "App" },
+  { href: "/api-docs", label: "API" },
+] as const;
 
 export function AppLayout(props: ParentProps) {
   const location = useLocation();
@@ -23,6 +24,7 @@ export function AppLayout(props: ParentProps) {
             <For each={NAV_ITEMS}>
               {(item) => <A href={item.href} classList={{ "is-active": isActive(item.href) }}>{item.label}</A>}
             </For>
+            <a href="/docs/">Docs</a>
           </nav>
         </div>
       </header>
@@ -34,7 +36,8 @@ export function AppLayout(props: ParentProps) {
           <span>Lectito</span>
           <nav aria-label="Footer">
             <A href="/workbench">App</A>
-            <A href="/api">API</A>
+            <a href="/docs/">Docs</a>
+            <A href="/api-docs">API</A>
             <a href="https://github.com/stormlightlabs/lectito" target="_blank">Code</a>
           </nav>
         </div>

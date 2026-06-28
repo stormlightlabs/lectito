@@ -9,5 +9,6 @@ title = "Lectito.rs"
 git-repository-url = "https://github.com/stormlightlabs/lectito"
 default-theme = "coal"
 preferred-dark-theme = "coal"
+site-url = "/docs/"
 additional-css = ["src/assets/css/site-fonts.css"]
 additional-js = ["src/assets/js/theme.js"]

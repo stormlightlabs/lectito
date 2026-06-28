@@ -1,4 +1,6 @@
 allowBuilds:
   dprint: true
   esbuild: true
+  sharp: true
   wasm-pack: true
+  workerd: true
