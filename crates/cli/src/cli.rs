@@ -7,6 +7,7 @@ use lectito::MediaRetention;
 /// Extract readable article content from URLs, AT URIs, files, or stdin.
 #[derive(Debug, Parser)]
 #[command(name = "lectito")]
+#[command(version)]
 #[command(about = "Extract readable article content")]
 #[command(long_about = "\
 Extract readable article content from a URL, AT URI, HTML file, or stdin. \
@@ -39,7 +40,7 @@ pub enum OutputFormat {
     Markdown,
     /// Print extracted plain text.
     Text,
-    /// Print generated PDF bytes.
+    /// Write a generated PDF file.
     #[cfg(feature = "pdf")]
     Pdf,
 }
@@ -75,6 +76,9 @@ pub struct ExtractArgs {
     pub pretty: bool,
 
     /// Write article output to a file instead of stdout.
+    ///
+    /// PDF output always writes a file. Without this option, the file is named
+    /// from the generated PDF content hash.
     #[arg(short, long, value_name = "PATH")]
     pub output: Option<PathBuf>,
 
@@ -386,6 +390,13 @@ mod tests {
         assert_eq!(cli.extract.input.as_deref(), Some("article.html"));
         assert!(matches!(cli.extract.format, OutputFormat::Html));
         assert!(cli.command.is_none());
+    }
+
+    #[test]
+    fn version_flag_reports_package_version() {
+        let error = Cli::try_parse_from(["lectito", "--version"]).expect_err("version exits early");
+        assert_eq!(error.kind(), clap::error::ErrorKind::DisplayVersion);
+        assert!(error.to_string().contains(env!("CARGO_PKG_VERSION")));
     }
 
     #[test]

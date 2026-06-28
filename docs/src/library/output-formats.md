@@ -15,7 +15,7 @@ let text = article.text_content;
 ```
 
 The core crate returns HTML, Markdown, plain text, and metadata. The CLI can
-also turn the extracted Markdown into PDF bytes when installed with its optional
+also write the extracted Markdown as a PDF when installed with its optional
 `pdf` feature.
 
 ## HTML
@@ -87,6 +87,9 @@ The renderer starts from the extracted Markdown and writes a readable PDF with
 built-in fonts. It keeps common article structure such as headings, paragraphs,
 lists, blockquotes, code blocks, tables, definition lists, images as text,
 horizontal rules, and footnotes.
+
+PDF output always writes a file and prints the path. If you omit `--output`,
+Lectito creates `{hash}.pdf` in the current directory.
 
 Use PDF when you need a portable reading copy.
 

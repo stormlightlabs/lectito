@@ -55,6 +55,9 @@ The PDF renderer converts the extracted article Markdown into a readable PDF
 with built-in fonts. It covers common Markdown blocks such as headings, lists,
 code blocks, tables, blockquotes, and footnotes.
 
+PDF output always writes a file and prints the path. If you omit `--output`,
+Lectito creates `{hash}.pdf` in the current directory.
+
 Useful options:
 
 The defaults work for most article pages. Tune these flags when a page is too

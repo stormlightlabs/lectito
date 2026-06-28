@@ -306,9 +306,7 @@ impl Server {
             }
         };
 
-        let Some(id) = request.id.clone() else {
-            return None;
-        };
+        let id = request.id.clone()?;
 
         match self.handle_request(request).await {
             Ok(result) => Some(RpcResponse::result(id, result)),

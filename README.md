@@ -30,6 +30,9 @@ cargo install lectito-cli --features pdf
 lectito https://example.com/article --format pdf --output article.pdf
 ```
 
+Without `--output`, PDF mode writes `{hash}.pdf` in the current directory and
+prints the path it wrote.
+
 Use the Rust library when your application already has HTML:
 
 ```rust

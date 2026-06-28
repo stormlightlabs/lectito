@@ -35,8 +35,9 @@ The command-line tool is published as
 [lectito-cli](https://crates.io/crates/lectito-cli).
 
 Install it with `cargo install lectito-cli`; the binary is `lectito`.
-Install it with `cargo install lectito-cli --features pdf` when you want to output
-to pdf: `lectito --format pdf --output article.pdf`.
+Install it with `cargo install lectito-cli --features pdf` when you want PDF
+output: `lectito --format pdf --output article.pdf`. Without `--output`, PDF
+mode writes `{hash}.pdf` and prints the path.
 
 JavaScript apps use
 [@stormlightlabs/lectito](https://www.npmx.dev/package/@stormlightlabs/lectito)

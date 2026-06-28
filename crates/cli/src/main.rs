@@ -64,26 +64,23 @@ fn run_extract(args: ExtractArgs, color: bool) -> Result<ExitCode> {
         eprintln!("lectito: extraction timed out after {}s", args.timeout);
         return Ok(ExitCode::from(3));
     };
+
     #[cfg(feature = "pdf")]
     let wrote_article = if matches!(args.format, cli::OutputFormat::Pdf) {
-        let output = match report.article.as_ref() {
-            Some(article) => pdf::markdown_to_pdf(&article.markdown).context("failed to render PDF")?,
-            None => Vec::new(),
-        };
-        match args.output.as_ref() {
-            Some(path) => {
-                fs::write(path, output).with_context(|| format!("failed to write {}", path.display()))?;
+        match report.article.as_ref() {
+            Some(article) => {
+                let output = pdf::markdown_to_pdf(&article.markdown).context("failed to render PDF")?;
+                let path = pdf_output_path(args.output.as_ref(), &output);
+                fs::write(&path, output).with_context(|| format!("failed to write {}", path.display()))?;
+                println!("PDF written to {}", path.display());
             }
-            None => {
-                io::stdout()
-                    .write_all(&output)
-                    .context("failed to write PDF to stdout")?;
-            }
+            None => eprintln!("lectito: no article extracted; no PDF written"),
         }
         true
     } else {
         false
     };
+
     #[cfg(not(feature = "pdf"))]
     let wrote_article = false;
 
@@ -164,6 +161,23 @@ fn run_inspect(args: InspectArgs) -> Result<ExitCode> {
     Ok(if report.article.is_some() { ExitCode::SUCCESS } else { ExitCode::from(1) })
 }
 
+#[cfg(feature = "pdf")]
+fn pdf_output_path(explicit: Option<&PathBuf>, pdf: &[u8]) -> PathBuf {
+    explicit
+        .cloned()
+        .unwrap_or_else(|| PathBuf::from(format!("{:016x}.pdf", fnv1a64(pdf))))
+}
+
+#[cfg(feature = "pdf")]
+fn fnv1a64(bytes: &[u8]) -> u64 {
+    let mut hash = 0xcbf29ce484222325;
+    for byte in bytes {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    hash
+}
+
 fn extract_with_timeout(
     html: &str, base_url: Option<&str>, opts: ReadabilityOptions, timeout: u64,
 ) -> Result<Option<ExtractionReport>> {
@@ -238,5 +252,21 @@ mod tests {
                 std::env::remove_var(key);
             }
         }
+    }
+
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn pdf_output_path_defaults_to_hash_filename() {
+        assert_eq!(
+            pdf_output_path(None, b"%PDF\nbody"),
+            PathBuf::from("fdd7666edc821468.pdf")
+        );
+    }
+
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn pdf_output_path_uses_explicit_output() {
+        let path = PathBuf::from("article.pdf");
+        assert_eq!(pdf_output_path(Some(&path), b"%PDF\nbody"), path);
     }
 }

@@ -9,8 +9,8 @@ Install it from crates.io:
 cargo install lectito-cli
 ```
 
-Install with the optional PDF renderer when you need want to export as PDF
-with `--format pdf`:
+Install with the optional PDF renderer when you want to export as PDF with
+`--format pdf`:
 
 ```sh
 cargo install lectito-cli --features pdf
@@ -41,9 +41,9 @@ Markdown with TOML frontmatter is the default output.
 
 Use `--format html`, `--format text`, or `--format json` when another format
 fits better.
-Use `--format pdf` after installing with `--features pdf`. PDF output writes
-generated PDF bytes, so prefer `--output article.pdf` unless piping to a tool
-that accepts PDF data on stdin.
+Use `--format pdf` after installing with `--features pdf`. PDF output always
+writes a file and prints the path. Without `--output`, the file is named
+`{hash}.pdf` from the generated PDF contents.
 Use `--frontmatter=false` to omit Markdown frontmatter.
 Use `--inspect` or `--diagnostic-format pretty` when tuning extraction for a page.
 
