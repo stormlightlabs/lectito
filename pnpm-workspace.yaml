@@ -4,3 +4,6 @@ allowBuilds:
   sharp: true
   wasm-pack: true
   workerd: true
+
+packages:
+  - packages/*

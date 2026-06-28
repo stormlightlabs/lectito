@@ -76,3 +76,62 @@
   - Publish dry-runs for public crates.
 - Include `wasm-pack test --node` and `wasm-pack build` checks for the
   `bundler`, `web`, and `nodejs` WASM targets.
+
+## Hosted API And Pages Deploy
+
+- [ ] Verify the Coolify API origin directly:
+
+  ```sh
+  curl -i https://lectito-api.stormlightlabs.org/healthz
+  curl -i https://lectito-api.stormlightlabs.org/openapi.json
+  ```
+
+- [ ] Set production API environment variables in Coolify:
+
+  ```text
+  LECTITO_ALLOWED_ORIGINS=https://lectito.stormlightlabs.org
+  LECTITO_ALLOW_PRIVATE_NETWORK=false
+  LECTITO_MAX_BODY_BYTES=524288
+  LECTITO_MAX_FETCH_BYTES=2097152
+  LECTITO_REDIRECT_LIMIT=5
+  LECTITO_REQUEST_TIMEOUT_SECS=20
+  ```
+
+- [ ] Add the Cloudflare `/api/*` proxy:
+  - Match `lectito.stormlightlabs.org/api/*`.
+  - Strip `/api` before forwarding.
+  - Forward to `https://lectito-api.stormlightlabs.org`.
+  - Handle `OPTIONS` before forwarding.
+  - Keep the web app API base URL as `/api`.
+- [ ] Add the Cloudflare route for the API proxy:
+
+  ```text
+  lectito.stormlightlabs.org/api/*
+  ```
+
+- [ ] Deploy the combined web/docs Pages project:
+
+  ```sh
+  pnpm --dir packages/web run build:pages
+  pnpm --dir packages/web run deploy:pages
+  ```
+
+- [ ] Smoke test public routes:
+
+  ```sh
+  curl -i https://lectito.stormlightlabs.org/
+  curl -i https://lectito.stormlightlabs.org/docs/
+  curl -i https://lectito.stormlightlabs.org/api/healthz
+  curl -i https://lectito.stormlightlabs.org/api/openapi.json
+  ```
+
+- [ ] Smoke test a public API POST:
+
+  ```sh
+  curl -i https://lectito.stormlightlabs.org/api/v1/transform \
+    -H "Content-Type: application/json" \
+    -d '{"html":"<article><h1>Hello</h1><p>World</p></article>"}'
+  ```
+
+- [ ] Add Cloudflare WAF rate limits for `/api/*`.
+- [ ] Wire URL extraction into the web app after the public API proxy is live.

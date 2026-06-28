@@ -71,10 +71,10 @@ Version bump steps:
 - Run the wasm release checks:
 
   ```sh
-  pnpm --dir web exec wasm-pack test --node ../crates/wasm
-  pnpm --dir web exec wasm-pack build ../crates/wasm --target bundler --out-dir ../../target/wasm-pack/bundler
-  pnpm --dir web exec wasm-pack build ../crates/wasm --target web --out-dir ../../target/wasm-pack/web
-  pnpm --dir web exec wasm-pack build ../crates/wasm --target nodejs --out-dir ../../target/wasm-pack/nodejs
+  pnpm --dir packages/web exec wasm-pack test --node ../../crates/wasm
+  pnpm --dir packages/web exec wasm-pack build ../../crates/wasm --target bundler --out-dir ../../target/wasm-pack/bundler
+  pnpm --dir packages/web exec wasm-pack build ../../crates/wasm --target web --out-dir ../../target/wasm-pack/web
+  pnpm --dir packages/web exec wasm-pack build ../../crates/wasm --target nodejs --out-dir ../../target/wasm-pack/nodejs
   ```
 
 - Inspect package contents:
@@ -103,11 +103,11 @@ Public routing:
 Build the public site as one Cloudflare Pages artifact:
 
 ```sh
-pnpm --dir web run build:pages
+pnpm --dir packages/web run build:pages
 ```
 
-Configure Cloudflare Pages with `web` as the project root, that build command,
-and `dist` as the output directory.
+Configure Cloudflare Pages with `packages/web` as the project root, that build
+command, and `dist` as the output directory.
 
 Before the public site goes live:
 
@@ -279,7 +279,7 @@ rights. Scoped public packages must publish with public access.
 Build and inspect the bundler package:
 
 ```sh
-pnpm --dir web exec wasm-pack build ../crates/wasm --target bundler --out-dir ../../target/wasm-pack/bundler
+pnpm --dir packages/web exec wasm-pack build ../../crates/wasm --target bundler --out-dir ../../target/wasm-pack/bundler
 cd target/wasm-pack/bundler
 npm pkg set name=@stormlightlabs/lectito publishConfig.access=public
 npm pack --dry-run

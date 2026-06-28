@@ -156,10 +156,10 @@ rendering returned HTML when the original input is untrusted.
 Run the WASM tests and build all supported package targets:
 
 ```sh
-pnpm --dir web exec wasm-pack test --node ../crates/wasm
-pnpm --dir web exec wasm-pack build ../crates/wasm --target bundler --out-dir ../../target/wasm-pack/bundler
-pnpm --dir web exec wasm-pack build ../crates/wasm --target web --out-dir ../../target/wasm-pack/web
-pnpm --dir web exec wasm-pack build ../crates/wasm --target nodejs --out-dir ../../target/wasm-pack/nodejs
+pnpm --dir packages/web exec wasm-pack test --node ../../crates/wasm
+pnpm --dir packages/web exec wasm-pack build ../../crates/wasm --target bundler --out-dir ../../target/wasm-pack/bundler
+pnpm --dir packages/web exec wasm-pack build ../../crates/wasm --target web --out-dir ../../target/wasm-pack/web
+pnpm --dir packages/web exec wasm-pack build ../../crates/wasm --target nodejs --out-dir ../../target/wasm-pack/nodejs
 ```
 
 The build commands run `wasm-opt`; restricted sandboxes may need permission to

@@ -22,14 +22,14 @@ Readability.
 ### Web App
 
 - `crates/api`: API service code.
-- `web`: Solid and Vite web app.
+- `packages/web`: Solid and Vite web app.
 
 ## Web App
 
-The web app lives in `web/`. Run web commands from that directory:
+The web app lives in `packages/web/`. Run web commands from that directory:
 
 ```sh
-cd web
+cd packages/web
 pnpm dev
 pnpm lint
 pnpm build
@@ -41,14 +41,14 @@ The app uses Solid, Vite, Lingui, and the local WebAssembly package.
 Rebuild the WASM package when Rust changes affect browser behavior:
 
 ```sh
-cd web
+cd packages/web
 pnpm build:wasm
 ```
 
 Run WASM crate tests through `wasm-pack`:
 
 ```sh
-pnpm --dir web exec wasm-pack test --node ../crates/wasm
+pnpm --dir packages/web exec wasm-pack test --node ../../crates/wasm
 ```
 
 The WASM tests live in `crates/wasm` and use `wasm-bindgen-test`. Use this
@@ -57,7 +57,7 @@ path for Rust exports that cross the WebAssembly boundary.
 Keep message files current when user-facing web text changes:
 
 ```sh
-cd web
+cd packages/web
 pnpm messages:extract
 pnpm messages:compile
 ```

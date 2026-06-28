@@ -24,35 +24,35 @@ smoke-skip-live:
 examples:
     bash scripts/examples.sh
 
-# web/
+# packages/web/
 web-install:
-    pnpm --dir web install
+    pnpm --dir packages/web install
 
 web-dev:
-    pnpm --dir web run dev
+    pnpm --dir packages/web run dev
 
 web-build:
-    pnpm --dir web run build
+    pnpm --dir packages/web run build
 
 web-build-wasm:
-    pnpm --dir web run build:wasm
+    pnpm --dir packages/web run build:wasm
 
 web-lint:
-    pnpm --dir web run lint
+    pnpm --dir packages/web run lint
 
 web-format:
-    pnpm --dir web run format
+    pnpm --dir packages/web run format
 
 web-messages-extract:
-    pnpm --dir web run messages:extract
+    pnpm --dir packages/web run messages:extract
 
 web-messages-compile:
-    pnpm --dir web run messages:compile
+    pnpm --dir packages/web run messages:compile
 
 web-messages: web-messages-extract web-messages-compile
 
 web-preview:
-    pnpm --dir web run preview
+    pnpm --dir packages/web run preview
 
 api-build:
     cargo build -p lectito-api

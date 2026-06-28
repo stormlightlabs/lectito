@@ -32,3 +32,4 @@ rustc-ice-*.txt
 
 # clap mangen generated
 scripts/doc/cli.txt
+node_modules
