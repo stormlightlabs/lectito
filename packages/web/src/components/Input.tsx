@@ -1,8 +1,9 @@
+import { apiBaseUrl } from "$lib/clients/api";
 import { APP_MODES } from "$lib/types";
 import { useWorkbench } from "$lib/workbench/context";
 import { Trans } from "@lingui/solid/macro";
 import { A } from "@solidjs/router";
-import { createMemo, createSignal, For, lazy, Show, Suspense } from "solid-js";
+import { createMemo, createSignal, For, lazy, onMount, Show, Suspense } from "solid-js";
 import type { AppMode, PipelineOptions } from "../lib/types";
 import type { CodeEditorProps } from "./CodeEditor";
 import { Icon } from "./Icon";
@@ -138,6 +139,50 @@ function UrlStatus(props: { running: boolean }) {
   );
 }
 
+type ApiHealth = "checking" | "online" | "offline";
+
+function ApiStatus() {
+  const [status, setStatus] = createSignal<ApiHealth>("checking");
+
+  onMount(async () => {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4000);
+      const response = await fetch(`${apiBaseUrl}/healthz`, { signal: controller.signal });
+      clearTimeout(timer);
+      setStatus(response.ok ? "online" : "offline");
+    } catch {
+      setStatus("offline");
+    }
+  });
+
+  const titleText = () => {
+    if (status() === "online") return "API online";
+    if (status() === "offline") return "API unreachable";
+    return "Checking API…";
+  };
+
+  return (
+    <span
+      class="api-status"
+      data-status={status()}
+      title={titleText()}>
+      <span class="api-status__dot" />
+      <span class="api-status__text">
+        <Show
+          when={status() === "online"}
+          fallback={
+            <Show when={status() === "offline"} fallback={<Trans>Checking…</Trans>}>
+              <Trans>API unreachable</Trans>
+            </Show>
+          }>
+          <Trans>API online</Trans>
+        </Show>
+      </span>
+    </span>
+  );
+}
+
 function CancelButton(props: { onCancel: () => void }) {
   return (
     <MotionButton
@@ -183,6 +228,7 @@ function UrlPanel(props: UrlPanelProps) {
       <p>
         <Trans>Enter a page URL and Lectito extracts the article server-side.</Trans>
       </p>
+      <ApiStatus />
       <div class="url-panel__row">
         <UrlStatus running={props.running} />
         <div class="pane-toolbar__actions">

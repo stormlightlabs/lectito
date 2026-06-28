@@ -129,6 +129,12 @@
     color: var(--danger);
 }
 
+.settings-data {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
 @media (max-width: 720px) {
     .settings-page .option-groups,
     .settings-layout {

@@ -1,10 +1,15 @@
 import { db } from "$lib/db";
+import { clearRuns } from "$lib/runs";
 import type { PipelineOptions } from "$lib/types";
 import { defaultOptions, type LayoutMode, layoutModes } from "$lib/workbench/store";
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 
 export type Settings = { options: PipelineOptions; layout: LayoutMode };
+
+export type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+export type SettingsStore = ReturnType<typeof createSettingsStore>;
 
 export const defaultSettings: Settings = { options: defaultOptions, layout: "split" };
 
@@ -35,9 +40,9 @@ export async function saveSettings(settings: Settings): Promise<void> {
   await db.settings.put({ key: SETTINGS_KEY, value: settings, updatedAt: new Date().toISOString() });
 }
 
-export type SaveStatus = "idle" | "saving" | "saved" | "error";
-
-export type SettingsStore = ReturnType<typeof createSettingsStore>;
+export async function clearSettings(): Promise<void> {
+  await db.settings.delete(SETTINGS_KEY);
+}
 
 /**
  * Holds the *committed* (last saved) settings.
@@ -63,5 +68,18 @@ export function createSettingsStore(initial: Settings) {
   /** Clear a transient saved/error badge once the user starts editing again.  */
   const resetSaveStatus = () => setSaveStatus("idle");
 
-  return { state, commit, saveStatus, resetSaveStatus };
+  /** Wipe settings and all saved runs from local storage. */
+  const clearAll = async () => {
+    setSaveStatus("saving");
+    try {
+      await clearSettings();
+      await clearRuns();
+      setState({ options: { ...defaultOptions }, layout: "split" });
+      setSaveStatus("saved");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  return { state, commit, saveStatus, resetSaveStatus, clearAll };
 }

@@ -51,21 +51,21 @@ The web app has two primary flows:
     `/v1/transform`.
   - Remove or correct any documented Markdown options that `/v1/transform` does
     not actually honor.
-- [ ] Add local data controls:
+- [x] Add local data controls:
   - Delete one saved run.
   - Clear all saved runs.
   - Clear local settings and history from the Settings page.
-- [ ] Add a way to reopen a saved run in the workbench.
-- [ ] Add export/import for saved runs, or state clearly that runs are local and
+- [x] Add a way to reopen a saved run in the workbench.
+- [x] Add export/import for saved runs, or state clearly that runs are local and
       disposable.
-- [ ] Add a small API status indicator or connection check for URL mode.
+- [x] Add a small API status indicator or connection check for URL mode.
 - [ ] Run a responsive and accessibility smoke test on:
   - `/`
   - `/workbench`
   - `/workbench/samples`
   - `/workbench/runs`
   - `/workbench/settings`
-- [ ] Run the i18n extraction and compile commands after copy changes:
+- [x] Run the i18n extraction and compile commands after copy changes:
 
   ```sh
   pnpm --dir packages/web run messages:extract

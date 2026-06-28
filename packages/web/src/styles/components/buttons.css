@@ -49,6 +49,17 @@
     background: var(--paper-muted);
 }
 
+.button--ghost {
+    border-color: transparent;
+    background: transparent;
+    color: var(--ink-muted);
+}
+
+.button--ghost:hover {
+    color: var(--danger);
+    background: var(--paper-muted);
+}
+
 .overflow-menu {
     position: relative;
 }

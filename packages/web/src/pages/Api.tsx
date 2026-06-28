@@ -9,7 +9,7 @@ type ApiView = "docs" | "spec";
 
 function renderInline(text: string): Array<string | JSX.Element> {
   const parts: Array<string | JSX.Element> = [];
-  const pattern = /(`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
+  const pattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g;
   let cursor = 0;
   let match: RegExpExecArray | null;
 
@@ -19,6 +19,10 @@ function renderInline(text: string): Array<string | JSX.Element> {
     const token = match[0];
     if (token.startsWith("`")) {
       parts.push(<code>{token.slice(1, -1)}</code>);
+    } else if (token.startsWith("**")) {
+      parts.push(<strong>{token.slice(2, -2)}</strong>);
+    } else if (token.startsWith("*")) {
+      parts.push(<em>{token.slice(1, -1)}</em>);
     } else {
       const link = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
       parts.push(link ? <a href={link[2]} rel="external">{link[1]}</a> : token);
@@ -72,6 +76,9 @@ function MarkdownDocument(props: { blocks: MarkdownBlock[] }) {
                   <For each={block.items}>{(item) => <li>{renderInline(item)}</li>}</For>
                 </ul>
               );
+            }
+            case "blockquote": {
+              return <blockquote>{renderInline(block.text)}</blockquote>;
             }
             case "code": {
               return (

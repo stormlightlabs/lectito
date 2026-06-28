@@ -1,9 +1,47 @@
-import { getSavedRun } from "$lib/runs";
+import { queueRunForWorkbench } from "$lib/workbench/context";
+import { exportRuns, getSavedRun } from "$lib/runs";
+import type { SavedRun } from "$lib/types";
 import { Trans } from "@lingui/solid/macro";
-import { useParams } from "@solidjs/router";
+import { useNavigate, useParams } from "@solidjs/router";
 import { createEffect, createSignal, Show } from "solid-js";
 import { PageShell } from "./PageShell";
 import { WorkbenchTabs } from "./WorkbenchTabs";
+
+function ExportButton(props: { run: () => SavedRun | undefined }) {
+  const download = () => {
+    const run = props.run();
+    if (!run) return;
+    const blob = new Blob([exportRuns([run])], { type: "application/json;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `lectito-run-${run.id.slice(0, 8)}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  return (
+    <button type="button" class="button button--secondary" onClick={download}>
+      <Trans>Export</Trans>
+    </button>
+  );
+}
+
+function ReopenButton(props: { run: () => SavedRun | undefined }) {
+  const navigate = useNavigate();
+
+  const reopen = () => {
+    const run = props.run();
+    if (!run) return;
+    queueRunForWorkbench(run);
+    navigate("/workbench");
+  };
+
+  return (
+    <button type="button" class="button button--primary" onClick={reopen}>
+      <Trans>Reopen in workbench</Trans>
+    </button>
+  );
+}
 
 export function RunPage() {
   const params = useParams();
@@ -39,7 +77,13 @@ export function RunPage() {
           {(savedRun) => (
             <div class="run-detail">
               <section>
-                <h2>{savedRun().title}</h2>
+                <div class="run-detail__header">
+                  <h2>{savedRun().title}</h2>
+                  <div class="run-detail__actions">
+                    <ReopenButton run={savedRun} />
+                    <ExportButton run={savedRun} />
+                  </div>
+                </div>
                 <p>{savedRun().sourceLabel}</p>
                 <dl class="metadata-list metadata-list--static">
                   <div>

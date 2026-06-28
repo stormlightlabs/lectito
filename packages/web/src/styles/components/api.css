@@ -105,6 +105,21 @@
     scroll-margin-top: 6rem;
 }
 
+.api-markdown blockquote {
+    margin: 0 0 var(--space-5);
+    border-left: 3px solid var(--accent);
+    padding: var(--space-2) var(--space-4);
+    color: var(--ink-soft);
+    background: var(--paper-muted);
+    border-radius: 0 var(--radius-2) var(--radius-2) 0;
+    font-size: var(--text-sm);
+    line-height: var(--line-sm);
+}
+
+.api-markdown blockquote p {
+    margin: 0;
+}
+
 .api-code {
     max-width: 100%;
     margin: 0 0 var(--space-5);

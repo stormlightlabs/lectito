@@ -33,9 +33,21 @@ msgstr "Add a page"
 #~ msgid "After / article"
 #~ msgstr "After / article"
 
+#: src/components/Output.tsx:186
+msgid "API error"
+msgstr "API error"
+
+#: src/components/Input.tsx:179
+msgid "API online"
+msgstr "API online"
+
 #: src/components/Output.tsx:164
 msgid "API unavailable"
 msgstr "API unavailable"
+
+#: src/components/Input.tsx:176
+msgid "API unreachable"
+msgstr "API unreachable"
 
 #: src/pages/Landing.tsx:21
 msgid "article body"
@@ -49,13 +61,17 @@ msgstr "Article extraction"
 #~ msgid "Before / as served"
 #~ msgstr "Before / as served"
 
-#: src/pages/Settings.tsx:172
+#: src/pages/Settings.tsx:194
 msgid "Changes here do not alter runs you have already saved."
 msgstr "Changes here do not alter runs you have already saved."
 
 #: src/pages/Landing.tsx:135
 #~ msgid "Check the article before you use it."
 #~ msgstr "Check the article before you use it."
+
+#: src/components/Input.tsx:175
+msgid "Checking…"
+msgstr "Checking…"
 
 #: src/pages/Landing.tsx:134
 #~ msgid "Clean up the document before read it."
@@ -65,6 +81,18 @@ msgstr "Changes here do not alter runs you have already saved."
 msgid "Clean up the document before you read it."
 msgstr "Clean up the document before you read it."
 
+#: src/pages/Runs.tsx:34
+msgid "Clear all"
+msgstr "Clear all"
+
+#: src/pages/Settings.tsx:122
+msgid "Clear local data"
+msgstr "Clear local data"
+
+#: src/pages/Settings.tsx:131
+msgid "Cleared"
+msgstr "Cleared"
+
 #: src/pages/Landing.tsx:14
 msgid "cookie banner"
 msgstr "cookie banner"
@@ -73,7 +101,7 @@ msgstr "cookie banner"
 msgid "Copy what you need"
 msgstr "Copy what you need"
 
-#: src/pages/Settings.tsx:118
+#: src/pages/Settings.tsx:140
 msgid "Could not save. Try again."
 msgstr "Could not save. Try again."
 
@@ -81,15 +109,23 @@ msgstr "Could not save. Try again."
 msgid "Curated HTML fixtures exercising specific extraction capabilities."
 msgstr "Curated HTML fixtures exercising specific extraction capabilities."
 
-#: src/components/Input.tsx:184
+#: src/components/Input.tsx:229
 msgid "Enter a page URL and Lectito extracts the article server-side."
 msgstr "Enter a page URL and Lectito extracts the article server-side."
+
+#: src/pages/Run.tsx:24
+msgid "Export"
+msgstr "Export"
+
+#: src/pages/Runs.tsx:26
+msgid "Export all"
+msgstr "Export all"
 
 #: src/pages/Landing.tsx:41
 msgid "Extracted"
 msgstr "Extracted"
 
-#: src/components/Input.tsx:135
+#: src/components/Input.tsx:136
 msgid "Fetching…"
 msgstr "Fetching…"
 
@@ -101,6 +137,10 @@ msgstr "Focus on what matters."
 msgid "footer links"
 msgstr "footer links"
 
+#: src/pages/Runs.tsx:12
+msgid "Import"
+msgstr "Import"
+
 #: src/pages/Landing.tsx:123
 msgid "Lectito is a tool that removes cruft to make the web more readable."
 msgstr "Lectito is a tool that removes cruft to make the web more readable."
@@ -109,7 +149,7 @@ msgstr "Lectito is a tool that removes cruft to make the web more readable."
 #~ msgid "Lectito removes navigation, ads, sidebars, and footers so you can read or export the article body."
 #~ msgstr "Lectito removes navigation, ads, sidebars, and footers so you can read or export the article body."
 
-#: src/pages/Run.tsx:29
+#: src/pages/Run.tsx:67
 msgid "Loading saved run."
 msgstr "Loading saved run."
 
@@ -121,7 +161,7 @@ msgstr "No article found"
 msgid "No samples match."
 msgstr "No samples match."
 
-#: src/pages/Runs.tsx:21
+#: src/pages/Runs.tsx:88
 msgid "No saved runs yet."
 msgstr "No saved runs yet."
 
@@ -137,7 +177,7 @@ msgstr "Open the workbench"
 msgid "Original"
 msgstr "Original"
 
-#: src/components/Input.tsx:172
+#: src/components/Input.tsx:217
 msgid "Page URL"
 msgstr "Page URL"
 
@@ -166,8 +206,8 @@ msgid "Rate limited"
 msgstr "Rate limited"
 
 #: src/components/Output.tsx:188
-msgid "Raw API error"
-msgstr "Raw API error"
+#~ msgid "Raw API error"
+#~ msgstr "Raw API error"
 
 #: src/pages/Landing.tsx:101
 #~ msgid "Read the API notes"
@@ -181,7 +221,7 @@ msgstr "Read the Docs"
 msgid "Read the result"
 msgstr "Read the result"
 
-#: src/components/Input.tsx:134
+#: src/components/Input.tsx:135
 msgid "Ready."
 msgstr "Ready."
 
@@ -189,7 +229,15 @@ msgstr "Ready."
 msgid "related links"
 msgstr "related links"
 
-#: src/pages/Settings.tsx:126
+#: src/pages/Run.tsx:41
+msgid "Reopen in workbench"
+msgstr "Reopen in workbench"
+
+#: src/pages/Runs.tsx:91
+msgid "Runs are stored locally in your browser and disposable."
+msgstr "Runs are stored locally in your browser and disposable."
+
+#: src/pages/Settings.tsx:148
 msgid "Saved"
 msgstr "Saved"
 
@@ -213,11 +261,11 @@ msgstr "The article body remains. The page chrome is gone."
 msgid "The requested page does not exist."
 msgstr "The requested page does not exist."
 
-#: src/pages/Settings.tsx:171
+#: src/pages/Settings.tsx:193
 msgid "These defaults apply to new workbench sessions."
 msgstr "These defaults apply to new workbench sessions."
 
-#: src/pages/Run.tsx:36
+#: src/pages/Run.tsx:74
 msgid "This saved run was not found in local history."
 msgstr "This saved run was not found in local history."
 

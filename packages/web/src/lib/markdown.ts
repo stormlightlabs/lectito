@@ -9,9 +9,10 @@
  * - paragraphs separated by blank lines; wrapped paragraph lines are joined
  * - flat unordered lists where every item starts with `- `
  * - fenced code blocks with an optional word-like language tag
+ * - blockquotes where every line starts with `>` (wrapped lines joined)
  * - inline code spans and Markdown links inside text blocks
  *
- * Nested lists, blockquotes, tables, emphasis, images, ordered lists, HTML, and
+ * Nested lists, tables, emphasis, images, ordered lists, HTML, and
  * wrapped list items are treated as plain paragraph text or split into separate
  * blocks.
  */
@@ -21,6 +22,7 @@ export type MarkdownBlock =
   | { kind: "heading"; depth: number; text: string; id: string }
   | { kind: "paragraph"; text: string }
   | { kind: "list"; items: string[] }
+  | { kind: "blockquote"; text: string }
   | { kind: "code"; language: string; code: string };
 
 export type TocItem = { id: string; depth: number; text: string };
@@ -73,6 +75,16 @@ export function parseMarkdown(markdown: string): MarkdownBlock[] {
       continue;
     }
 
+    if (line.startsWith(">")) {
+      const parts: string[] = [];
+      while (index < lines.length && (lines[index] ?? "").startsWith(">")) {
+        parts.push((lines[index] ?? "").replace(/^>\s?/, ""));
+        index += 1;
+      }
+      blocks.push({ kind: "blockquote", text: parts.join(" ") });
+      continue;
+    }
+
     const paragraph: string[] = [line.trim()];
     index += 1;
     while (
@@ -81,6 +93,7 @@ export function parseMarkdown(markdown: string): MarkdownBlock[] {
       && !lines[index]?.startsWith("#")
       && !lines[index]?.startsWith("```")
       && !lines[index]?.startsWith("- ")
+      && !lines[index]?.startsWith(">")
     ) {
       paragraph.push((lines[index] ?? "").trim());
       index += 1;

@@ -19,7 +19,7 @@ const conf: ReturnType<typeof defineConfig> = {
   plugins: [unocss(), solid({ babel: { plugins: ["@lingui/babel-plugin-lingui-macro"] } }), lingui()],
   server: {
     proxy: {
-      "/api": {
+      "/api/": {
         target: "http://localhost:3000",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),

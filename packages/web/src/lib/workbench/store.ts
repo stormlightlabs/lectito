@@ -182,6 +182,23 @@ export function createWorkbenchStore(defaults: { options: PipelineOptions; layou
     }));
   };
 
+  /** Restore a saved run into the workbench so it can be re-exported or saved again. */
+  const loadRun = (run: { input: string; options: PipelineOptions; result: PipelineResult; sourceLabel: string }) => {
+    runId += 1;
+    setState(produce((s) => {
+      const isUrl = run.sourceLabel !== "Pasted HTML";
+      s.mode = isUrl ? "url" : "html";
+      if (isUrl) {
+        s.url = run.input;
+      } else {
+        s.html = run.input;
+      }
+      s.options = { ...run.options };
+      s.result = run.result;
+      s.running = false;
+    }));
+  };
+
   const copySelected = () => {
     const current = resultValue();
     if (!current) return;
@@ -249,6 +266,7 @@ export function createWorkbenchStore(defaults: { options: PipelineOptions; layou
     runExtraction,
     cancelRun,
     resetInput,
+    loadRun,
     copySelected,
     copyHtml,
     copyMetadata,

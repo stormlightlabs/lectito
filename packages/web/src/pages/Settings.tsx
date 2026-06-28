@@ -112,6 +112,28 @@ function SectionHeader(props: { title: string; description: string }) {
   );
 }
 
+function ClearDataButton(props: { clearing: boolean; onClear: () => void }) {
+  return (
+    <button
+      type="button"
+      class="button button--ghost"
+      disabled={props.clearing}
+      onClick={props.onClear}>
+      <Trans>Clear local data</Trans>
+    </button>
+  );
+}
+
+function ClearedBadge(props: { show: boolean }) {
+  return (
+    <Show when={props.show}>
+      <span class="settings-actions__status is-ok">
+        <Trans>Cleared</Trans>
+      </span>
+    </Show>
+  );
+}
+
 function ErrMsg() {
   return (
     <span class="settings-actions__status is-error">
@@ -182,6 +204,16 @@ export function SettingsPage() {
         <section class="settings-section">
           <SectionHeader title="Default layout" description="How the workbench arranges the input and output panes." />
           <LayoutPicker value={draft.layout} onChange={(layout) => edit(() => setDraft("layout", layout))} />
+        </section>
+
+        <section class="settings-section">
+          <SectionHeader title="Local data" description="Clear saved runs and settings stored in this browser." />
+          <div class="settings-data">
+            <ClearDataButton
+              clearing={settings.saveStatus() === "saving"}
+              onClear={() => void settings.clearAll()} />
+            <ClearedBadge show={settings.saveStatus() === "saved" && !isDirty()} />
+          </div>
         </section>
 
         <div class="settings-actions">

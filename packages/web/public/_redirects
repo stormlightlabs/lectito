@@ -1,6 +1,6 @@
-# Keep these rewrites narrow. `/api/*` is owned by the Cloudflare API proxy.
+# Cloudflare Pages serves real static files first; only paths that don't
+# match a file fall through to these rules. `/api/*` is owned by the edge
+# worker proxy and never reaches Pages routing.
 
 /docs /docs/ 301
-/workbench /index.html 200
-/workbench/* /index.html 200
-/api-docs /index.html 200
+/* /index.html 200
