@@ -1,8 +1,10 @@
+import { extractUrlWithApi } from "$lib/clients/api";
 import { extractHtmlWithWasm } from "$lib/clients/wasm";
 import { saveRun } from "$lib/runs";
 import { sampleHtml } from "$lib/sample";
 import { findSample } from "$lib/samples";
-import type { InspectTab, OutputTab, PipelineFailure, PipelineOptions, PipelineResult } from "$lib/types";
+import type { AppMode, InspectTab, OutputTab, PipelineFailure, PipelineOptions, PipelineResult } from "$lib/types";
+import { isAppMode, isInspectTab, isOutputTab } from "$lib/types";
 import { useSearchParams } from "@solidjs/router";
 import { createEffect, createMemo } from "solid-js";
 import { createStore, produce } from "solid-js/store";
@@ -21,17 +23,6 @@ export const defaultOptions: PipelineOptions = {
   diagnostics: false,
 };
 
-const outputTabs: Set<OutputTab> = new Set(["markdown", "preview", "cleaned", "compare"]);
-const inspectTabs: Set<InspectTab> = new Set(["metadata", "diagnostics", "sanitized"]);
-
-function isOutputTab(value: unknown): value is OutputTab {
-  return outputTabs.has(value as OutputTab);
-}
-
-function isInspectTab(value: unknown): value is InspectTab {
-  return inspectTabs.has(value as InspectTab);
-}
-
 function isLayoutMode(value: unknown): value is LayoutMode {
   return layoutModes.includes(value as LayoutMode);
 }
@@ -44,6 +35,15 @@ function describeStatus(running: boolean, result?: PipelineResult | PipelineFail
 
 function shareView() {
   void navigator.clipboard?.writeText(globalThis.location.href);
+}
+
+function sourceLabelForUrl(url: string): string {
+  try {
+    const { hostname } = new URL(url.trim());
+    return hostname || url.trim() || "URL";
+  } catch {
+    return url.trim() || "URL";
+  }
 }
 
 function selectedOutput(result: PipelineResult, tab: OutputTab): SelectedOutput {
@@ -77,7 +77,9 @@ function selectedOutput(result: PipelineResult, tab: OutputTab): SelectedOutput 
 }
 
 export type WorkbenchState = {
+  mode: AppMode;
   html: string;
+  url: string;
   options: PipelineOptions;
   result?: PipelineResult | PipelineFailure;
   tab: OutputTab;
@@ -100,6 +102,7 @@ export type WorkbenchStore = ReturnType<typeof createWorkbenchStore>;
  */
 export function createWorkbenchStore(defaults: { options: PipelineOptions; layout: LayoutMode }) {
   const [params, setParams] = useSearchParams();
+  const initialMode = isAppMode(params.mode) ? params.mode : "html";
   const initialTab = isOutputTab(params.tab) ? params.tab : "markdown";
   const initialInspectTab = isInspectTab(params.inspect) ? params.inspect : "metadata";
   const initialLayout = isLayoutMode(params.layout) ? params.layout : defaults.layout;
@@ -107,7 +110,9 @@ export function createWorkbenchStore(defaults: { options: PipelineOptions; layou
   const initialHtml = findSample(sampleParam)?.html ?? sampleHtml;
 
   const [state, setState] = createStore<WorkbenchState>({
+    mode: initialMode,
     html: initialHtml,
+    url: "",
     options: { ...defaults.options },
     result: undefined,
     tab: initialTab,
@@ -122,6 +127,7 @@ export function createWorkbenchStore(defaults: { options: PipelineOptions; layou
 
   createEffect(() => {
     setParams({
+      mode: state.mode === "html" ? undefined : state.mode,
       tab: state.tab === "markdown" ? undefined : state.tab,
       inspect: state.inspectTab === "metadata" ? undefined : state.inspectTab,
       inspectOpen: state.inspectOpen ? "1" : undefined,
@@ -138,6 +144,8 @@ export function createWorkbenchStore(defaults: { options: PipelineOptions; layou
   const hasOutput = () => Boolean(state.result);
 
   const setHtml = (html: string) => setState("html", html);
+  const setUrl = (url: string) => setState("url", url);
+  const setMode = (mode: AppMode) => setState("mode", mode);
   const setOptions = (options: PipelineOptions) => setState("options", options);
   const setTab = (tab: OutputTab) => setState("tab", tab);
   const setInspectTab = (tab: InspectTab) => setState("inspectTab", tab);
@@ -150,7 +158,9 @@ export function createWorkbenchStore(defaults: { options: PipelineOptions; layou
     const currentRun = ++runId;
 
     setState("running", true);
-    const nextResult = await extractHtmlWithWasm(state.html, currentOptions);
+    const nextResult = state.mode === "url"
+      ? await extractUrlWithApi({ url: state.url, options: currentOptions })
+      : await extractHtmlWithWasm(state.html, currentOptions);
 
     if (currentRun === runId) {
       setState(produce((s) => {
@@ -203,12 +213,13 @@ export function createWorkbenchStore(defaults: { options: PipelineOptions; layou
   const saveCurrentRun = () => {
     const current = resultValue();
     if (!current) return;
+    const isUrl = state.mode === "url";
     void saveRun({
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
-      title: current.metadata.title || "Untitled extraction",
-      sourceLabel: "Pasted HTML",
-      input: state.html,
+      title: current.metadata.title || (isUrl ? state.url : "Untitled extraction"),
+      sourceLabel: isUrl ? sourceLabelForUrl(state.url) : "Pasted HTML",
+      input: isUrl ? state.url : state.html,
       options: state.options,
       result: current,
     });
@@ -227,6 +238,8 @@ export function createWorkbenchStore(defaults: { options: PipelineOptions; layou
     resultValue,
     hasOutput,
     setHtml,
+    setUrl,
+    setMode,
     setOptions,
     setTab,
     setInspectTab,

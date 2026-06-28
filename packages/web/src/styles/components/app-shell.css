@@ -61,7 +61,7 @@
     justify-content: space-between;
     gap: var(--space-6);
     align-items: end;
-    padding: var(--space-3);
+    padding: var(--space-4);
     border: 1px solid var(--rule);
     background: var(--paper-raised);
     box-shadow: var(--shadow-thin);
@@ -75,9 +75,9 @@
 .app-header__main {
     display: flex;
     width: 100%;
+    align-items: center;
     justify-content: space-between;
     gap: var(--space-6);
-    align-items: end;
 }
 
 .app-header h1 {
@@ -91,12 +91,19 @@
     text-wrap: balance;
 }
 
-.app-header__note {
-    max-width: 56ch;
+.app-header__note,
+.eyebrow {
+    flex: 1;
     margin: var(--space-1) 0 0;
     color: var(--ink-muted);
     font-size: var(--text-sm);
     line-height: var(--line-sm);
+    display: flex;
+    gap: var(--space-1);
+}
+
+.eyebrow {
+    flex: 0;
 }
 
 .app-header__note a {

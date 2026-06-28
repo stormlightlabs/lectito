@@ -11,12 +11,17 @@ function WorkbenchHeader() {
     <header class="app-header app-header--workbench">
       <div class="app-header__main">
         <p class="eyebrow">Workbench</p>
-        <p class="app-header__note">
-          <Trans>Paste HTML here.</Trans>
+        <div class="app-header__note">
           <Trans>
-            Use the <A href="/api-docs">API docs</A> for server-side URL extraction.
+            <p>Paste HTML or switch to URL mode to extract a live page.</p>
           </Trans>
-        </p>
+          <Trans>
+            <p>
+              {/* eslint-disable-next-line react/jsx-max-depth */}
+              See the <A href="/api-docs">API docs</A> for programmatic access.
+            </p>
+          </Trans>
+        </div>
       </div>
     </header>
   );

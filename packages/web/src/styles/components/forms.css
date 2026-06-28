@@ -1,7 +1,7 @@
 .input-stack {
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .input-mode {
@@ -18,6 +18,16 @@
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+}
+
+.pane-toolbar--mode {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 0;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-raised);
 }
 
 .url-panel {

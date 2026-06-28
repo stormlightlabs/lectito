@@ -93,3 +93,20 @@ export type Article = {
   domain?: string | null;
   favicon?: string | null;
 };
+
+export const APP_MODES = ["html", "url"] as const;
+
+export function isAppMode(value: unknown): value is AppMode {
+  return typeof value === "string" && (APP_MODES as readonly string[]).includes(value);
+}
+
+const outputTabs: Set<OutputTab> = new Set(["markdown", "preview", "cleaned", "compare"]);
+const inspectTabs: Set<InspectTab> = new Set(["metadata", "diagnostics", "sanitized"]);
+
+export function isOutputTab(value: unknown): value is OutputTab {
+  return outputTabs.has(value as OutputTab);
+}
+
+export function isInspectTab(value: unknown): value is InspectTab {
+  return inspectTabs.has(value as InspectTab);
+}

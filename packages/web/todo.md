@@ -29,9 +29,8 @@ The web app has two primary flows:
 
 - [x] Back run history with Dexie.js.
 - [x] Add the sample gallery.
-- [ ] Add `/workbench/settings` persistence.
-- [ ] Add a URL input mode to the workbench and wire it to
-      `extractUrlWithApi`.
+- [x] Add `/workbench/settings` persistence.
+- [x] Add a URL input mode to the workbench and wire it to `extractUrlWithApi`.
   - The landing page already says users can enter a URL, but the workbench only
     exposes pasted HTML.
   - Keep pasted HTML out of the URL. Store only lightweight mode state in search

@@ -69,9 +69,17 @@ msgstr "Could not save. Try again."
 msgid "Curated HTML fixtures exercising specific extraction capabilities."
 msgstr "Curated HTML fixtures exercising specific extraction capabilities."
 
+#: src/components/Input.tsx:183
+msgid "Enter a page URL and Lectito extracts the article server-side."
+msgstr "Enter a page URL and Lectito extracts the article server-side."
+
 #: src/pages/Landing.tsx:41
 msgid "Extracted"
 msgstr "Extracted"
+
+#: src/components/Input.tsx:136
+msgid "Fetching…"
+msgstr "Fetching…"
 
 #: src/pages/Landing.tsx:120
 msgid "Focus on what matters."
@@ -113,13 +121,21 @@ msgstr "Open the workbench"
 msgid "Original"
 msgstr "Original"
 
+#: src/components/Input.tsx:171
+msgid "Page URL"
+msgstr "Page URL"
+
 #: src/pages/Workbench.tsx:15
-msgid "Paste HTML here."
-msgstr "Paste HTML here."
+#~ msgid "Paste HTML here."
+#~ msgstr "Paste HTML here."
 
 #: src/pages/Landing.tsx:75
 msgid "Paste HTML or enter a URL. Lectito finds the article and removes the surrounding chrome."
 msgstr "Paste HTML or enter a URL. Lectito finds the article and removes the surrounding chrome."
+
+#: src/pages/Workbench.tsx:15
+msgid "Paste HTML or switch to URL mode to extract a live page."
+msgstr "Paste HTML or switch to URL mode to extract a live page."
 
 #: src/pages/Samples.tsx:36
 msgid "Pick one to load it in the workbench."
@@ -141,6 +157,10 @@ msgstr "Read the Docs"
 msgid "Read the result"
 msgstr "Read the result"
 
+#: src/components/Input.tsx:135
+msgid "Ready."
+msgstr "Ready."
+
 #: src/pages/Landing.tsx:26
 msgid "related links"
 msgstr "related links"
@@ -152,6 +172,10 @@ msgstr "Saved"
 #: src/pages/Samples.tsx:40
 msgid "Search samples"
 msgstr "Search samples"
+
+#: src/pages/Workbench.tsx:16
+msgid "See the <0>API docs</0> for programmatic access."
+msgstr "See the <0>API docs</0> for programmatic access."
 
 #: src/pages/Landing.tsx:17
 msgid "site navigation"
@@ -182,8 +206,8 @@ msgid "Use Markdown, clean HTML, metadata, or diagnostics from the same run."
 msgstr "Use Markdown, clean HTML, metadata, or diagnostics from the same run."
 
 #: src/pages/Workbench.tsx:16
-msgid "Use the <0>API docs</0> for server-side URL extraction."
-msgstr "Use the <0>API docs</0> for server-side URL extraction."
+#~ msgid "Use the <0>API docs</0> for server-side URL extraction."
+#~ msgstr "Use the <0>API docs</0> for server-side URL extraction."
 
 #: src/pages/Landing.tsx:134
 msgid "Workbench"
