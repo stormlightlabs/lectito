@@ -1,0 +1,14 @@
+{
+  "name": "lectito-workspace",
+  "private": true,
+  "packageManager": "pnpm@11.6.0",
+  "scripts": {
+    "build:pages": "pnpm --dir packages/web run build:pages",
+    "deploy:pages": "pnpm --dir packages/web run deploy:pages",
+    "deploy:worker": "pnpm --dir packages/worker run deploy",
+    "format": "dprint fmt",
+    "typecheck:worker": "pnpm --dir packages/worker run typecheck",
+    "types:worker": "pnpm --dir packages/worker run types"
+  },
+  "devDependencies": { "dprint": "^0.52.0" }
+}

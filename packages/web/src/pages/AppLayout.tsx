@@ -2,11 +2,10 @@ import { A, useLocation } from "@solidjs/router";
 import { For } from "solid-js";
 import type { ParentProps } from "solid-js";
 
-const NAV_ITEMS = [
-  { href: "/", label: "Home" },
-  { href: "/workbench", label: "App" },
-  { href: "/api-docs", label: "API" },
-] as const;
+const NAV_ITEMS = [{ href: "/", label: "Home" }, { href: "/workbench", label: "App" }, {
+  href: "/api-docs",
+  label: "API",
+}] as const;
 
 export function AppLayout(props: ParentProps) {
   const location = useLocation();

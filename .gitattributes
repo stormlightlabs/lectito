@@ -1,3 +1,4 @@
 *.html -linguist-detectable
 *.css -linguist-detectable
 *.js -linguist-detectable
+*.d.ts -linguist-detectable

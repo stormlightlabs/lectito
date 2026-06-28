@@ -1,0 +1,16 @@
+{
+  "typescript": { "preferSingleLine": true, "jsx.bracketPosition": "sameLine", "jsxElement.preferSingleLine": true },
+  "json": { "preferSingleLine": true, "lineWidth": 120, "indentWidth": 2 },
+  "includes": ["*.json", "*.jsonc", ".zed/settings.json", "packages/**/*.{js,jsx,json,jsonc,ts,tsx}"],
+  "excludes": [
+    "**/node_modules",
+    "**/dist",
+    "crates",
+    "target",
+    "docs/book",
+    "packages/worker/worker-configuration.d.ts",
+    "packages/web/public/lectito-wasm",
+    "packages/web/src/locales/*.js"
+  ],
+  "plugins": ["https://plugins.dprint.dev/typescript-0.95.8.wasm", "https://plugins.dprint.dev/json-0.20.0.wasm"]
+}

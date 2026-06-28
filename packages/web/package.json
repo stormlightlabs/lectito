@@ -13,7 +13,7 @@
     "preview": "vite preview",
     "messages:extract": "lingui extract",
     "messages:compile": "lingui compile",
-    "format": "dprint fmt ."
+    "format": "pnpm -w run format -- packages/web"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.3",
@@ -49,7 +49,6 @@
     "@typescript-eslint/parser": "^8.56.1",
     "@unocss/preset-icons": "^66.7.2",
     "@unocss/vite": "^66.7.2",
-    "dprint": "^0.52.0",
     "eslint": "^10.0.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-solid": "^0.14.5",
