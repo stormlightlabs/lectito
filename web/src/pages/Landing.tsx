@@ -101,7 +101,7 @@ function HeroActions() {
       <A class="button button--primary" href="/workbench">
         <Trans>Open the workbench</Trans>
       </A>
-      <a class="button button--secondary" href="/docs/">
+      <a class="button button--secondary" href="/docs/" rel="external">
         <Trans>Read the Docs</Trans>
       </a>
     </div>

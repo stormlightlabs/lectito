@@ -86,6 +86,131 @@ Version bump steps:
   cargo package --allow-dirty --list -p lectito-wasm
   ```
 
+## API
+
+This section covers the public, hosted web-service.
+
+Public routing:
+
+- `https://lectito.stormlightlabs.org/` serves the Cloudflare Pages web app.
+- `https://lectito.stormlightlabs.org/docs/*` serves the mdBook output from
+  Cloudflare Pages.
+- `https://lectito.stormlightlabs.org/api/*` is handled at Cloudflare and
+  proxied to the API origin.
+- The API origin, Render or Coolify, stays behind Cloudflare. Do not publish it
+  as the public API URL in docs or examples.
+
+Build the public site as one Cloudflare Pages artifact:
+
+```sh
+pnpm --dir web run build:pages
+```
+
+Configure Cloudflare Pages with `web` as the project root, that build command,
+and `dist` as the output directory.
+
+Before the public site goes live:
+
+- Keep the web client default API base URL as `/api`.
+- Update API examples to use
+  `https://lectito.stormlightlabs.org/api/v1/...`.
+- Fix stale endpoint names in the web API docs. The current API uses
+  `/v1/extract`, `/v1/evaluate`, and `/v1/transform`.
+- Confirm `/v1/transform` honors the documented Markdown options before
+  documenting those options as public behavior.
+
+Deploy the API origin:
+
+- Use `crates/api/Dockerfile` with the repository root as the Docker build
+  context.
+- Configure the health check path as `/healthz`.
+- If using Coolify, set the app domain to
+  `https://lectito-api.stormlightlabs.org`, set the exposed port to `3000`,
+  and keep the Cloudflare public API route at
+  `https://lectito.stormlightlabs.org/api/*`.
+- Upgrade the Render instance before treating the hosted API as production
+  infrastructure with latency or availability expectations.
+- Set production environment variables:
+
+  ```text
+  LECTITO_ALLOWED_ORIGINS=https://lectito.stormlightlabs.org
+  LECTITO_ALLOW_PRIVATE_NETWORK=false
+  LECTITO_MAX_BODY_BYTES=524288
+  LECTITO_MAX_FETCH_BYTES=2097152
+  LECTITO_REDIRECT_LIMIT=5
+  LECTITO_REQUEST_TIMEOUT_SECS=20
+  ```
+
+Configure the Cloudflare API proxy:
+
+- Match `/api/*` before the static app fallback.
+- Strip the `/api` prefix before forwarding to the origin:
+  `/api/v1/extract` becomes `/v1/extract`.
+- Forward only `GET`, `POST`, and `OPTIONS`.
+- Return CORS preflight responses at Cloudflare.
+- Drop hop-by-hop headers before forwarding.
+- Preserve status, response body, and content type from Render.
+- Add a short upstream timeout so stalled origin requests do not pin Worker
+  execution.
+- Add a private `API_ORIGIN` variable for the Coolify origin URL.
+
+Rate limit aggressively at Cloudflare:
+
+- Start with Cloudflare WAF rate limiting rules for `/api/*`.
+- Use IP-based counting for the unauthenticated public API. This is blunt and
+  can affect shared NATs, but it is acceptable for the first public release if
+  the product goal is to protect the origin rather than maximize anonymous
+  throughput.
+- Exempt or loosen limits for `GET /api/healthz` and `GET /api/openapi.json`.
+- Start with separate rules by endpoint class:
+  - `/api/v1/extract` and `/api/v1/evaluate`: low allowance, because they fetch
+    upstream URLs.
+  - `/api/v1/transform`: higher allowance, because it only transforms caller
+    supplied HTML.
+  - `/api/*`: a broader backstop rule for bursts across all endpoints.
+- Initial limits to test:
+  - `POST /api/v1/extract`: 5 requests per minute per IP, 60-second mitigation.
+  - `POST /api/v1/evaluate`: 10 requests per minute per IP, 60-second
+    mitigation.
+  - `POST /api/v1/transform`: 30 requests per minute per IP, 60-second
+    mitigation.
+  - All `POST /api/*`: 45 requests per minute per IP, 60-second mitigation.
+  - `GET /api/openapi.json`: 60 requests per minute per IP, log before block if
+    Cloudflare plan support allows it.
+- Return `429` with a small JSON response for blocked API calls:
+
+  ```json
+  { "error": { "code": "rate_limited", "message": "Too many requests." } }
+  ```
+
+- Log or count rate-limited requests so the first limits can be tuned from real
+  traffic.
+
+Use Cloudflare's Worker Rate Limiting binding when the proxy needs code-level
+limits, such as separate limits by `IP + route`, API key, user tier, or request
+class. The binding supports simple 10-second or 60-second windows and is fast
+enough to run inside the proxy Worker. It is eventually consistent and local to
+the Cloudflare location.
+
+Hosted API smoke checks:
+
+```sh
+hurl --test scripts/api/healthz.hurl
+hurl --test scripts/api/openapi.hurl
+hurl --test scripts/api/transform.hurl
+hurl --test scripts/api/evaluate.hurl
+hurl --test scripts/api/extract.hurl
+```
+
+After deploy, verify the public routes:
+
+- `GET https://lectito.stormlightlabs.org/docs/`
+- `GET https://lectito.stormlightlabs.org/api/healthz`
+- `GET https://lectito.stormlightlabs.org/api/openapi.json`
+- `POST https://lectito.stormlightlabs.org/api/v1/transform`
+- `POST https://lectito.stormlightlabs.org/api/v1/evaluate`
+- `POST https://lectito.stormlightlabs.org/api/v1/extract`
+
 ## Publishing
 
 Publish the library crate before crates that depend on it.

@@ -24,7 +24,7 @@ export function AppLayout(props: ParentProps) {
             <For each={NAV_ITEMS}>
               {(item) => <A href={item.href} classList={{ "is-active": isActive(item.href) }}>{item.label}</A>}
             </For>
-            <a href="/docs/">Docs</a>
+            <a href="/docs/" rel="external">Docs</a>
           </nav>
         </div>
       </header>
@@ -36,7 +36,7 @@ export function AppLayout(props: ParentProps) {
           <span>Lectito</span>
           <nav aria-label="Footer">
             <A href="/workbench">App</A>
-            <a href="/docs/">Docs</a>
+            <a href="/docs/" rel="external">Docs</a>
             <A href="/api-docs">API</A>
             <a href="https://github.com/stormlightlabs/lectito" target="_blank">Code</a>
           </nav>

@@ -21,7 +21,7 @@ function renderInline(text: string): Array<string | JSX.Element> {
       parts.push(<code>{token.slice(1, -1)}</code>);
     } else {
       const link = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-      parts.push(link ? <a href={link[2]}>{link[1]}</a> : token);
+      parts.push(link ? <a href={link[2]} rel="external">{link[1]}</a> : token);
     }
 
     cursor = match.index + token.length;
