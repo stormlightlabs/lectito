@@ -3,10 +3,15 @@
   "private": true,
   "packageManager": "pnpm@11.6.0",
   "scripts": {
+    "build:web": "pnpm --dir packages/web run build",
     "build:pages": "pnpm --dir packages/web run build:pages",
     "deploy:pages": "pnpm --dir packages/web run deploy:pages",
     "deploy:worker": "pnpm --dir packages/worker run deploy",
+    "dev:web": "pnpm --dir packages/web run dev",
+    "dev:worker": "pnpm --dir packages/worker run dev",
     "format": "dprint fmt",
+    "lint:web": "pnpm --dir packages/web run lint",
+    "preview:web": "pnpm --dir packages/web run preview",
     "typecheck:worker": "pnpm --dir packages/worker run typecheck",
     "types:worker": "pnpm --dir packages/worker run types"
   },

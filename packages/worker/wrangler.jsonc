@@ -1,11 +1,10 @@
 {
-  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "lectito-api-proxy",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-28",
   "routes": [{ "pattern": "lectito.stormlightlabs.org/api/*", "zone_name": "stormlightlabs.org" }],
   "vars": {
-    "ALLOWED_ORIGIN": "https://lectito.stormlightlabs.org",
     "API_ORIGIN": "https://lectito-api.stormlightlabs.org",
     "UPSTREAM_TIMEOUT_MS": "25000",
   },

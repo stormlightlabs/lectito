@@ -1,64 +1,5 @@
 # To-Dos
 
-## MCP Article Reader
-
-- [x] Add a `lectito-mcp` binary crate.
-- [x] Use stdio transport for the first MCP server.
-- [x] Expose a `search_articles` tool:
-  - [x] Adapt the DuckDuckGo HTML search client and parser from `gremlin`
-  - [x] Return title, URL, and snippet.
-  - [x] Cap results to a small limit, probably 10 but make configurable.
-- [x] Expose a `read_article` tool:
-  - [x] Fetch a public `http` or `https` URL.
-  - [x] Reject private-network targets by default.
-  - [x] Enforce redirect, timeout, and response-size limits.
-  - [x] Check for HTML-like content types.
-  - [x] Run `lectito::extract_with_diagnostics` directly.
-  - [x] Return title, byline, site name, published time, final URL, excerpt,
-        content length, truncation state, and content.
-  - [x] Support `format`, `offset`, and `maxChars` arguments.
-- [x] Return both text content and structured content from MCP tool calls.
-- [x] Report malformed requests as protocol errors.
-- [x] Report fetch, extraction, and unreadable-page failures as tool results with
-      `isError: true`.
-- [x] Keep logs on stderr so stdout contains only MCP messages.
-- [x] Do not add persistence, browser rendering, summaries, caching, or extra
-      tools until usage proves they are needed.
-
-## PDF CLI Feature
-
-- [x] Add an optional `pdf` feature to `crates/cli`.
-  - [x] Keep `default = []`.
-  - [x] Add optional `pdf-writer` and `pulldown-cmark` dependencies.
-- [x] Port only the Markdown-to-PDF path from `picopdf`.
-  - [x] Add a `pulldown-cmark` event adapter plus styler, layout, and renderer
-        code in a small `crates/cli/src/pdf` module.
-  - [x] Start with built-in PDF fonts and leave custom font flags out of the
-        first version.
-- [x] Expose PDF as an extract output format.
-  - [x] Add `OutputFormat::Pdf` behind `#[cfg(feature = "pdf")]`.
-  - [x] Update `--format` help text when the feature is enabled.
-  - [x] Reuse the extracted article Markdown as the PDF source.
-- [x] Write PDF output as bytes.
-  - [x] Keep string formats on the existing `echo::render_article` path.
-  - [x] Write PDF bytes to `--output` with `fs::write`.
-  - [x] Write PDF bytes to stdout with `io::stdout().write_all`.
-  - [x] Preserve the current `--inspect` and `--diagnostic-format` behavior.
-- [x] Add focused tests.
-  - [x] Check that `--format pdf` parses with `--features pdf`.
-  - [x] Check that the PDF renderer returns bytes starting with `%PDF`.
-  - [x] Cover common Markdown blocks in the PDF parser tests.
-  - [x] Keep non-PDF builds compiling without PDF dependencies.
-- [x] Update docs.
-  - [x] Document installation with `cargo install lectito-cli --features pdf`.
-  - [x] Add `pdf` to CLI output-format docs as an optional feature.
-  - [x] Mention that PDF manipulation tools are out of scope for now.
-- [x] Verify the CLI after the Rust changes.
-  - [x] Run `cargo test -p lectito-cli`.
-  - [x] Run `cargo test -p lectito-cli --features pdf`.
-  - [x] Run `cargo run -p lectito-cli --features pdf -- https://render.com/docs \
-    --format pdf -o .sandbox/render/pdf/render-docs.pdf`.
-
 ## Release Prep
 
 - Keep package metadata current for the public crates:
@@ -97,6 +38,35 @@
   LECTITO_REQUEST_TIMEOUT_SECS=20
   ```
 
+- [ ] Add Redis to the Coolify API deployment:
+  - Run Redis as a private service on the API Docker network.
+  - Do not expose the Redis port publicly.
+  - Set a small memory cap and rely on key expiry for rate-limit state.
+  - Move to Docker Compose in Coolify if that is the cleanest way to keep the
+    API and Redis in one deployment.
+- [ ] Add IP-based Redis token bucket rate limiting to the Docker API:
+  - Use one atomic Lua script for refill, decrement, TTL, and retry-after.
+  - Key buckets by caller IP and route class.
+  - Trust `CF-Connecting-IP` and the leftmost `X-Forwarded-For` only when
+    `LECTITO_TRUST_PROXY_HEADERS=true`.
+  - Fall back to the socket address for direct traffic.
+  - Return structured `429` JSON plus `Retry-After`.
+  - Skip `GET /healthz`.
+- [ ] Start with these API limits:
+  - `POST /v1/extract`: 5 requests per minute, burst 5.
+  - `POST /v1/evaluate`: 10 requests per minute, burst 10.
+  - `POST /v1/transform`: 30 requests per minute, burst 30.
+  - All API `POST` requests: 45 requests per minute, burst 45.
+  - `GET /openapi.json`: 60 requests per minute, burst 60.
+- [ ] Add rate-limit environment variables in Coolify after implementation:
+
+  ```text
+  LECTITO_RATE_LIMIT_ENABLED=true
+  LECTITO_REDIS_URL=redis://lectito-redis:6379
+  LECTITO_RATE_LIMIT_PREFIX=lectito:api:rate
+  LECTITO_TRUST_PROXY_HEADERS=true
+  ```
+
 - [ ] Add the Cloudflare `/api/*` proxy:
   - Match `lectito.stormlightlabs.org/api/*`.
   - Strip `/api` before forwarding.
@@ -107,13 +77,6 @@
 
   ```text
   lectito.stormlightlabs.org/api/*
-  ```
-
-- [ ] Deploy the combined web/docs Pages project:
-
-  ```sh
-  pnpm --dir packages/web run build:pages
-  pnpm --dir packages/web run deploy:pages
   ```
 
 - [ ] Smoke test public routes:
@@ -133,5 +96,12 @@
     -d '{"html":"<article><h1>Hello</h1><p>World</p></article>"}'
   ```
 
-- [ ] Add Cloudflare WAF rate limits for `/api/*`.
-- [ ] Wire URL extraction into the web app after the public API proxy is live.
+- [ ] Smoke test API rate limiting through the public proxy:
+
+  ```sh
+  for i in $(seq 1 7); do
+    curl -i https://lectito.stormlightlabs.org/api/v1/extract \
+      -H "Content-Type: application/json" \
+      -d '{"url":"https://example.com"}'
+  done
+  ```

@@ -5,6 +5,8 @@ type App = { Bindings: Env };
 const ALLOWED_METHODS = new Set(["GET", "POST", "OPTIONS"]);
 const ALLOWED_HEADERS = "content-type, authorization";
 const ALLOWED_METHODS_HEADER = "GET, POST, OPTIONS";
+const WEB_APP_ORIGIN = "https://lectito.stormlightlabs.org";
+const ALLOWED_ORIGINS = new Set([WEB_APP_ORIGIN, "http://localhost:5173", "http://127.0.0.1:5173"]);
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
   "keep-alive",
@@ -19,9 +21,11 @@ const HOP_BY_HOP_HEADERS = new Set([
 
 const app = new Hono<App>();
 
-function corsHeaders(env: Env, requestOrigin: string | null): Headers {
+function corsHeaders(requestOrigin: string | null): Headers {
+  const allowedOrigin = requestOrigin !== null && ALLOWED_ORIGINS.has(requestOrigin) ? requestOrigin : WEB_APP_ORIGIN;
+
   return new Headers({
-    "access-control-allow-origin": requestOrigin === env.ALLOWED_ORIGIN ? requestOrigin : env.ALLOWED_ORIGIN,
+    "access-control-allow-origin": allowedOrigin,
     "access-control-allow-methods": ALLOWED_METHODS_HEADER,
     "access-control-allow-headers": ALLOWED_HEADERS,
     "access-control-max-age": "86400",
@@ -29,16 +33,16 @@ function corsHeaders(env: Env, requestOrigin: string | null): Headers {
   });
 }
 
-function withCors(headers: Headers, env: Env, requestOrigin: string | null): Headers {
+function withCors(headers: Headers, requestOrigin: string | null): Headers {
   const next = new Headers(headers);
-  for (const [key, value] of corsHeaders(env, requestOrigin)) {
+  for (const [key, value] of corsHeaders(requestOrigin)) {
     next.set(key, value);
   }
   return next;
 }
 
-function jsonError(env: Env, requestOrigin: string | null, status: number, code: string, message: string): Response {
-  const headers = corsHeaders(env, requestOrigin);
+function jsonError(requestOrigin: string | null, status: number, code: string, message: string): Response {
+  const headers = corsHeaders(requestOrigin);
   headers.set("content-type", "application/json; charset=utf-8");
   return new Response(JSON.stringify({ error: { code, message } }), { status, headers });
 }
@@ -67,11 +71,11 @@ async function proxy(c: Context<App>): Promise<Response> {
   const requestOrigin = c.req.header("Origin") ?? null;
 
   if (!ALLOWED_METHODS.has(method)) {
-    return jsonError(c.env, requestOrigin, 405, "method_not_allowed", "Method not allowed.");
+    return jsonError(requestOrigin, 405, "method_not_allowed", "Method not allowed.");
   }
 
   if (method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders(c.env, requestOrigin) });
+    return new Response(null, { status: 204, headers: corsHeaders(requestOrigin) });
   }
 
   const controller = new AbortController();
@@ -91,17 +95,17 @@ async function proxy(c: Context<App>): Promise<Response> {
 
     const response = await fetch(upstreamRequest);
     return new Response(response.body, {
-      headers: withCors(response.headers, c.env, requestOrigin),
+      headers: withCors(response.headers, requestOrigin),
       status: response.status,
       statusText: response.statusText,
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      return jsonError(c.env, requestOrigin, 504, "upstream_timeout", "The API origin timed out.");
+      return jsonError(requestOrigin, 504, "upstream_timeout", "The API origin timed out.");
     }
 
     console.error(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown proxy error" }));
-    return jsonError(c.env, requestOrigin, 502, "upstream_error", "The API origin could not be reached.");
+    return jsonError(requestOrigin, 502, "upstream_error", "The API origin could not be reached.");
   } finally {
     clearTimeout(timeout);
   }
@@ -110,7 +114,7 @@ async function proxy(c: Context<App>): Promise<Response> {
 app.all("/api/*", proxy);
 app.all("*", (c) => {
   const requestOrigin = c.req.header("Origin") ?? null;
-  return jsonError(c.env, requestOrigin, 404, "not_found", "Not found.");
+  return jsonError(requestOrigin, 404, "not_found", "Not found.");
 });
 
 export default app;

@@ -97,8 +97,8 @@ Public routing:
   Cloudflare Pages.
 - `https://lectito.stormlightlabs.org/api/*` is handled at Cloudflare and
   proxied to the API origin.
-- The API origin, Render or Coolify, stays behind Cloudflare. Do not publish it
-  as the public API URL in docs or examples.
+- The Coolify API origin stays behind Cloudflare. Do not publish it as the
+  public API URL in docs or examples.
 
 Build the public site as one Cloudflare Pages artifact:
 
@@ -128,8 +128,6 @@ Deploy the API origin:
   `https://lectito-api.stormlightlabs.org`, set the exposed port to `3000`,
   and keep the Cloudflare public API route at
   `https://lectito.stormlightlabs.org/api/*`.
-- Upgrade the Render instance before treating the hosted API as production
-  infrastructure with latency or availability expectations.
 - Set production environment variables:
 
   ```text
@@ -149,48 +147,49 @@ Configure the Cloudflare API proxy:
 - Forward only `GET`, `POST`, and `OPTIONS`.
 - Return CORS preflight responses at Cloudflare.
 - Drop hop-by-hop headers before forwarding.
-- Preserve status, response body, and content type from Render.
+- Preserve status, response body, and content type from the origin.
 - Add a short upstream timeout so stalled origin requests do not pin Worker
   execution.
 - Add a private `API_ORIGIN` variable for the Coolify origin URL.
 
-Rate limit aggressively at Cloudflare:
+Configure API rate limiting in the Coolify stack:
 
-- Start with Cloudflare WAF rate limiting rules for `/api/*`.
-- Use IP-based counting for the unauthenticated public API. This is blunt and
-  can affect shared NATs, but it is acceptable for the first public release if
-  the product goal is to protect the origin rather than maximize anonymous
-  throughput.
-- Exempt or loosen limits for `GET /api/healthz` and `GET /api/openapi.json`.
-- Start with separate rules by endpoint class:
-  - `/api/v1/extract` and `/api/v1/evaluate`: low allowance, because they fetch
-    upstream URLs.
-  - `/api/v1/transform`: higher allowance, because it only transforms caller
-    supplied HTML.
-  - `/api/*`: a broader backstop rule for bursts across all endpoints.
-- Initial limits to test:
-  - `POST /api/v1/extract`: 5 requests per minute per IP, 60-second mitigation.
-  - `POST /api/v1/evaluate`: 10 requests per minute per IP, 60-second
-    mitigation.
-  - `POST /api/v1/transform`: 30 requests per minute per IP, 60-second
-    mitigation.
-  - All `POST /api/*`: 45 requests per minute per IP, 60-second mitigation.
-  - `GET /api/openapi.json`: 60 requests per minute per IP, log before block if
-    Cloudflare plan support allows it.
-- Return `429` with a small JSON response for blocked API calls:
+- Do not use Cloudflare WAF as the primary limiter on the free plan. The rule
+  budget is too small for separate limits by endpoint.
+- Run Redis as a private Coolify service on the same Docker network as the API.
+  Do not expose Redis publicly.
+- Use an IP-based token bucket keyed by route class:
+  - `POST /v1/extract`: 5 requests per minute, burst 5.
+  - `POST /v1/evaluate`: 10 requests per minute, burst 10.
+  - `POST /v1/transform`: 30 requests per minute, burst 30.
+  - All API `POST` requests: 45 requests per minute, burst 45.
+  - `GET /openapi.json`: 60 requests per minute, burst 60.
+- Do not rate-limit `GET /healthz` at launch.
+- Identify the caller IP from trusted proxy headers only. Prefer
+  `CF-Connecting-IP`, then the leftmost `X-Forwarded-For` value when the app is
+  behind Cloudflare/Coolify. Fall back to the socket address for direct traffic.
+- Implement the bucket update as one Redis Lua script so refill, decrement,
+  TTL, and retry-after calculation are atomic.
+- Return `429` as structured JSON and include `Retry-After`:
 
   ```json
   { "error": { "code": "rate_limited", "message": "Too many requests." } }
   ```
 
-- Log or count rate-limited requests so the first limits can be tuned from real
-  traffic.
+- Add these production environment variables when the limiter lands:
 
-Use Cloudflare's Worker Rate Limiting binding when the proxy needs code-level
-limits, such as separate limits by `IP + route`, API key, user tier, or request
-class. The binding supports simple 10-second or 60-second windows and is fast
-enough to run inside the proxy Worker. It is eventually consistent and local to
-the Cloudflare location.
+  ```text
+  LECTITO_RATE_LIMIT_ENABLED=true
+  LECTITO_REDIS_URL=redis://lectito-redis:6379
+  LECTITO_RATE_LIMIT_PREFIX=lectito:api:rate
+  LECTITO_TRUST_PROXY_HEADERS=true
+  ```
+
+For Coolify, prefer a Docker Compose deployment once Redis is required. Keep the
+API Dockerfile build context at the repository root, add a Redis service with a
+named volume, and connect both services to an internal network. Configure Redis
+with a small memory cap and key expiry. Persistence is optional for rate-limit
+state; losing tokens on Redis restart is acceptable.
 
 Hosted API smoke checks:
 
