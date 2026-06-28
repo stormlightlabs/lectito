@@ -49,9 +49,10 @@ examples, and local development notes.
 
 ## Browser workbench
 
-The workbench does not fetch arbitrary URLs from the browser. It accepts HTML
-that you paste, import, or capture elsewhere. For URL extraction, use the hosted
-API from a server.
+The workbench accepts pasted HTML or a live URL.
+
+HTML runs in the browser through WASM; URL extraction uses the web service
+described below.
 
 ## WASM functions
 
@@ -148,10 +149,15 @@ type ReadabilityOptions = {
 };
 ```
 
-## Render API
+## HTTP API
 
-URL extraction belongs on the server. The server can fetch the page, follow
-redirects, handle headers, and return article data to the browser.
+The hosted API runs at `https://lectito.stormlightlabs.org/api/v1/...`. It
+fetches pages server-side and returns article data or Markdown.
+
+### `POST /v1/extract`
+
+Fetch a URL and extract its article. Returns HTML, Markdown, text, metadata,
+and optional diagnostics.
 
 ```bash
 curl -X POST https://lectito.stormlightlabs.org/api/v1/extract \
@@ -159,16 +165,70 @@ curl -X POST https://lectito.stormlightlabs.org/api/v1/extract \
   -d '{
     "url": "https://example.com/post",
     "options": {
-      "diagnostics": true
+      "charThreshold": 500,
+      "contentSelector": "main article",
+      "keepClasses": false
+    },
+    "diagnostics": true
+  }'
+```
+
+Setting options isn't required.
+
+The web app sends `charThreshold`, `contentSelector`, and `keepClasses`.
+
+The full set includes
+
+- `maxElemsToParse`
+- `nbTopCandidates`
+- `siteProfiles`
+- `mobileViewportWidth`
+- `classesToPreserve`
+- `disableJsonLd`
+- `linkDensityModifier`
+- `mediaRetention`
+
+### `POST /v1/evaluate`
+
+Check whether a URL is probably readable without a full extraction pass.
+
+```bash
+curl -X POST https://lectito.stormlightlabs.org/api/v1/evaluate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/post",
+    "options": {
+      "minContentLength": 140,
+      "minScore": 20
     }
   }'
 ```
 
+Returns `{ "readable": true }` or `{ "readable": false }`.
+
+### `POST /v1/transform`
+
+Convert raw HTML to Markdown without fetching or a readability pass.
+
+```bash
+curl -X POST https://lectito.stormlightlabs.org/api/v1/transform \
+  -H "Content-Type: application/json" \
+  -d '{
+    "html": "<h1>Title</h1><p>Body.</p>"
+  }'
+```
+
+Returns `{ "markdown": "..." }` as JSON, or `text/markdown` when the request
+sends `Accept: text/markdown`.
+
+> **Note:** The request accepts an `options` field for forward compatibility,
+> but the current transform endpoint ignores it.
+>
+> All Markdown conversion uses default settings.
+
 ## Errors
 
-Treat an empty article as a recoverable extraction miss. Keep the original input
-visible and let users retry with diagnostics, another selector, or a server-side
-fetch.
+All errors return a structured body and an `x-error-code` response header.
 
 ```json
 {
@@ -178,6 +238,16 @@ fetch.
   }
 }
 ```
+
+### Status Codes
+
+Rate-limited requests return `429` with a `Retry-After` header (seconds).
+
+Timeouts return `408`.
+
+Network failures or upstream errors return `502` or `504`.
+
+When diagnostics are enabled, the raw error is available in the diagnostics panel.
 
 ## Credits
 

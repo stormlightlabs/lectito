@@ -164,6 +164,58 @@
     gap: var(--space-3);
 }
 
+.failure__message {
+    display: grid;
+    gap: var(--space-2);
+}
+
+.failure__kind {
+    justify-self: start;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-2);
+    color: var(--ink);
+    background: var(--paper-muted);
+    font-size: var(--text-xs);
+    font-weight: 720;
+    line-height: var(--line-xs);
+    text-transform: uppercase;
+}
+
+.failure__kind.is-rate-limited {
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+.failure__kind.is-unavailable {
+    color: var(--warning, var(--danger));
+    background: var(--paper-muted);
+}
+
+.failure__raw {
+    border-top: 1px solid var(--rule);
+    margin: 0;
+}
+
+.failure__raw summary {
+    padding: var(--space-2) 0;
+    color: var(--ink-muted);
+    font-size: var(--text-xs);
+    font-weight: 720;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.failure__raw pre {
+    margin: 0;
+    padding: var(--space-2);
+    border-radius: var(--radius-2);
+    background: var(--paper-muted);
+    color: var(--ink-soft);
+    font-size: var(--text-xs);
+    line-height: var(--line-xs);
+    overflow: auto;
+}
+
 .failure p,
 .empty {
     margin: 0;

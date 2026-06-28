@@ -7,7 +7,7 @@
     "dev": "vite",
     "lint": "eslint .",
     "build": "tsc -b && vite build",
-    "build:pages": "pnpm run build:wasm && pnpm run build && mdbook build ../../docs && cp -R ../../docs/book dist/docs",
+    "build:pages": "pnpm run build:wasm && pnpm run build && mdbook build ../../docs && cp -R ../../docs/book dist/docs && cp ../../docs/src/assets/images/og.png dist/docs/og.png",
     "build:wasm": "wasm-pack build ../../crates/wasm --target web --out-dir ../../packages/web/public/lectito-wasm",
     "deploy:pages": "pnpm run build:pages && wrangler pages deploy dist --project-name lectito-docs",
     "preview": "vite preview",

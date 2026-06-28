@@ -1,5 +1,6 @@
 import { renderMath } from "$lib/math";
 import { useWorkbench } from "$lib/workbench/context";
+import { Trans } from "@lingui/solid/macro";
 import { createMemo, createSignal, For, lazy, onMount, Show, Suspense } from "solid-js";
 import type { InspectTab, OutputTab, PipelineFailure, PipelineMetadata, PipelineResult } from "../lib/types";
 import type { CodeEditorProps } from "./CodeEditor";
@@ -153,10 +154,52 @@ function ResultView(props: { result: PipelineResult; sourceHtml: string; statusT
   );
 }
 
+function FailureHint(props: { kind?: string }) {
+  const label = () => {
+    switch (props.kind) {
+      case "rate-limited": {
+        return <Trans>Rate limited</Trans>;
+      }
+      case "unavailable": {
+        return <Trans>API unavailable</Trans>;
+      }
+      case "extract-failed": {
+        return <Trans>No article found</Trans>;
+      }
+      default: {
+        return;
+      }
+    }
+  };
+
+  return (
+    <Show when={label()}>
+      {(node) => <span classList={{ "failure__kind": true, [`is-${props.kind}`]: Boolean(props.kind) }}>{node()}</span>}
+    </Show>
+  );
+}
+
+function RawErrorDisclosure(props: { diagnostics: string }) {
+  return (
+    <details class="failure__raw">
+      <summary>
+        <Trans>API error</Trans>
+      </summary>
+      <pre>{props.diagnostics}</pre>
+    </details>
+  );
+}
+
 function FailureView(props: { result: PipelineFailure; statusText: string }) {
   return (
     <div class="failure">
-      <p>{props.result.message}</p>
+      <div class="failure__message">
+        <FailureHint kind={props.result.errorKind} />
+        <p>{props.result.message}</p>
+        <Show when={props.result.diagnostics}>
+          <RawErrorDisclosure diagnostics={props.result.diagnostics!} />
+        </Show>
+      </div>
       <Show when={props.result.sanitizedHtml}>
         <LazyCodeEditor value={props.result.sanitizedHtml} readonly language="html" statusText={props.statusText} />
       </Show>
@@ -180,10 +223,10 @@ function MetadataView(props: { metadata: PipelineMetadata }) {
   return (
     <dl class="metadata-list">
       <For each={fields()}>
-        {(item) => (
+        {([key, value]) => (
           <div>
-            <dt>{item[0]}</dt>
-            <dd>{item[1]}</dd>
+            <dt>{key}</dt>
+            <dd>{value}</dd>
           </div>
         )}
       </For>
@@ -214,11 +257,13 @@ function DiagnosticsView(props: { diagnostics: string; statusText: string }) {
       return;
     }
   });
+
   const fallbackReason = () => String(parsed()?.fallback ?? parsed()?.reason ?? "Not reported");
   const warnings = () => {
     const value = parsed()?.warnings;
     return Array.isArray(value) ? value.map(String) : [];
   };
+
   const timing = () => parsed()?.timing ?? parsed()?.elapsedMs;
   const candidates = () => parsed()?.candidates ?? parsed()?.candidate;
 
@@ -275,9 +320,14 @@ function SanitizedComparison(props: { result: PipelineResult; statusText: string
   );
 }
 
-function InspectPanel(
-  props: { result: PipelineResult; tab: InspectTab; statusText: string; onTab: (tab: InspectTab) => void },
-) {
+type InspectPanelProps = {
+  result: PipelineResult;
+  tab: InspectTab;
+  statusText: string;
+  onTab: (tab: InspectTab) => void;
+};
+
+function InspectPanel(props: InspectPanelProps) {
   const onKeyDown = (event: KeyboardEvent, tab: InspectTab) => {
     const index = inspectTabs.findIndex((item) => item.id === tab);
     let nextIndex = index;
@@ -332,7 +382,6 @@ function InspectPanel(
 function OutputOverflowMenu() {
   const workbench = useWorkbench();
   const hasResult = () => Boolean(workbench.resultValue());
-
   return (
     <details class="overflow-menu">
       <summary class="button button--secondary button--icon" aria-label="More output actions" title="More actions">

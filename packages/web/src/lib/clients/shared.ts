@@ -1,5 +1,5 @@
 import DOMPurify from "dompurify";
-import type { AppMode, Article, PipelineFailure, PipelineMetadata, PipelineResult } from "../types";
+import type { ApiErrorKind, AppMode, Article, PipelineFailure, PipelineMetadata, PipelineResult } from "../types";
 
 const sanitizeOptions = { ADD_ATTR: ["target"] };
 
@@ -16,8 +16,11 @@ export function elapsedSince(start: number, fallbackMs?: number): number {
     : Math.max(0, Math.round(performance.now() - start));
 }
 
-export function failure(message: string, source: AppMode, start: number): PipelineFailure {
-  return { sanitizedHtml: "", message, source, elapsedMs: elapsedSince(start) };
+type FailureParams = { source: AppMode; start: number; kind?: ApiErrorKind; diagnostics?: string };
+
+export function failure(message: string, params: FailureParams): PipelineFailure {
+  const { source, kind, start, diagnostics } = params;
+  return { sanitizedHtml: "", source, message, elapsedMs: elapsedSince(start), errorKind: kind, diagnostics };
 }
 
 export function firstLine(value: string): string {
@@ -40,10 +43,8 @@ export function diagnosticsText(diagnostics: unknown): string {
   return diagnostics ? JSON.stringify(diagnostics, null, 2) : "Diagnostics disabled.";
 }
 
-export function metadataFromArticle(
-  article: Article,
-  sourceMetadata: Partial<PipelineMetadata> = {},
-): PipelineMetadata {
+export function metadataFromArticle(article: Article, sourceMetadata?: Partial<PipelineMetadata>): PipelineMetadata {
+  if (!sourceMetadata) sourceMetadata = {};
   const siteName = article.site_name ?? article.siteName;
   const publishedTime = article.published_time ?? article.publishedTime;
   const articleText = article.text_content ?? article.textContent ?? "";

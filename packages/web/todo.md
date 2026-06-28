@@ -36,16 +36,16 @@ The web app has two primary flows:
   - Keep pasted HTML out of the URL. Store only lightweight mode state in search
     params.
   - Save URL runs with a URL-based source label instead of `Pasted HTML`.
-- [ ] Add API error states that users can act on:
+- [x] Add API error states that users can act on:
   - `429` should show that the request was rate-limited and, when present, use
     `Retry-After`.
   - Timeout and network failures should distinguish API unavailability from
     extraction failures.
   - Keep the raw structured error available in diagnostics when diagnostics are
     enabled.
-- [ ] Confirm the web app uses `/api` in production and does not expose
+- [x] Confirm the web app uses `/api` in production and does not expose
       `https://lectito-api.stormlightlabs.org` in public UI, examples, or docs.
-- [ ] Update the in-app API page after the public proxy is live:
+- [x] Update the in-app API page after the public proxy is live:
   - Use `https://lectito.stormlightlabs.org/api/v1/...` examples.
   - Keep endpoint names aligned with `/v1/extract`, `/v1/evaluate`, and
     `/v1/transform`.

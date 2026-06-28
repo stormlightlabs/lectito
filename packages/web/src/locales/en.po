@@ -13,6 +13,14 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: src/pages/Workbench.tsx:15
+msgid "<0>Paste HTML or switch to URL mode to extract a live page.</0>"
+msgstr "<0>Paste HTML or switch to URL mode to extract a live page.</0>"
+
+#: src/pages/Workbench.tsx:18
+msgid "<0>See the <1>API docs</1> for programmatic access.</0>"
+msgstr "<0>See the <1>API docs</1> for programmatic access.</0>"
+
 #: src/pages/Landing.tsx:30
 msgid "ad slot"
 msgstr "ad slot"
@@ -24,6 +32,10 @@ msgstr "Add a page"
 #: src/pages/Landing.tsx:38
 #~ msgid "After / article"
 #~ msgstr "After / article"
+
+#: src/components/Output.tsx:164
+msgid "API unavailable"
+msgstr "API unavailable"
 
 #: src/pages/Landing.tsx:21
 msgid "article body"
@@ -69,7 +81,7 @@ msgstr "Could not save. Try again."
 msgid "Curated HTML fixtures exercising specific extraction capabilities."
 msgstr "Curated HTML fixtures exercising specific extraction capabilities."
 
-#: src/components/Input.tsx:183
+#: src/components/Input.tsx:184
 msgid "Enter a page URL and Lectito extracts the article server-side."
 msgstr "Enter a page URL and Lectito extracts the article server-side."
 
@@ -77,7 +89,7 @@ msgstr "Enter a page URL and Lectito extracts the article server-side."
 msgid "Extracted"
 msgstr "Extracted"
 
-#: src/components/Input.tsx:136
+#: src/components/Input.tsx:135
 msgid "Fetching…"
 msgstr "Fetching…"
 
@@ -101,6 +113,10 @@ msgstr "Lectito is a tool that removes cruft to make the web more readable."
 msgid "Loading saved run."
 msgstr "Loading saved run."
 
+#: src/components/Output.tsx:167
+msgid "No article found"
+msgstr "No article found"
+
 #: src/pages/Samples.tsx:52
 msgid "No samples match."
 msgstr "No samples match."
@@ -121,7 +137,7 @@ msgstr "Open the workbench"
 msgid "Original"
 msgstr "Original"
 
-#: src/components/Input.tsx:171
+#: src/components/Input.tsx:172
 msgid "Page URL"
 msgstr "Page URL"
 
@@ -134,8 +150,8 @@ msgid "Paste HTML or enter a URL. Lectito finds the article and removes the surr
 msgstr "Paste HTML or enter a URL. Lectito finds the article and removes the surrounding chrome."
 
 #: src/pages/Workbench.tsx:15
-msgid "Paste HTML or switch to URL mode to extract a live page."
-msgstr "Paste HTML or switch to URL mode to extract a live page."
+#~ msgid "Paste HTML or switch to URL mode to extract a live page."
+#~ msgstr "Paste HTML or switch to URL mode to extract a live page."
 
 #: src/pages/Samples.tsx:36
 msgid "Pick one to load it in the workbench."
@@ -144,6 +160,14 @@ msgstr "Pick one to load it in the workbench."
 #: src/pages/Landing.tsx:83
 msgid "Preview the cleaned article before you copy anything out of the workbench."
 msgstr "Preview the cleaned article before you copy anything out of the workbench."
+
+#: src/components/Output.tsx:161
+msgid "Rate limited"
+msgstr "Rate limited"
+
+#: src/components/Output.tsx:188
+msgid "Raw API error"
+msgstr "Raw API error"
 
 #: src/pages/Landing.tsx:101
 #~ msgid "Read the API notes"
@@ -157,7 +181,7 @@ msgstr "Read the Docs"
 msgid "Read the result"
 msgstr "Read the result"
 
-#: src/components/Input.tsx:135
+#: src/components/Input.tsx:134
 msgid "Ready."
 msgstr "Ready."
 
@@ -174,8 +198,8 @@ msgid "Search samples"
 msgstr "Search samples"
 
 #: src/pages/Workbench.tsx:16
-msgid "See the <0>API docs</0> for programmatic access."
-msgstr "See the <0>API docs</0> for programmatic access."
+#~ msgid "See the <0>API docs</0> for programmatic access."
+#~ msgstr "See the <0>API docs</0> for programmatic access."
 
 #: src/pages/Landing.tsx:17
 msgid "site navigation"

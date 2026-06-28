@@ -42,7 +42,16 @@ export type PipelineResult = {
   diagnostics: string;
 };
 
-export type PipelineFailure = { sanitizedHtml: string; message: string; source: AppMode; elapsedMs: number };
+export type ApiErrorKind = "rate-limited" | "unavailable" | "extract-failed" | "client-error";
+
+export type PipelineFailure = {
+  sanitizedHtml: string;
+  message: string;
+  source: AppMode;
+  elapsedMs: number;
+  errorKind?: ApiErrorKind;
+  diagnostics?: string;
+};
 
 export type SavedRun = {
   id: string;
