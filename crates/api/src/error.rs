@@ -44,6 +44,14 @@ impl ApiError {
         Self::new(StatusCode::REQUEST_TIMEOUT, ErrorCode::Timeout, "request timed out")
     }
 
+    pub fn rate_limited() -> Self {
+        Self::new(
+            StatusCode::TOO_MANY_REQUESTS,
+            ErrorCode::RateLimited,
+            "too many requests",
+        )
+    }
+
     /// Unexpected server error from an unhandled path (5xx catch-all).
     pub fn internal() -> Self {
         Self::new(
@@ -83,6 +91,7 @@ pub enum ErrorCode {
     InvalidRequest,
     DocumentTooLarge,
     Timeout,
+    RateLimited,
     FetchFailed,
     UnsupportedContentType,
     ExtractFailed,
@@ -95,6 +104,7 @@ impl ErrorCode {
             Self::InvalidRequest => "invalid_request",
             Self::DocumentTooLarge => "document_too_large",
             Self::Timeout => "timeout",
+            Self::RateLimited => "rate_limited",
             Self::FetchFailed => "fetch_failed",
             Self::UnsupportedContentType => "unsupported_content_type",
             Self::ExtractFailed => "extract_failed",

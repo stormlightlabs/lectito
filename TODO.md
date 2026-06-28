@@ -38,13 +38,13 @@
   LECTITO_REQUEST_TIMEOUT_SECS=20
   ```
 
-- [ ] Add Redis to the Coolify API deployment:
+- [x] Add Redis to the Coolify API deployment:
   - Run Redis as a private service on the API Docker network.
   - Do not expose the Redis port publicly.
   - Set a small memory cap and rely on key expiry for rate-limit state.
   - Move to Docker Compose in Coolify if that is the cleanest way to keep the
     API and Redis in one deployment.
-- [ ] Add IP-based Redis token bucket rate limiting to the Docker API:
+- [x] Add IP-based Redis token bucket rate limiting to the Docker API:
   - Use one atomic Lua script for refill, decrement, TTL, and retry-after.
   - Key buckets by caller IP and route class.
   - Trust `CF-Connecting-IP` and the leftmost `X-Forwarded-For` only when
@@ -52,13 +52,13 @@
   - Fall back to the socket address for direct traffic.
   - Return structured `429` JSON plus `Retry-After`.
   - Skip `GET /healthz`.
-- [ ] Start with these API limits:
+- [x] Start with these API limits:
   - `POST /v1/extract`: 5 requests per minute, burst 5.
   - `POST /v1/evaluate`: 10 requests per minute, burst 10.
   - `POST /v1/transform`: 30 requests per minute, burst 30.
   - All API `POST` requests: 45 requests per minute, burst 45.
   - `GET /openapi.json`: 60 requests per minute, burst 60.
-- [ ] Add rate-limit environment variables in Coolify after implementation:
+- [x] Add rate-limit environment variables in Coolify after implementation:
 
   ```text
   LECTITO_RATE_LIMIT_ENABLED=true

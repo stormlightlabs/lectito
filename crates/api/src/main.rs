@@ -13,10 +13,13 @@ async fn main() {
     let listener = TcpListener::bind(addr).await.expect("failed to bind API listener");
 
     tracing::info!(%addr, "starting lectito-api");
-    axum::serve(listener, app(config))
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .expect("API server failed");
+    axum::serve(
+        listener,
+        app(config).await.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await
+    .expect("API server failed");
 }
 
 fn init_tracing() {

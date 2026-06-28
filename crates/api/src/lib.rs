@@ -23,12 +23,14 @@ mod tests;
 
 mod error;
 mod models;
+mod rate_limit;
 
 use error::{ApiError, ErrorCode, Json};
 use models::{
     ArticleDto, ErrorResponse, EvaluateRequest, EvaluateResponse, ExtractRequest, ExtractResponse, HealthResponse,
     MarkdownOptionsDto, ReadabilityOptionsDto, ReadableOptionsDto, TransformRequest, TransformResponse,
 };
+use rate_limit::{RateLimitConfig, RateLimitDecision, RateLimiter};
 
 #[derive(Clone, Copy)]
 enum Limit {
@@ -98,18 +100,28 @@ impl From<Limit> for u64 {
 struct AppState {
     client: reqwest::Client,
     config: Config,
+    rate_limiter: Option<RateLimiter>,
 }
 
 impl AppState {
-    fn new(config: Config) -> Self {
+    async fn new(config: Config) -> Self {
         let client = reqwest::Client::builder()
             .redirect(Policy::none())
             .timeout(Duration::from_secs(config.request_timeout_secs))
             .user_agent("lectito-api/0.1")
             .build()
             .expect("failed to build HTTP client");
+        let rate_limiter = if config.rate_limit.enabled {
+            Some(
+                RateLimiter::new(&config.rate_limit)
+                    .await
+                    .expect("failed to connect to Redis"),
+            )
+        } else {
+            None
+        };
 
-        Self { client, config }
+        Self { client, config, rate_limiter }
     }
 
     async fn fetch_url(&self, url: &str) -> Result<FetchedDocument, ApiError> {
@@ -210,6 +222,7 @@ pub struct Config {
     request_timeout_secs: u64,
     allowed_origins: Vec<String>,
     allow_private_network: bool,
+    rate_limit: RateLimitConfig,
 }
 
 impl Config {
@@ -225,12 +238,18 @@ impl Config {
                 .map(|value| split_csv(&value))
                 .unwrap_or_default(),
             allow_private_network: Limit::env_bool("LECTITO_ALLOW_PRIVATE_NETWORK", false),
+            rate_limit: RateLimitConfig {
+                enabled: Limit::env_bool("LECTITO_RATE_LIMIT_ENABLED", false),
+                redis_url: env::var("LECTITO_REDIS_URL").unwrap_or_else(|_| "redis://lectito-redis:6379".to_owned()),
+                prefix: env::var("LECTITO_RATE_LIMIT_PREFIX").unwrap_or_else(|_| "lectito:api:rate".to_owned()),
+                trust_proxy_headers: Limit::env_bool("LECTITO_TRUST_PROXY_HEADERS", false),
+            },
         }
     }
 }
 
-pub fn app(config: Config) -> Router {
-    let state = AppState::new(config.clone());
+pub async fn app(config: Config) -> Router {
+    let state = AppState::new(config.clone()).await;
     let timeout = Duration::from_secs(config.request_timeout_secs);
 
     Router::new()
@@ -239,7 +258,7 @@ pub fn app(config: Config) -> Router {
         .route("/v1/extract", post(extract))
         .route("/v1/evaluate", post(evaluate))
         .route("/v1/transform", post(transform))
-        .with_state(state)
+        .route_layer(middleware::from_fn_with_state(state.clone(), rate_limit))
         .layer(TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, timeout))
         .layer(RequestBodyLimitLayer::new(config.max_body_bytes))
         .layer(middleware::from_fn(normalize_errors))
@@ -270,6 +289,7 @@ pub fn app(config: Config) -> Router {
                     }
                 }),
         )
+        .with_state(state)
 }
 
 #[utoipa::path(
@@ -290,7 +310,8 @@ async fn healthz() -> axum::Json<HealthResponse> {
         (status = 400, description = "Structured API error", body = ErrorResponse),
         (status = 422, description = "Request body failed to deserialize", body = ErrorResponse),
         (status = 413, description = "Request body too large", body = ErrorResponse),
-        (status = 408, description = "Request timed out", body = ErrorResponse)
+        (status = 408, description = "Request timed out", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse)
     )
 )]
 async fn extract(
@@ -334,7 +355,8 @@ async fn extract(
         (status = 400, description = "Structured API error", body = ErrorResponse),
         (status = 422, description = "Request body failed to deserialize", body = ErrorResponse),
         (status = 413, description = "Request body too large", body = ErrorResponse),
-        (status = 408, description = "Request timed out", body = ErrorResponse)
+        (status = 408, description = "Request timed out", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse)
     )
 )]
 async fn evaluate(
@@ -365,7 +387,8 @@ async fn evaluate(
         (status = 200, description = "Markdown result", body = TransformResponse),
         (status = 422, description = "Request body failed to deserialize", body = ErrorResponse),
         (status = 413, description = "Request body too large", body = ErrorResponse),
-        (status = 408, description = "Request timed out", body = ErrorResponse)
+        (status = 408, description = "Request timed out", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse)
     )
 )]
 async fn transform(headers: HeaderMap, Json(request): Json<TransformRequest>) -> Result<Response, ApiError> {
@@ -384,6 +407,31 @@ async fn transform(headers: HeaderMap, Json(request): Json<TransformRequest>) ->
         Ok(([(header::CONTENT_TYPE, "text/markdown; charset=utf-8")], markdown).into_response())
     } else {
         Ok(axum::Json(TransformResponse { markdown }).into_response())
+    }
+}
+
+async fn rate_limit(State(state): State<AppState>, req: Request, next: Next) -> Response {
+    let Some(limiter) = &state.rate_limiter else {
+        return next.run(req).await;
+    };
+
+    let caller = limiter.caller(&req);
+    let method = req.method().clone();
+    let path = req.uri().path().to_owned();
+
+    match limiter.check(method, path, caller).await {
+        Ok(RateLimitDecision::Allowed) => next.run(req).await,
+        Ok(RateLimitDecision::Limited { retry_after_secs }) => {
+            let mut response = ApiError::rate_limited().into_response();
+            if let Ok(value) = HeaderValue::from_str(&retry_after_secs.to_string()) {
+                response.headers_mut().insert(header::RETRY_AFTER, value);
+            }
+            response
+        }
+        Err(err) => {
+            tracing::warn!(error = %err, "rate limit check failed");
+            next.run(req).await
+        }
     }
 }
 

@@ -1,0 +1,52 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - lectito-redis
+    environment:
+      PORT: "3000"
+      LECTITO_ALLOWED_ORIGINS: "https://lectito.stormlightlabs.org"
+      LECTITO_ALLOW_PRIVATE_NETWORK: "false"
+      LECTITO_MAX_BODY_BYTES: "524288"
+      LECTITO_MAX_FETCH_BYTES: "2097152"
+      LECTITO_REDIRECT_LIMIT: "5"
+      LECTITO_REQUEST_TIMEOUT_SECS: "20"
+      LECTITO_RATE_LIMIT_ENABLED: "true"
+      LECTITO_REDIS_URL: "redis://lectito-redis:6379"
+      LECTITO_RATE_LIMIT_PREFIX: "lectito:api:rate"
+      LECTITO_TRUST_PROXY_HEADERS: "true"
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS \"http://127.0.0.1:$${PORT:-3000}/healthz\" >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - internal
+
+  lectito-redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - 64mb
+      - --maxmemory-policy
+      - allkeys-lru
+    volumes:
+      - lectito-redis-data:/data
+    networks:
+      - internal
+
+networks:
+  internal:
+
+volumes:
+  lectito-redis-data:

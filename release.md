@@ -121,7 +121,7 @@ Before the public site goes live:
 
 Deploy the API origin:
 
-- Use `crates/api/Dockerfile` with the repository root as the Docker build
+- Use the root `Dockerfile` with the repository root as the Docker build
   context.
 - Configure the health check path as `/healthz`.
 - If using Coolify, set the app domain to
@@ -189,7 +189,8 @@ For Coolify, prefer a Docker Compose deployment once Redis is required. Keep the
 API Dockerfile build context at the repository root, add a Redis service with a
 named volume, and connect both services to an internal network. Configure Redis
 with a small memory cap and key expiry. Persistence is optional for rate-limit
-state; losing tokens on Redis restart is acceptable.
+state; losing tokens on Redis restart is acceptable. Use the root
+`docker-compose.yml` as the starting Coolify compose file.
 
 Hosted API smoke checks:
 

@@ -67,7 +67,7 @@ api-fmt-check:
     cargo fmt --check -p lectito-api
 
 api-docker-build:
-    docker build -f crates/api/Dockerfile -t lectito-api .
+    docker build -t lectito-api .
 
 hurl *args:
     bash scripts/api.sh {{ args }}
